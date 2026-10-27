@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Grainy Siege — Bataille Royale de Châteaux de Sable</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/logo.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <!-- Arrière-plan animé du site avec Parallax léger (Ciel, Mer, Nuages & Oiseaux) -->
+  <div id="site-bg" class="site-bg" aria-hidden="true">
+    <canvas id="site-bg-canvas" class="site-bg-canvas"></canvas>
+  </div>
+
+  <!-- Canvas de la simulation physique de sable (actif uniquement en partie lancée) -->
+  <canvas id="scene" class="hidden"></canvas>
+
+  <!-- Bandeau supérieur (HUD) -->
+  <header id="hud" class="hidden">
+    <div class="hud-left">
+      <button id="room-pill" class="pill pill-btn" title="Cliquer pour copier le lien d'invitation">🏖️ PLAGE ----</button>
+      <span id="phase-pill" class="pill phase-pill">SALON</span>
+      <span id="wind-pill" class="pill wind-pill hidden">💨 Vent : calme</span>
+    </div>
+
+    <div class="hud-center">
+      <div id="timer-box" class="timer-box hidden">
+        <span class="timer-icon">⏱️</span>
+        <span id="timer-value">1:00</span>
+      </div>
+    </div>
+
+    <div class="hud-right">
+      <button id="spray-quick-btn" class="pill spray-pill hidden" title="Arroser le sable pour le durcir [Touche E]">
+        💦 Spray : <strong id="spray-status-txt">PRÊT</strong>
+      </button>
+      <button id="mute-btn" class="icon-btn" title="Activer / couper le son">🔊</button>
+    </div>
+
+    <!-- Info-bulle / Bannière d'instruction détachée : n'affecte jamais l'emplacement des boutons -->
+    <div id="banner-msg" class="banner-msg">En attente des joueurs…</div>
+  </header>
+
+  <!-- Galerie des châteaux joueurs (miniatures en haut) -->
+  <aside id="players-strip" class="players-strip hidden"></aside>
+
+  <!-- Timeline de bataille (Ordre des tours : qui attaque qui) -->
+  <div id="battle-timeline" class="battle-timeline hidden">
+    <div class="timeline-title">🎯 ORDRE DES TIRS :</div>
+    <div id="timeline-flow" class="timeline-flow"></div>
+  </div>
+
+  <!-- Panneau Menu / Salon d'accueil (Hub 2 Colonnes sans scroll) -->
+  <section id="lobby-modal" class="modal-backdrop">
+    <div class="modal-card lobby-hub-card">
+      <header class="brand">
+        <div class="logo-box">
+          <img src="/assets/logo.svg" alt="Grainy Siege" class="brand-logo" />
+        </div>
+        <p class="subtitle">
+          Bataille Royale de Châteaux de Sable & Catapultes 👑🏖️
+        </p>
+      </header>
+
+      <div class="lobby-hub-grid">
+        <!-- Colonne 1 : Actions Immédiates de jeu (ZERO SCROLL POUR JOUER) -->
+        <div class="lobby-action-column">
+          <!-- Écran d'accueil : Créer ou rejoindre -->
+          <div id="welcome-view" class="view-section">
+            <div class="field-block">
+              <label class="field-label" for="name-input">👤 Ton surnom de bâtisseur</label>
+              <input id="name-input" class="text-input" type="text" maxlength="18" placeholder="Ex: Sire Pâté-de-Sable" autocomplete="off" />
+            </div>
+
+            <div class="welcome-actions">
+              <button id="solo-btn" class="btn btn-primary btn-lg pulse-glow">⚡ Jouer tout de suite (contre Bots)</button>
+              <button id="create-btn" class="btn btn-secondary btn-lg">🏰 Créer un salon multijoueur</button>
+              <div class="divider"><span>ou rejoindre des amis</span></div>
+              <div class="join-row">
+                <input id="code-input" class="text-input code-input" type="text" maxlength="4" placeholder="CODE" autocomplete="off" />
+                <button id="join-btn" class="btn btn-accent">Rejoindre</button>
+              </div>
+            </div>
+
+            <div class="rules-chips">
+              <span class="rule-chip" title="Le Roi repose sur son talus avec sa safe zone : protège-le sans l'étouffer !">👑 Roi & Safe Zone</span>
+              <span class="rule-chip" title="Appuie sur [R] pour retourner n'importe quel patron horizontalement">🔄 Touche [R] Miroir</span>
+              <span class="rule-chip" title="Gagne +1 dose de spray par tour de défense (réserves conservées)">💦 +1 Spray / défense</span>
+              <span class="rule-chip" title="Gagne +2 boulets par round d'attaque (30s) et conserve tes réserves">☄️ +2 Boulets / tour</span>
+              <span class="rule-chip" title="Grenades explosives retardées (2s), boulets d'acier et bonus légendaires">💣 Grenades & Bonus</span>
+            </div>
+
+            <p id="lobby-error" class="error-msg hidden"></p>
+          </div>
+
+          <!-- Écran Salle d'attente (quand dans une plage) -->
+          <div id="room-view" class="view-section hidden">
+            <div class="room-header">
+              <div>
+                <span class="small-label">CODE DE LA PLAGE</span>
+                <div class="room-code-big" id="lobby-code">----</div>
+              </div>
+              <div id="qr-box" class="qr-box" title="Scanne pour rejoindre sur mobile"></div>
+            </div>
+            <p id="join-url-text" class="join-url"></p>
+
+            <div class="roster-header">
+              <span>Bâtisseurs sur la plage (<span id="roster-count">0</span>/8)</span>
+              <button id="add-bot-btn" class="btn btn-sm">+ Ajouter un Bot 🤖</button>
+            </div>
+            <ul id="roster-list" class="roster-list"></ul>
+
+            <div class="lobby-footer">
+              <button id="start-btn" class="btn btn-primary btn-lg">🚀 Lancer la bataille (1 min de construction)</button>
+              <button id="leave-room-btn" class="btn btn-sm btn-secondary" style="margin-top: 8px; width: 100%;">🚪 Quitter la plage</button>
+              <p id="wait-host-msg" class="hint-msg hidden">En attente du lancement par l'hôte…</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Colonne 2 : Tuto animé visuel façon GIF (3 Règles d'Or) à côté sans gêner le clic -->
+        <div class="lobby-tuto-column">
+          <section class="tuto-card" id="tuto-card" aria-label="Tutoriel interactif des 3 règles">
+            <div class="tuto-header">
+              <div class="tuto-header-left">
+                <span class="tuto-badge-step" id="tuto-badge-step">👑 RÈGLE 1</span>
+                <span class="tuto-gif-tag"><span class="live-dot"></span>GIF TUTO</span>
+              </div>
+              <div class="tuto-nav-buttons">
+                <button id="tuto-prev-btn" class="tuto-arrow-btn" type="button" title="Règle précédente" aria-label="Précédent">◀</button>
+                <button id="tuto-next-btn" class="tuto-arrow-btn" type="button" title="Règle suivante" aria-label="Suivant">▶</button>
+              </div>
+            </div>
+
+            <div class="tuto-tabs">
+              <button class="tuto-tab-btn active" data-tab="0" type="button">👑 1. Protéger le Roi</button>
+              <button class="tuto-tab-btn" data-tab="1" type="button">☀️ 2. Séchage & Spray</button>
+              <button class="tuto-tab-btn" data-tab="2" type="button">☄️ 3. Choc des Boulets</button>
+            </div>
+
+            <div class="tuto-screen">
+              <canvas id="tuto-canvas" width="480" height="175" class="tuto-canvas"></canvas>
+              <div class="tuto-progress-track">
+                <div id="tuto-progress-fill" class="tuto-progress-fill"></div>
+              </div>
+            </div>
+
+            <div class="tuto-caption">
+              <div class="tuto-caption-title" id="tuto-caption-title">👑 1. Construis un abri solide sans écraser le Roi</div>
+              <p class="tuto-caption-text" id="tuto-caption-text">Le Roi repose sur son talus et ne bouge pas : bâtis des piliers solides puis une arche par-dessus en respectant sa safe zone ! Tant qu'aucun sable ne lui tombe sur la tête, il reste en vie !</p>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Barre d'outils de construction (Sidebar gauche en Phase Build) -->
+  <nav id="build-dock" class="dock build-sidebar hidden" aria-label="Atelier de construction">
+    <div class="sidebar-header">
+      <div class="sidebar-title-group">
+        <span class="sidebar-icon">🏰</span>
+        <div class="sidebar-titles">
+          <span class="sidebar-title">ATELIER</span>
+          <span class="sidebar-badge">Phase Chantier</span>
+        </div>
+      </div>
+      <button id="toggle-build-sidebar" class="sidebar-toggle-btn" type="button" title="Réduire ou déplier l'inventaire" aria-label="Réduire">◀</button>
+    </div>
+
+    <div class="sidebar-alerts">
+      <div class="dock-hint" id="king-warning">
+        👑 <strong>Protège ton Roi</strong> sans faire s'écrouler de sable sur sa tête !
+      </div>
+    </div>
+
+    <!-- 1. Outils de modelage au-dessus des patrons de sable -->
+    <div class="sidebar-section-label">🛠️ OUTILS & MODELAGE</div>
+    <div class="atelier-tools-row" id="atelier-tools-row"></div>
+
+    <!-- 2. Statut compact du seau -->
+    <div class="sidebar-bucket-status" id="sidebar-bucket-status">
+      <div class="bucket-status-icon">🪣</div>
+      <div class="bucket-status-meta">
+        <span class="bucket-status-label" id="bucket-status-label">Seau plein & prêt</span>
+        <div class="bucket-status-bar">
+          <div class="bucket-status-fill" id="bucket-status-fill" style="width: 100%;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Patrons disponibles (Uniquement les moules avec stock > 0) -->
+    <div class="sidebar-section-label" id="moulds-section-label">🧱 PATRONS DISPONIBLES</div>
+    <div class="tool-list atelier-moulds-grid" id="tool-list"></div>
+  </nav>
+
+  <!-- Bouton de bascule de catapulte au centre sur le bord de l'écran (pointe vers la catapulte opposée) -->
+  <button id="catapult-switch-btn" class="catapult-switch-btn hidden" type="button" title="Changer de catapulte">
+    <span class="switch-icon">🎯</span>
+    <span class="switch-text" id="catapult-switch-text">Catapulte Droite (D)</span>
+    <span class="switch-arrow" id="catapult-switch-arrow">▶</span>
+  </button>
+
+  <!-- Poste de tir interactif intégré directement sur la Catapulte active -->
+  <section id="catapult-hud" class="catapult-onboard-hud hidden" aria-label="Commandes balistiques intégrées sur la catapulte">
+    <div class="hud-top-row">
+      <!-- Boulets restants du round -->
+      <div class="shots-balls" id="shots-balls" title="Tirs disponibles par round">
+        <span class="shot-ball available" id="shot-1">☄️</span>
+        <span class="shot-ball available" id="shot-2">☄️</span>
+      </div>
+
+      <!-- Contrôle compact d'angle balistique -->
+      <div class="hud-angle-pill" title="Ajuste l'angle ou glisse directement sur le bras de la catapulte">
+        <button type="button" class="hud-angle-btn" id="btn-angle-down" aria-label="Baisser l'angle">▼</button>
+        <div class="hud-angle-text">
+          <span class="hud-angle-val" id="angle-val">45.0</span><span class="hud-deg">°</span>
+        </div>
+        <button type="button" class="hud-angle-btn" id="btn-angle-up" aria-label="Monter l'angle">▲</button>
+      </div>
+    </div>
+
+    <!-- Déclencheur tactile à maintien et bouton de tir direct -->
+    <div class="hud-trigger-row">
+      <button id="fire-trigger-btn" class="hud-fire-btn" type="button" title="Maintiens pour bander la catapulte et doser l'oscillation, relâche pour tirer">
+        <div class="hud-fire-fill" id="power-gauge-bar"></div>
+        <div class="hud-fire-label-group">
+          <span class="trigger-bolt">☄️</span>
+          <div class="hud-fire-meta">
+            <span class="hud-trigger-title" id="trigger-label">MAINTENIR POUR BANDER</span>
+            <span class="hud-power-readout"><strong id="power-val">0</strong>% • Relâcher pour tirer</span>
+          </div>
+        </div>
+      </button>
+      <button id="quick-fire-btn" class="hud-quick-fire-btn" type="button" title="Tirer immédiatement [Clic ou Espace]">
+        <span class="quick-fire-icon">💥</span>
+        <span class="quick-fire-txt">TIRER</span>
+      </button>
+    </div>
+
+    <div class="hud-hint-bar">Glisse sur le bras ou maintiens [Espace]</div>
+
+    <!-- Sliders cachés pour compatibilité et accessibilité -->
+    <input id="angle-slider" type="range" min="8" max="82" value="45" class="sr-only" aria-label="Angle en degrés"/>
+    <input id="power-slider" type="range" min="5" max="100" value="65" class="sr-only" aria-label="Puissance en %"/>
+    <button id="fire-btn" class="hidden" aria-hidden="true"></button>
+    <!-- Anciens boutons gardés masqués au cas où -->
+    <div class="hidden" aria-hidden="true">
+      <button id="btn-side-left"></button>
+      <button id="btn-side-right"></button>
+    </div>
+  </section>
+
+  <!-- Bannière Défense & Spectateur : Flottante et translucide pour ne JAMAIS masquer le château -->
+  <aside id="defender-controls" class="defender-floating-pill hidden" aria-live="polite">
+    <div class="defender-pill-content">
+      <span class="defender-icon">🛡️</span>
+      <div class="defender-text" id="spectator-msg">
+        <strong>Tu es pris pour cible !</strong> Clique sur ton château ou [E] pour <strong>durcir au spray 💦</strong> !
+      </div>
+    </div>
+  </aside>
+
+  <!-- Écran de Victoire / Fin de partie -->
+  <section id="over-modal" class="modal-backdrop hidden">
+    <div class="modal-card over-card">
+      <div class="crown-icon">👑</div>
+      <h2 id="winner-title">Victoire !</h2>
+      <p id="winner-subtitle" class="subtitle"></p>
+      <div class="over-actions">
+        <button id="replay-btn" class="btn btn-primary btn-lg">🔄 Rejouer une manche</button>
+        <button id="back-lobby-btn" class="btn btn-secondary">🏖️ Retour au salon</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Modale interactive de choix de cible (Bonus Sécheresse d'adversaire) -->
+  <section id="target-choice-modal" class="modal-backdrop hidden">
+    <div class="modal-card bonus-choice-card">
+      <div class="bonus-choice-icon">☀️</div>
+      <h2>SÉCHERESSE TOTALE !</h2>
+      <p class="subtitle">Quel château adverse veux-tu assécher d'un coup ?</p>
+      <div id="target-choice-list" class="target-choice-list"></div>
+      <button id="target-choice-cancel-btn" class="btn btn-sm btn-secondary" style="margin-top:12px;">Annuler</button>
+    </div>
+  </section>
+
+  <!-- Grand Overlay d'introduction cinématique ("Prêts ? Feu .. Construisez !" / "Prêts ? Feu .. Tirez !") -->
+  <div id="intro-overlay" class="intro-overlay hidden" aria-hidden="true">
+    <div class="intro-card" id="intro-card">
+      <div class="intro-animation-area" id="intro-animation-area">
+        <!-- SVG interactif du seau animé pour la phase de construction -->
+        <svg class="intro-bucket-svg" id="intro-bucket-svg" viewBox="0 0 160 160">
+          <defs>
+            <linearGradient id="intro-bucket-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#38bdf8"/>
+              <stop offset="60%" stop-color="#0284c7"/>
+              <stop offset="100%" stop-color="#0369a1"/>
+            </linearGradient>
+            <linearGradient id="intro-sand-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#fef08a"/>
+              <stop offset="40%" stop-color="#eab308"/>
+              <stop offset="100%" stop-color="#ca8a04"/>
+            </linearGradient>
+            <clipPath id="intro-bucket-clip">
+              <polygon points="35,46 125,46 110,138 50,138"/>
+            </clipPath>
+          </defs>
+          <!-- Ombre portée -->
+          <ellipse cx="80" cy="144" rx="42" ry="7" fill="rgba(0,0,0,0.2)"/>
+          <!-- Anse -->
+          <path id="intro-bucket-handle" d="M 35 46 C 35 8, 125 8, 125 46" fill="none" stroke="#cbd5e1" stroke-width="4.5" stroke-linecap="round"/>
+          <!-- Corps extérieur -->
+          <polygon points="35,46 125,46 110,138 50,138" fill="url(#intro-bucket-grad)" stroke="#0c4a6e" stroke-width="3.5" stroke-linejoin="round"/>
+          <!-- Rebord supérieur extérieur -->
+          <ellipse cx="80" cy="46" rx="45" ry="9" fill="#0284c7" stroke="#0c4a6e" stroke-width="3"/>
+          <!-- Contenu sable qui monte via clipPath -->
+          <g clip-path="url(#intro-bucket-clip)">
+            <rect id="intro-sand-rect" x="30" y="138" width="100" height="100" fill="url(#intro-sand-grad)"/>
+            <ellipse id="intro-sand-ellipse" cx="80" cy="138" rx="42" ry="8" fill="#fef08a"/>
+            <!-- Particules de sable tombantes -->
+            <g id="intro-sand-stream" opacity="0">
+              <line x1="80" y1="0" x2="80" y2="130" stroke="#fef08a" stroke-width="5" stroke-dasharray="6,4"/>
+              <circle cx="76" cy="65" r="3" fill="#fde047"/>
+              <circle cx="84" cy="90" r="2.5" fill="#eab308"/>
+            </g>
+          </g>
+          <!-- Rebord supérieur intérieur -->
+          <ellipse cx="80" cy="46" rx="45" ry="9" fill="none" stroke="#38bdf8" stroke-width="1.8"/>
+        </svg>
+
+        <!-- Illustration de la catapulte animée pour la phase de bataille -->
+        <div id="intro-catapult-icon" class="intro-catapult-icon hidden">
+          <span class="intro-catapult-art">☄️</span>
+          <div class="intro-balls-badge">3 BOULES PRÊTES !</div>
+        </div>
+      </div>
+
+      <div class="intro-title" id="intro-title">PRÊTS ?</div>
+      <div class="intro-subtitle" id="intro-subtitle">Remplissage du seau de sable...</div>
+      <div class="intro-progress-bar-wrapper">
+        <div class="intro-progress-bar-fill" id="intro-progress-bar-fill"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Journal discret des événements en bas à gauche -->
+  <div id="toast-log" class="toast-log"></div>
+
+  <!-- Panneau translucide Chat & Historique de combat (visibilité transparente en jeu) -->
+  <aside id="game-chat-dock" class="game-chat-dock hidden" aria-label="Chat et historique de combat">
+    <div class="chat-header" id="chat-header">
+      <div class="chat-header-title">
+        <span class="chat-icon">💬</span>
+        <span class="chat-title-text">Bataille & Chat</span>
+        <span class="chat-unread-badge hidden" id="chat-unread-badge">0</span>
+      </div>
+      <button id="chat-toggle-size-btn" class="chat-header-btn" type="button" title="Réduire / Déplier" aria-label="Réduire">▼</button>
+    </div>
+    <div id="chat-body" class="chat-body">
+      <div id="chat-messages" class="chat-messages" role="log" aria-live="polite"></div>
+      <form id="chat-form" class="chat-form">
+        <input id="chat-input" class="chat-input" type="text" placeholder="Message aux joueurs... [Entrée]" maxlength="120" autocomplete="off" />
+        <button id="chat-send-btn" class="chat-send-btn" type="submit" title="Envoyer">✉️</button>
+      </form>
+    </div>
+  </aside>
+
+  <script src="/vendor/confetti/confetti.browser.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="/js/site-bg.js"></script>
+  <script type="module" src="/js/tutorial.js"></script>
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>
