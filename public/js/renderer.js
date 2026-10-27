@@ -52,7 +52,11 @@ export class Renderer {
     this.shake = 0;
     this.flashLife = 0;
     this.flashColor = '#fff';
-    this.catapult = { angle: 2.95, target: 2.95, color: '#c0392b', loaded: true };
+    this.catapults = {
+      left: { angle: 2.95, target: 2.95, color: '#c0392b', loaded: true },
+      right: { angle: 2.95, target: 2.95, color: '#2563eb', loaded: true },
+    };
+    this.catapult = this.catapults.left;
     this.catapultSide = 'left';
     this.catapultSlide = 0; // 0 = gauche, 1 = droite
     this.camera = {
@@ -443,6 +447,7 @@ export class Renderer {
     const targetSlide = activeSide === 'right' ? 1.0 : 0.0;
     this.catapultSlide += (targetSlide - this.catapultSlide) * Math.min(1, 0.01 * dt);
     this.catapultSide = activeSide;
+    this.catapult = (this.catapults && this.catapults[activeSide]) || this.catapults?.left;
 
     // Dessiner les 2 catapultes : active avec pleine opacité, inactive plus effacée
     const sides = ['left', 'right'];
@@ -470,7 +475,7 @@ export class Renderer {
     const { ctx } = this;
     const { s, ox, oy } = this.view;
     const isRight = side === 'right';
-    const c = this.catapult;
+    const c = (this.catapults && this.catapults[side]) || this.catapult;
     const speed = c.target < c.angle ? 0.045 : 0.007;
     c.angle += (c.target - c.angle) * Math.min(1, speed * dt);
 

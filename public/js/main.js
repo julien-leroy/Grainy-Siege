@@ -741,12 +741,16 @@ socket.on('fx', (e) => {
     renderer.popup(e.left + 2, e.top - 3, '👑 Roi posé !', '#fde047');
   } else if (e.type === 'fire') {
     sfx.fire();
-    renderer.catapult.loaded = false;
-    renderer.catapult.target = 0.55;
-    setTimeout(() => {
-      renderer.catapult.target = 2.95;
-      renderer.catapult.loaded = true;
-    }, 900);
+    const side = e.side || (roomState?.turn?.catapultSide) || 'left';
+    const cat = (renderer.catapults && renderer.catapults[side]) || renderer.catapult;
+    if (cat) {
+      cat.loaded = false;
+      cat.target = 0.55;
+      setTimeout(() => {
+        cat.target = 2.95;
+        cat.loaded = true;
+      }, 900);
+    }
   } else if (e.type === 'impact') {
     sfx.impact(Math.min(1.5, (e.speed || 2) / 3));
     renderer.shake = Math.min(18, 5 + (e.r || 5) * 1.3);
@@ -1855,12 +1859,15 @@ function fireCatapult() {
   }
   if (!aim.power || aim.power < 0.25) aim.power = 0.60;
   sfx.fire();
-  renderer.catapult.loaded = false;
-  renderer.catapult.target = 0.55;
-  setTimeout(() => {
-    renderer.catapult.target = 2.95;
-    renderer.catapult.loaded = true;
-  }, 900);
+  const firedCat = (renderer.catapults && renderer.catapults[myCatapultSide]) || renderer.catapult;
+  if (firedCat) {
+    firedCat.loaded = false;
+    firedCat.target = 0.55;
+    setTimeout(() => {
+      firedCat.target = 2.95;
+      firedCat.loaded = true;
+    }, 900);
+  }
   socket.emit('fire', { angle: aim.angle, power: aim.power, side: myCatapultSide }, (res) => {
     if (res && !res.ok && res.error) {
       renderer.popup(CATAPULT_X + 15, GROUND_Y - 20, `⚠️ ${res.error}`, '#f87171');
@@ -2083,16 +2090,22 @@ function frame(now) {
 
   // Gestion dynamique de la caméra :
   // En construction : château centré sur l'écran (centre 210) avec zoom doux
-  // En combat : déplacement panoramique 21:9 cinématographique
-  //   - Catapulte Gauche : cible 152 (catapulte à gauche, château sur la moitié droite)
-  //   - Catapulte Droite : cible 268 (château sur la moitié gauche, catapulte à droite)
+  // En combat : déplacement panoramique 21:9 cinématographique de bout en bout de l'île
+  //   - Catapulte Gauche : cible 119 (catapulte à 20% à gauche, château à 80% à droite)
+  //   - Catapulte Droite : cible 301 (château à 20% à gauche, catapulte à 80% à droite)
+  //   - Vol du boulet : suivi de trajectoire en direct à travers l'île avec zoom sur l'impact
   if (phase === 'build') {
     renderer.setCameraTarget(210, GROUND_Y - 45, 1.18);
   } else if (phase === 'battle') {
-    if (curCatSide === 'right') {
-      renderer.setCameraTarget(268, GROUND_Y - 42, 1.0);
+    const activeTargetWorld = (viewedPid && worlds.get(viewedPid)) || (roomState?.turn?.targetId && worlds.get(roomState.turn.targetId)) || demoWorld;
+    const flyingBall = activeTargetWorld?.ballPosition ? activeTargetWorld.ballPosition(now) : null;
+    if (flyingBall && (roomState?.turn?.state === 'flight' || !flyingBall.landed)) {
+      const ballCamX = Math.max(119, Math.min(301, flyingBall.x));
+      renderer.setCameraTarget(ballCamX, GROUND_Y - 42, 1.05);
+    } else if (curCatSide === 'right') {
+      renderer.setCameraTarget(301, GROUND_Y - 42, 1.0);
     } else {
-      renderer.setCameraTarget(152, GROUND_Y - 42, 1.0);
+      renderer.setCameraTarget(119, GROUND_Y - 42, 1.0);
     }
   } else {
     renderer.setCameraTarget(210, GROUND_Y - 45, 1.0);
