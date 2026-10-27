@@ -509,5 +509,49 @@ test('sandsim: quand le roi prend un degat de sable, le grain de sable est suppr
   assert.equal(aboveHead, 0, 'le grain de sable ayant touché le roi a été supprimé du monde');
 });
 
+test('game: quand un joueur quitte en combat, la partie continue sil reste > 1 joueur et les tours sont recalcules', () => {
+  const room = new Room('TEST', createFakeIo());
+  const p1 = room.addPlayer({ name: 'Alice' });
+  const p2 = room.addPlayer({ name: 'Bob' });
+  const p3 = room.addPlayer({ name: 'Charlie' });
+  p1.connected = true;
+  p2.connected = true;
+  p3.connected = true;
+
+  room.start();
+  room.endBuild();
+  room.startBattle();
+
+  assert.equal(room.phase, 'battle', 'en combat');
+  assert.equal(room.alivePlayers().length, 3, '3 joueurs vivants');
+
+  const currentShooterId = room.turn.shooterId;
+  const currentTargetId = room.turn.targetId;
+
+  // Le tireur actuel quitte la partie
+  room.removePlayer(currentShooterId);
+
+  // La partie DOIT continuer car il reste 2 joueurs vivants !
+  assert.equal(room.phase, 'battle', 'la partie continue avec les 2 joueurs restants');
+  assert.equal(room.players.size, 2, '2 joueurs restants');
+  assert.equal(room.alivePlayers().length, 2, '2 joueurs vivants restants');
+
+  // Le tour doit avoir été recalculé immédiatement
+  assert.notEqual(room.turn.shooterId, currentShooterId, 'le tireur a changé');
+  assert.ok(room.players.has(room.turn.shooterId), 'le nouveau tireur est un joueur encore en jeu');
+  assert.ok(room.players.has(room.turn.targetId), 'la nouvelle cible est un joueur encore en jeu');
+  assert.notEqual(room.turn.shooterId, room.turn.targetId, 'le tireur et la cible sont distincts');
+
+  // L'un des 2 joueurs restants quitte à son tour -> il ne reste plus qu'un seul joueur
+  const leavingId = room.turn.shooterId;
+  const lastPlayer = [...room.players.values()].find((p) => p.id !== leavingId);
+
+  room.removePlayer(leavingId);
+
+  // Victoire immédiate pour le dernier joueur en vie !
+  assert.equal(room.phase, 'over', 'la partie se termine avec 1 seul joueur');
+  assert.equal(room.winnerId, lastPlayer.id, 'le dernier joueur restant est déclaré vainqueur');
+});
+
 
 

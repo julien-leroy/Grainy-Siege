@@ -96,6 +96,10 @@ export class Room {
   removePlayer(id) {
     const p = this.players.get(id);
     if (!p) return;
+    const prevOrderIdx = this.order.indexOf(id);
+    const wasShooter = this.turn && this.turn.shooterId === id;
+    const wasTarget = this.turn && this.turn.targetId === id;
+
     this.players.delete(id);
     this.order = this.order.filter((x) => x !== id);
     if (this.hostId === id) {
@@ -103,6 +107,40 @@ export class Room {
       this.hostId = h ? h.id : null;
     }
     this.dirtyState = true;
+    this.say(`🚪 ${p.name} a quitté la partie.`);
+
+    // Si la partie est en cours (phase active de jeu)
+    if (this.phase === 'battle') {
+      const alive = this.alivePlayers();
+      if (alive.length <= 1) {
+        return this.finish(alive[0]?.id || null);
+      }
+
+      // Recalcul des tours de combat si le joueur qui quitte était impliqué
+      if (wasShooter) {
+        const prevShooter = this.order.length > 0
+          ? this.order[(prevOrderIdx - 1 + this.order.length) % this.order.length]
+          : null;
+        this.nextTurn(prevShooter);
+      } else if (wasTarget) {
+        const newTarget = this.defaultTarget(this.turn.shooterId);
+        if (newTarget) {
+          this.turn.targetId = newTarget.id;
+          this.dirtyState = true;
+          this.forceFocusSend();
+          this.say(`🎯 Cible réajustée : ${newTarget.name} !`);
+        } else {
+          this.nextTurn(this.turn.shooterId);
+        }
+      }
+    } else if (this.phase === 'build' || this.phase === 'settle') {
+      const alive = this.alivePlayers();
+      if (alive.length <= 1) {
+        return this.finish(alive[0]?.id || null);
+      }
+    }
+
+    this.broadcastState();
   }
 
   disconnect(socket) {
@@ -591,8 +629,8 @@ export class Room {
     if (!t) return;
     const shooter = this.players.get(t.shooterId);
     const target = this.players.get(t.targetId);
-    if (!target) {
-      this.nextTurn(t.shooterId);
+    if (!shooter || !target) {
+      this.nextTurn(shooter ? t.shooterId : null);
       return;
     }
 

@@ -105,6 +105,7 @@ io.on('connection', (socket) => {
   socket.on('leave', guard((_, cb) => {
     if (room && me) {
       room.removePlayer(me.id);
+      socket.leave(room.channel);
       socket.leave(room.code);
       room = null;
       me = null;

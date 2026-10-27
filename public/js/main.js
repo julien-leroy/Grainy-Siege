@@ -1815,14 +1815,32 @@ function fireCatapult() {
   });
 }
 
-// Bouton rouge d'arrêt de partie immédiat
+// Bouton rouge pour quitter la partie (croix rouge)
 const quitGameBtn = $('quit-game-btn');
 if (quitGameBtn) {
   quitGameBtn.addEventListener('click', (e) => {
     e.preventDefault();
     unlock();
-    if (confirm('🛑 Arrêter la partie et revenir au salon pour tous les joueurs ?')) {
-      socket.emit('lobby');
+    if (confirm('❌ Quitter la partie et retourner au menu ?\n(La partie continuera pour les autres joueurs)')) {
+      music.stopAll();
+      resetAllGameData();
+      sessionStorage.removeItem('sc-pid');
+      sessionStorage.removeItem('sc-code');
+      myId = null;
+      myCode = null;
+      roomState = null;
+      socket.emit('leave', {});
+      $('room-view').classList.add('hidden');
+      $('welcome-view').classList.remove('hidden');
+      $('lobby-modal').classList.remove('hidden');
+      $('hud').classList.add('hidden');
+      $('scene').classList.add('hidden');
+      $('catapult-hud')?.classList.add('hidden');
+      $('battle-timeline')?.classList.add('hidden');
+      $('defender-controls')?.classList.add('hidden');
+      $('over-modal')?.classList.add('hidden');
+      $('intro-overlay')?.classList.add('hidden');
+      stopGameLoop();
     }
   });
 }
