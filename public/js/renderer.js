@@ -5,6 +5,7 @@ import {
   GRID_W, GRID_H, GROUND_Y, T, TYPE_MASK, DMG_SHIFT, MOIST_SHIFT, KING_W, KING_H, CATAPULT_X, LAUNCH_X, LAUNCH_Y,
   BUILD_MIN_X, BALL_GRAVITY, SPRAY_RADIUS, launchVelocity, CATAPULT_RIGHT_X, LAUNCH_RIGHT_X,
 } from '/shared/constants.js';
+import { SAFE_ZONE_PAD_X, SAFE_ZONE_PAD_Y } from '/shared/shapes.js';
 
 const SUB = 2; // sous-pixels par cellule (grain plus fin)
 const HORIZON = 96;
@@ -496,8 +497,8 @@ export class Renderer {
     // 2. Buttes de sable meuble entourant les patins au sol (intégration dans la plage)
     ctx.fillStyle = '#dfb57c';
     ctx.beginPath();
-    ctx.ellipse(X(CATAPULT_X - 12), Y(GROUND_Y - 0.5), 10 * s, 3.2 * s, 0, 0, Math.PI * 2);
-    ctx.ellipse(X(CATAPULT_X + 12), Y(GROUND_Y - 0.5), 10 * s, 3.2 * s, 0, 0, Math.PI * 2);
+    ctx.ellipse(X(CATAPULT_X - 6), Y(GROUND_Y - 0.5), 10 * s, 3.2 * s, 0, 0, Math.PI * 2);
+    ctx.ellipse(X(CATAPULT_X + 18), Y(GROUND_Y - 0.5), 10 * s, 3.2 * s, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // 3. Roues géantes à rayons cerclées de fer forgé (2 avant, 2 arrière)
@@ -980,22 +981,29 @@ export class Renderer {
     ctx.drawImage(this.shadow, ox + 1.6 * s, oy + 0.9 * s, GRID_W * s, GRID_H * s);
     ctx.drawImage(this.sand, ox, oy, GRID_W * s, GRID_H * s);
 
-    // Safe zone protégée du Roi pendant la phase de construction
+    // Safe zone élargie et protégée du Roi pendant la phase de construction
     if (showSafeZone && world.king && !world.king.dead) {
       const k = world.king;
-      const szX = ox + (k.x - 1) * s;
-      const szY = oy + (k.y - 1) * s;
-      const szW = (KING_W + 2) * s;
-      const szH = (KING_H + 1) * s;
+      const szX = ox + (k.x - SAFE_ZONE_PAD_X) * s;
+      const szY = oy + (k.y - SAFE_ZONE_PAD_Y) * s;
+      const szW = (KING_W + SAFE_ZONE_PAD_X * 2) * s;
+      const szH = (KING_H + SAFE_ZONE_PAD_Y + 1) * s;
       const pulse = 0.5 + 0.5 * Math.sin(t * 0.005);
 
       ctx.save();
-      ctx.fillStyle = `rgba(251, 191, 36, ${0.12 + pulse * 0.08})`;
+      // Fond doré translucide
+      ctx.fillStyle = `rgba(251, 191, 36, ${0.14 + pulse * 0.08})`;
       ctx.fillRect(szX, szY, szW, szH);
-      ctx.setLineDash([3 * this.dpr, 3 * this.dpr]);
-      ctx.strokeStyle = `rgba(251, 191, 36, ${0.6 + pulse * 0.3})`;
-      ctx.lineWidth = 1.2 * this.dpr;
+      // Bordure en pointillés dorés
+      ctx.setLineDash([4 * this.dpr, 3 * this.dpr]);
+      ctx.strokeStyle = `rgba(251, 191, 36, ${0.7 + pulse * 0.3})`;
+      ctx.lineWidth = 1.4 * this.dpr;
       ctx.strokeRect(szX, szY, szW, szH);
+
+      // Petite couronne au sommet de la safe zone
+      ctx.font = `${Math.max(9, Math.round(9 * (s / 4)))}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText('👑', szX + szW / 2, szY - 2 * s);
       ctx.restore();
     }
 

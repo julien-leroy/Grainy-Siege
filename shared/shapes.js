@@ -183,10 +183,18 @@ export function getShape(shapeId, flipped = false) {
   return flipped ? getFlippedShape(base) : base;
 }
 
+export const SAFE_ZONE_PAD_X = 3;
+export const SAFE_ZONE_PAD_Y = 1;
+
 export function isNearKing(gx, gy, king) {
   if (!king) return false;
-  // Safe zone : interdiction de coller du sable contre le Roi (1 cellule de marge sur les côtés et au-dessus)
-  return gx >= king.x - 1 && gx <= king.x + 5 && gy >= king.y - 1 && gy < king.y + 8;
+  // Safe zone élargie : espace sacré autour du Roi (3 cellules de chaque côté, 1 cellule au-dessus)
+  return (
+    gx >= king.x - SAFE_ZONE_PAD_X &&
+    gx < king.x + 5 + SAFE_ZONE_PAD_X &&
+    gy >= king.y - SAFE_ZONE_PAD_Y &&
+    gy < king.y + 8
+  );
 }
 
 /**

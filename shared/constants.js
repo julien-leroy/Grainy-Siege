@@ -5,16 +5,16 @@ export const GRID_W = 420;
 export const GRID_H = 170;
 export const GROUND_Y = 150; // première ligne de sol (plage compacte)
 
-// Zone constructible (château centré entre 125 et 295, largeur = 170, centre à 210)
-export const BUILD_MIN_X = 125;
-export const BUILD_MAX_X = 295;
+// Zone constructible (château centré entre 135 et 285, largeur = 150, centre à 210)
+export const BUILD_MIN_X = 135;
+export const BUILD_MAX_X = 285;
 
-// Catapultes strictement symétriques et nettement plus espacées du château (89 cellules de chaque côté)
-export const CATAPULT_X = 22;
-export const LAUNCH_X = 36;
+// Catapultes strictement symétriques et nettement plus espacées du château (119 cellules de chaque côté)
+export const CATAPULT_X = 16;
+export const LAUNCH_X = 28;
 export const LAUNCH_Y = GROUND_Y - 30;
-export const CATAPULT_RIGHT_X = GRID_W - CATAPULT_X; // 398
-export const LAUNCH_RIGHT_X = GRID_W - LAUNCH_X;     // 384
+export const CATAPULT_RIGHT_X = GRID_W - CATAPULT_X; // 404
+export const LAUNCH_RIGHT_X = GRID_W - LAUNCH_X;     // 392
 
 // Le roi
 export const KING_W = 5;

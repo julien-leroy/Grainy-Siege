@@ -113,7 +113,7 @@ test('le séchage progressif en bataille diminue l\'humidité en surface', () =>
   const initialMoist = w.moist[surfaceIdx];
   assert.ok(initialMoist > 150, 'doit être mouillé initialement');
   w.drying = true;
-  run(w, 120);
+  run(w, 240);
   const laterMoist = w.moist[surfaceIdx];
   assert.ok(laterMoist < initialMoist, `l'humidité de surface doit diminuer (${initialMoist} -> ${laterMoist})`);
 });

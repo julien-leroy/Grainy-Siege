@@ -388,7 +388,6 @@ export class Room {
   }
 
   backToLobby(byId) {
-    if (byId && byId !== this.hostId) return;
     this.phase = 'lobby';
     this.turn = null;
     this.winnerId = null;
@@ -417,6 +416,8 @@ export class Room {
         p.bonusAmmo = 0;
       }
     }
+    const requester = byId ? this.players.get(byId) : null;
+    this.say(`🛑 ${requester ? requester.name : 'Un joueur'} a arrêté la partie. Retour au salon !`);
     this.dirtyState = true;
     this.sendAllWorlds();
   }

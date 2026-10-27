@@ -974,301 +974,356 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
 }
 
 /* ====================================================================
-   BOUTON DE CHANGEMENT DE CATAPULTE (Au centre sur le côté de l'écran)
+   BOUTON CROIX ROUGE POUR ARRÊTER LA PARTIE ET REVENIR AU SALON
    ==================================================================== */
-.catapult-switch-btn {
+.hud-quit-btn {
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%) !important;
+  color: #fff !important;
+  border: 1.5px solid rgba(254, 202, 202, 0.7) !important;
+  box-shadow: 0 4px 14px rgba(185, 28, 28, 0.5), 0 0 10px rgba(239, 68, 68, 0.3) !important;
+  font-size: 1.15rem !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease !important;
+}
+.hud-quit-btn:hover {
+  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%) !important;
+  transform: scale(1.1) !important;
+  box-shadow: 0 6px 18px rgba(185, 28, 28, 0.7), 0 0 16px rgba(239, 68, 68, 0.5) !important;
+}
+.hud-quit-btn:active {
+  transform: scale(0.92) !important;
+}
+.hud-quit-btn.hidden {
+  display: none !important;
+}
+
+/* ====================================================================
+   BOUTON ICÔNE IMPOSANT POUR CHANGER DE CATAPULTE
+   ==================================================================== */
+.catapult-switch-fab {
   position: fixed;
   top: 50%;
   transform: translateY(-50%);
   z-index: 35;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: linear-gradient(135deg, rgba(35, 24, 15, 0.94), rgba(20, 14, 8, 0.96));
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: linear-gradient(145deg, rgba(42, 28, 16, 0.95), rgba(22, 14, 8, 0.98));
   border: 2.5px solid #facc15;
-  border-radius: 999px;
-  padding: 12px 20px;
-  color: #fff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(250, 204, 21, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 16px rgba(250, 204, 21, 0.45);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  font-family: inherit;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
   user-select: none;
   touch-action: manipulation;
-  animation: pulse-side-btn 2.2s infinite ease-in-out;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: pulse-fab 2.4s infinite ease-in-out;
 }
 
-.catapult-switch-btn.hidden {
-  display: none;
+.catapult-switch-fab.side-left {
+  right: 28px;
+  left: auto;
 }
 
-.catapult-switch-btn.to-right {
-  right: 20px;
-  flex-direction: row;
+.catapult-switch-fab.side-right {
+  left: 28px;
+  right: auto;
 }
 
-.catapult-switch-btn.to-left {
-  left: 20px;
-  flex-direction: row-reverse;
-}
-
-.catapult-switch-btn:hover {
+.catapult-switch-fab:hover {
+  transform: translateY(-50%) scale(1.08);
   border-color: #fef08a;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6), 0 0 24px rgba(250, 204, 21, 0.75);
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.7), 0 0 30px rgba(250, 204, 21, 0.7);
 }
 
-.catapult-switch-btn.to-right:hover {
-  transform: translateY(-50%) translateX(4px);
+.catapult-switch-fab:active {
+  transform: translateY(-50%) scale(0.95);
 }
 
-.catapult-switch-btn.to-left:hover {
-  transform: translateY(-50%) translateX(-4px);
+.switch-fab-icon-wrap {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.catapult-switch-btn:active {
-  transform: translateY(-50%) scale(0.96);
+.switch-fab-catapult-svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
 }
 
-.switch-icon {
-  font-size: 1.35rem;
-  line-height: 1;
-}
-
-.switch-text {
-  font-size: 0.88rem;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  color: #fef08a;
-  white-space: nowrap;
-}
-
-.switch-arrow {
-  font-size: 1.1rem;
+.switch-fab-badge {
+  font-size: 0.9rem;
   font-weight: 900;
   color: #facc15;
-  transition: transform 0.2s ease;
+  line-height: 1;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 }
 
-.catapult-switch-btn.to-right:hover .switch-arrow {
-  transform: translateX(3px);
-}
-
-.catapult-switch-btn.to-left:hover .switch-arrow {
-  transform: translateX(-3px);
-}
-
-@keyframes pulse-side-btn {
+@keyframes pulse-fab {
   0%, 100% {
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 14px rgba(250, 204, 21, 0.35);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 16px rgba(250, 204, 21, 0.35);
   }
   50% {
-    box-shadow: 0 8px 26px rgba(0, 0, 0, 0.55), 0 0 22px rgba(250, 204, 21, 0.65);
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.65), 0 0 26px rgba(250, 204, 21, 0.65);
   }
 }
 
 /* ====================================================================
-   POSTE DE TIR INTERACTIF SUR LA CATAPULTE (On-Catapult HUD)
+   INTERFACE BALISTIQUE INTÉGRÉE DE LA CATAPULTE
    ==================================================================== */
 .catapult-onboard-hud {
   position: fixed;
+  bottom: 24px;
   z-index: 28;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  background: rgba(24, 17, 11, 0.92);
+  gap: 10px;
+  background: rgba(26, 18, 12, 0.94);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 2px solid rgba(245, 158, 11, 0.75);
-  border-radius: 18px;
-  padding: 10px 14px;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), 0 0 20px rgba(245, 158, 11, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(245, 158, 11, 0.85);
+  border-radius: 20px;
+  padding: 14px 16px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.65), 0 0 24px rgba(245, 158, 11, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   color: #fff;
-  width: 250px;
+  width: 290px;
   pointer-events: auto;
   user-select: none;
   touch-action: none;
-  transition: opacity 0.2s ease, transform 0.1s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
 }
 
-.catapult-onboard-hud.hidden {
-  display: none;
+.catapult-onboard-hud.side-left {
+  left: 28px;
+  right: auto;
 }
 
-.hud-top-row {
+.catapult-onboard-hud.side-right {
+  right: 28px;
+  left: auto;
+}
+
+.hud-cat-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  color: #fde047;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+/* Carte Réglage d'Angle */
+.hud-angle-card {
+  background: rgba(15, 10, 6, 0.6);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 12px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hud-angle-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
 }
 
-/* Pastille d'angle balistique avec incrémentateurs - / + */
-.hud-angle-pill {
+.hud-angle-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #cbd5e1;
+}
+
+.hud-angle-readout {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: #fef08a;
+  text-shadow: 0 0 8px rgba(250, 204, 21, 0.5);
+}
+
+.hud-angle-slider-row {
   display: flex;
   align-items: center;
-  background: rgba(0, 0, 0, 0.45);
-  border: 1.5px solid rgba(212, 175, 55, 0.5);
-  border-radius: 999px;
-  overflow: hidden;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+  gap: 8px;
 }
 
-.hud-angle-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border: none;
+.hud-angle-step-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.5);
   color: #facc15;
-  font-size: 0.78rem;
+  font-size: 1.1rem;
   font-weight: 900;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.12s ease, transform 0.08s ease;
+  transition: all 0.12s ease;
 }
 
-.hud-angle-btn:hover {
-  background: rgba(245, 158, 11, 0.35);
+.hud-angle-step-btn:hover {
+  background: rgba(245, 158, 11, 0.4);
   color: #fff;
+  transform: scale(1.08);
 }
 
-.hud-angle-btn:active {
-  transform: scale(0.9);
+.hud-angle-step-btn:active {
+  transform: scale(0.92);
 }
 
-.hud-angle-text {
-  padding: 0 8px;
-  font-family: 'Courier New', Courier, monospace;
-  font-weight: 900;
-  font-size: 0.95rem;
-  color: #fef08a;
+.hud-angle-range {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #1e293b 0%, #334155 100%);
+  border: 1px solid rgba(250, 204, 21, 0.4);
+  outline: none;
+  cursor: pointer;
+}
+
+.hud-angle-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fef08a 0%, #eab308 60%, #ca8a04 100%);
+  border: 2px solid #78350f;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5), 0 0 8px rgba(250, 204, 21, 0.7);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.hud-angle-range::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.hud-angle-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fef08a 0%, #eab308 60%, #ca8a04 100%);
+  border: 2px solid #78350f;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5), 0 0 8px rgba(250, 204, 21, 0.7);
+  cursor: pointer;
+}
+
+.hud-angle-notches {
   display: flex;
-  align-items: baseline;
-  gap: 2px;
+  justify-content: space-between;
+  font-size: 0.62rem;
+  color: #94a3b8;
+  font-weight: 700;
+  padding: 0 4px;
 }
 
-.hud-deg {
-  font-size: 0.75rem;
-  color: #eab308;
-}
-
-/* Ligne de déclenchement : bouton de tension continue + bouton de tir direct */
-.hud-trigger-row {
-  display: flex;
-  align-items: stretch;
-  gap: 8px;
+/* Carte Bouton de Puissance */
+.hud-power-card {
   width: 100%;
 }
 
-.hud-fire-btn {
+.hud-power-trigger-btn {
   position: relative;
-  flex: 1;
-  height: 48px;
+  width: 100%;
+  height: 54px;
   background: linear-gradient(180deg, #9a3412 0%, #7c2d12 100%);
-  border: 2px solid #ea580c;
-  border-radius: 12px;
+  border: 2.5px solid #ea580c;
+  border-radius: 14px;
   color: #fff;
   overflow: hidden;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.3);
   user-select: none;
   touch-action: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease;
 }
 
-.hud-quick-fire-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  width: 68px;
-  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
-  border: 2px solid #f87171;
-  border-radius: 12px;
-  color: #fff;
-  font-family: inherit;
-  font-weight: 900;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), 0 0 10px rgba(239, 68, 68, 0.4);
-  user-select: none;
-  touch-action: manipulation;
-  transition: all 0.12s ease;
-}
-
-.hud-quick-fire-btn:hover {
-  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
-  border-color: #fef08a;
-  box-shadow: 0 6px 18px rgba(239, 68, 68, 0.6), 0 0 16px rgba(250, 204, 21, 0.6);
-  transform: translateY(-1px);
-}
-
-.hud-quick-fire-btn:active {
-  transform: translateY(1px) scale(0.96);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-}
-
-.quick-fire-icon {
-  font-size: 1.2rem;
-  line-height: 1;
-}
-
-.quick-fire-txt {
-  font-size: 0.68rem;
-  font-weight: 900;
-  letter-spacing: 0.8px;
-  color: #fef08a;
-}
-
-.hud-fire-btn:hover {
+.hud-power-trigger-btn:hover {
   border-color: #f97316;
-  box-shadow: 0 6px 18px rgba(234, 88, 12, 0.45);
+  box-shadow: 0 8px 22px rgba(234, 88, 12, 0.55);
 }
 
-.hud-fire-btn.charging {
+.hud-power-trigger-btn.charging {
   border-color: #facc15;
-  box-shadow: 0 0 24px rgba(245, 158, 11, 0.8), inset 0 2px 4px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 28px rgba(245, 158, 11, 0.85), inset 0 2px 4px rgba(0, 0, 0, 0.4);
   animation: trigger-vibrate 0.08s infinite alternate;
 }
 
-/* Remplissage de tension oscillant (0% -> 100% -> 0% -> 100%) */
-.hud-fire-fill {
+.hud-power-progress-fill {
   position: absolute;
   top: 0;
   bottom: 0;
   left: 0;
   width: 0%;
-  background: linear-gradient(90deg, #ca8a04 0%, #ea580c 55%, #ef4444 100%);
-  opacity: 0.85;
-  transition: width 0.04s linear;
+  background: linear-gradient(90deg, #ca8a04 0%, #ea580c 50%, #ef4444 100%);
+  opacity: 0.88;
   pointer-events: none;
-  box-shadow: 0 0 14px rgba(239, 68, 68, 0.7);
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.8);
+  transition: width 0.03s linear;
 }
 
-.hud-fire-label-group {
+.hud-power-inner {
   position: relative;
   z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 12px;
   height: 100%;
-  padding: 0 10px;
+  padding: 0 12px;
   pointer-events: none;
 }
 
-.hud-fire-label-group .trigger-bolt {
-  font-size: 1.35rem;
+.hud-power-inner .power-bolt {
+  font-size: 1.5rem;
   line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
 }
 
-.hud-fire-meta {
+.power-text-group {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  line-height: 1.15;
+  line-height: 1.2;
+}
+
+.power-heading {
+  font-size: 0.88rem;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  color: #fff;
+}
+
+.power-subreadout {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #fef08a;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 .hud-trigger-title {

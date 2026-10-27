@@ -48,15 +48,21 @@ function updateCatapultSwitchButton() {
   const inBattle = roomState?.phase === 'battle';
   const isShooter = inBattle && roomState?.turn?.shooterId === myId && roomState.turn.state === 'aim';
   switchBtn.classList.toggle('hidden', !inBattle || !isShooter);
-  switchBtn.classList.toggle('to-right', myCatapultSide === 'left');
-  switchBtn.classList.toggle('to-left', myCatapultSide === 'right');
-  const txtEl = $('catapult-switch-text');
-  if (txtEl) {
-    txtEl.textContent = myCatapultSide === 'left' ? 'Catapulte Droite (D)' : 'Catapulte Gauche (Q)';
-  }
+  switchBtn.classList.toggle('side-left', myCatapultSide === 'left');
+  switchBtn.classList.toggle('side-right', myCatapultSide === 'right');
   const arrEl = $('catapult-switch-arrow');
   if (arrEl) {
     arrEl.textContent = myCatapultSide === 'left' ? '▶' : '◀';
+  }
+
+  const hud = $('catapult-hud');
+  if (hud) {
+    hud.classList.toggle('side-left', myCatapultSide === 'left');
+    hud.classList.toggle('side-right', myCatapultSide === 'right');
+    const nameEl = $('hud-cat-name');
+    if (nameEl) {
+      nameEl.textContent = myCatapultSide === 'left' ? 'CATAPULTE OUEST' : 'CATAPULTE EST';
+    }
   }
 }
 
@@ -953,6 +959,13 @@ function syncUI() {
     }
   }
 
+  // Bouton rouge pour arrêter la partie et revenir au salon
+  const quitBtn = $('quit-game-btn');
+  if (quitBtn) {
+    const inGame = s && s.phase !== 'lobby';
+    quitBtn.classList.toggle('hidden', !inGame);
+  }
+
   // Contrôles de bataille directement sur la catapulte et bouton de switch latéral
   const inBattle = s.phase === 'battle' && s.turn;
   const isMyTurn = inBattle && s.turn.shooterId === myId && s.turn.state === 'aim';
@@ -987,14 +1000,14 @@ function syncUI() {
     }
 
     const triggerLabelEl = $('trigger-label');
-    const triggerBoltEl = document.querySelector('.trigger-bolt');
+    const triggerBoltEl = document.querySelector('.power-bolt') || document.querySelector('.trigger-bolt');
     if (triggerLabelEl && triggerBoltEl) {
       if (me?.hasGrenade) {
         triggerBoltEl.textContent = '💣';
         if (!isCharging) triggerLabelEl.textContent = 'LANCER LA GRENADE (2s)';
       } else {
-        triggerBoltEl.textContent = '☄️';
-        if (!isCharging) triggerLabelEl.textContent = 'MAINTENIR POUR BANDER';
+        triggerBoltEl.textContent = '⚡';
+        if (!isCharging) triggerLabelEl.textContent = 'MAINTENIR POUR DOSER';
       }
     }
 
@@ -1821,13 +1834,15 @@ function fireCatapult() {
   });
 }
 
-const quickFireBtn = $('quick-fire-btn');
-if (quickFireBtn) {
-  quickFireBtn.addEventListener('click', (e) => {
+// Bouton rouge d'arrêt de partie immédiat
+const quitGameBtn = $('quit-game-btn');
+if (quitGameBtn) {
+  quitGameBtn.addEventListener('click', (e) => {
     e.preventDefault();
     unlock();
-    if (!aim.power || aim.power < 0.35) aim.power = 0.65;
-    fireCatapult();
+    if (confirm('🛑 Arrêter la partie et revenir au salon pour tous les joueurs ?')) {
+      socket.emit('lobby');
+    }
   });
 }
 
@@ -1863,10 +1878,22 @@ window.addEventListener('keydown', (e) => {
     selectTool('spray');
   } else if (e.key.toLowerCase() === 'r') {
     toggleMouldFlip();
-  } else if (e.key.toLowerCase() === 'q' || e.key.toLowerCase() === 'a' || e.key === 'ArrowLeft') {
+  } else if (e.key.toLowerCase() === 'c') {
+    if (roomState?.phase === 'battle') setCatapultSide(myCatapultSide === 'left' ? 'right' : 'left');
+  } else if (e.key.toLowerCase() === 'q' || e.key.toLowerCase() === 'a') {
     if (roomState?.phase === 'battle') setCatapultSide('left');
-  } else if (e.key.toLowerCase() === 'd' || e.key === 'ArrowRight') {
+  } else if (e.key.toLowerCase() === 'd') {
     if (roomState?.phase === 'battle') setCatapultSide('right');
+  } else if (e.key === 'ArrowUp' || e.key === 'ArrowRight') {
+    if (roomState?.phase === 'battle') {
+      e.preventDefault();
+      changeAngleStep(2.5);
+    }
+  } else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') {
+    if (roomState?.phase === 'battle') {
+      e.preventDefault();
+      changeAngleStep(-2.5);
+    }
   } else if (e.code === 'Space') {
     e.preventDefault();
     if (!e.repeat) startCharging();
@@ -2026,9 +2053,9 @@ function frame(now) {
     renderer.setCameraTarget(210, GROUND_Y - 45, 1.25);
   } else if (phase === 'battle') {
     if (curCatSide === 'right') {
-      renderer.setCameraTarget(285, GROUND_Y - 45, 1.05);
+      renderer.setCameraTarget(308, GROUND_Y - 42, 1.22);
     } else {
-      renderer.setCameraTarget(135, GROUND_Y - 45, 1.05);
+      renderer.setCameraTarget(112, GROUND_Y - 42, 1.22);
     }
   } else {
     renderer.setCameraTarget(210, GROUND_Y - 45, 1.0);
@@ -2120,16 +2147,11 @@ function frame(now) {
     ammoType,
   );
 
-  // Positionnement dynamique du HUD de tir directement ancré sur la Catapulte active
+  // Ancrage dynamique du HUD de tir selon la Catapulte active (gauche / droite)
   const hud = $('catapult-hud');
   if (hud && !hud.classList.contains('hidden')) {
-    const catPos = renderer.getCatapultScreenPos(curCatSide);
-    const hudW = 280;
-    let hudX = catPos.x - hudW / 2;
-    hudX = Math.max(12, Math.min(window.innerWidth - hudW - 12, hudX));
-    const hudY = Math.max(68, catPos.y - 145);
-    hud.style.left = `${Math.round(hudX)}px`;
-    hud.style.top = `${Math.round(hudY)}px`;
+    hud.classList.toggle('side-left', curCatSide === 'left');
+    hud.classList.toggle('side-right', curCatSide === 'right');
   }
 
   renderer.drawWorld(world, {
