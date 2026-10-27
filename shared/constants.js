@@ -51,6 +51,8 @@ export const SHOTS_PER_TURN = 2;
 export const BUILD_PLACE_COOLDOWN_MS = 3000;
 export const PATE_COOLDOWN_MS = 800;
 export const DEFENSE_SPRAY_MAX = 1;
+export const MAX_AMMO_RESERVE = 3;
+export const MAX_DEFENSE_SPRAYS = 3;
 export const TICK_RATE = 60;
 
 // Balistique de la catapulte (cellules / tick)

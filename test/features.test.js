@@ -441,8 +441,19 @@ test('game: reserves cumulatives (+2 boulets, +1 spray) et bonus spray en mer', 
 
   // Bonus caisse en mer : spray d'eau défensif
   room.drops = [{ id: 99, type: 'spray', x: 200, y: 140, vy: 0, floating: true }];
-  room.applyBonus(shooter.id, room.drops[0], null);
-  assert.equal(shooter.defenseSpraysLeft, 1, 'le bonus baril de spray a ajouté 1 spray à sa réserve');
+  // Plafonnement à 3 sprays maximum
+  shooter.defenseSpraysLeft = 2;
+  room.applyBonus(shooter.id, { id: 100, type: 'spray' }, null);
+  assert.equal(shooter.defenseSpraysLeft, 3, 'le spray passe à 3');
+  room.applyBonus(shooter.id, { id: 101, type: 'spray' }, null);
+  assert.equal(shooter.defenseSpraysLeft, 3, 'le spray est plafonné à 3 maximum');
+
+  // Plafonnement à 3 boulets maximum
+  shooter.ammoStock = 2;
+  room.applyBonus(shooter.id, { id: 102, type: 'ammo' }, null);
+  assert.equal(shooter.ammoStock, 3, 'les boulets passent à 3');
+  room.applyBonus(shooter.id, { id: 103, type: 'ammo' }, null);
+  assert.equal(shooter.ammoStock, 3, 'les boulets sont plafonnés à 3 maximum');
 });
 
 test('catapulte: puissance oscillante ping-pong (min -> max -> min -> max)', () => {

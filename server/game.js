@@ -4,7 +4,8 @@ import { CONFIG } from './config.js';
 import { makeBuildPlan, botShot, botName } from './bot.js';
 import {
   BUILD_SECONDS, AIM_SECONDS, PLAYER_COLORS, LAUNCH_X, LAUNCH_Y, GROUND_Y, BUILD_MIN_X, BUILD_MAX_X,
-  SPRAY_COOLDOWN_MS, launchVelocity, BUILD_PLACE_COOLDOWN_MS, PATE_COOLDOWN_MS, SHOTS_PER_TURN, DEFENSE_SPRAY_MAX, GRID_W,
+  SPRAY_COOLDOWN_MS, launchVelocity, BUILD_PLACE_COOLDOWN_MS, PATE_COOLDOWN_MS, SHOTS_PER_TURN, DEFENSE_SPRAY_MAX,
+  MAX_AMMO_RESERVE, MAX_DEFENSE_SPRAYS, GRID_W,
 } from '../shared/constants.js';
 
 const SETTLE_MS = 3200;
@@ -271,13 +272,13 @@ export class Room {
     const target = this.defaultTarget(shooter.id);
     if (!target) return this.finish(shooter.id);
 
-    // Chaque tour de défense octroie +1 dose de spray en réserve (on garde les sprays non utilisés) !
-    target.defenseSpraysLeft = (target.defenseSpraysLeft || 0) + 1;
+    // Chaque tour de défense octroie +1 dose de spray en réserve (on garde les sprays non utilisés, max 3) !
+    target.defenseSpraysLeft = Math.min(MAX_DEFENSE_SPRAYS, (target.defenseSpraysLeft || 0) + 1);
 
     const wind = (this.rng() * 2 - 1) * CONFIG.windMax;
 
-    // Chaque tour d'attaque octroie +2 boulets de canon (on garde tous les boulets non tirés) !
-    shooter.ammoStock = (shooter.ammoStock || 0) + 2 + (shooter.bonusAmmo || 0);
+    // Chaque tour d'attaque octroie +2 boulets de canon (on garde tous les boulets non tirés, max 3) !
+    shooter.ammoStock = Math.min(MAX_AMMO_RESERVE, (shooter.ammoStock || 0) + 2 + (shooter.bonusAmmo || 0));
     shooter.bonusAmmo = 0;
     const initialShots = shooter.ammoStock;
 
@@ -705,22 +706,22 @@ export class Room {
 
     if (d.type === 'ammo') {
       if (t && t.shooterId === playerId) {
-        t.shotsLeft++;
-        t.shotsTotal++;
-        p.ammoStock = (p.ammoStock || 0) + 1;
+        t.shotsLeft = Math.min(MAX_AMMO_RESERVE, t.shotsLeft + 1);
+        t.shotsTotal = Math.max(t.shotsTotal, t.shotsLeft);
+        p.ammoStock = Math.min(MAX_AMMO_RESERVE, (p.ammoStock || 0) + 1);
         this.say(`🎯 ${p.name} récolte : +1 BOULET D'ATTAQUE IMMÉDIAT !`);
       } else {
-        p.bonusAmmo = (p.bonusAmmo || 0) + 1;
+        p.bonusAmmo = Math.min(MAX_AMMO_RESERVE, (p.bonusAmmo || 0) + 1);
         this.say(`🎯 ${p.name} récolte : +1 BOULET D'ATTAQUE pour son prochain tour !`);
       }
     } else if (d.type === 'spray') {
-      p.defenseSpraysLeft = (p.defenseSpraysLeft || 0) + 1;
+      p.defenseSpraysLeft = Math.min(MAX_DEFENSE_SPRAYS, (p.defenseSpraysLeft || 0) + 1);
       this.say(`💦 ${p.name} récolte : +1 DOSE DE SPRAY DÉFENSIF EN RÉSERVE !`);
       this.io.to(this.channel).emit('fx', { type: 'bonusSpray', pid: p.id, defenseSpraysLeft: p.defenseSpraysLeft });
     } else if (d.type === 'wetAll') {
       p.world.wetAll();
       p.lastSpray = 0;
-      p.defenseSpraysLeft = (p.defenseSpraysLeft || 0) + 1;
+      p.defenseSpraysLeft = Math.min(MAX_DEFENSE_SPRAYS, (p.defenseSpraysLeft || 0) + 1);
       this.say(`🌊 DÉLUGE BÉNI ! Le château de ${p.name} est totalement arrosé et durci !`);
       this.io.to(this.channel).emit('fx', { type: 'wetAll', pid: p.id, defenseSpraysLeft: p.defenseSpraysLeft });
     } else if (d.type === 'heavySpikeBall') {
