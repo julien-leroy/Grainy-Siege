@@ -95,28 +95,22 @@ export class Renderer {
     return this.ctx.createPattern(c, 'repeat');
   }
 
-  setCameraTarget(targetX, targetY = GROUND_Y - 45, targetZoom = 1.0) {
+  setCameraTarget(targetX = GRID_W / 2, targetY = GROUND_Y - 45, targetZoom = 1.0) {
     this.camera.targetX = targetX;
     this.camera.targetY = targetY;
     this.camera.targetZoom = targetZoom;
   }
 
   updateCamera(dt) {
-    const f = 1 - Math.exp(-0.0055 * dt);
-    this.camera.currentX += (this.camera.targetX - this.camera.currentX) * f;
-    this.camera.currentY += (this.camera.targetY - this.camera.currentY) * f;
-    this.camera.currentZoom += (this.camera.targetZoom - this.camera.currentZoom) * f;
-
     const cw = this.canvas.width;
     const ch = this.canvas.height;
-    // Panorama 21:9 cinématographique : la hauteur remplit l'écran et le monde déborde latéralement
-    // permettant un vrai déplacement de caméra fluide de gauche à droite
-    const fitH = (ch - 14 * this.dpr) / (GRID_H * 1.02);
-    const fitW = cw / (GRID_W * 0.72);
-    const baseS = Math.max(fitH, fitW);
-    const s = baseS * this.camera.currentZoom;
-    const ox = cw / 2 - this.camera.currentX * s;
-    const oy = (ch - 16 * this.dpr) - GROUND_Y * s;
+    // Vue globale stable : la totalité de la scène (catapulte + château) rentre à 100% sur l'écran
+    const fitW = cw / (GRID_W * 1.02);
+    const fitH = (ch - 24 * this.dpr) / (GRID_H * 1.05);
+    const baseS = Math.min(fitW, fitH);
+    const s = baseS;
+    const ox = (cw - GRID_W * s) / 2;
+    const oy = (ch - 18 * this.dpr) - GROUND_Y * s;
     this.view = { s, ox, oy };
   }
 
@@ -131,12 +125,12 @@ export class Renderer {
     this.dpr = dpr;
     const cw = this.canvas.width;
     const ch = this.canvas.height;
-    const fitH = (ch - 14 * this.dpr) / (GRID_H * 1.02);
-    const fitW = cw / (GRID_W * 0.72);
-    const baseS = Math.max(fitH, fitW);
-    const s = baseS * (this.camera ? this.camera.currentZoom : 1.0);
-    const ox = cw / 2 - (this.camera ? this.camera.currentX : GRID_W / 2) * s;
-    const oy = (ch - 16 * this.dpr) - GROUND_Y * s;
+    const fitW = cw / (GRID_W * 1.02);
+    const fitH = (ch - 24 * this.dpr) / (GRID_H * 1.05);
+    const baseS = Math.min(fitW, fitH);
+    const s = baseS;
+    const ox = (cw - GRID_W * s) / 2;
+    const oy = (ch - 18 * this.dpr) - GROUND_Y * s;
     this.view = { s, ox, oy };
     this.drawnKey = null;
   }
@@ -449,26 +443,8 @@ export class Renderer {
     this.catapultSide = activeSide;
     this.catapult = (this.catapults && this.catapults[activeSide]) || this.catapults?.left;
 
-    // Dessiner les 2 catapultes : active avec pleine opacité, inactive plus effacée
-    const sides = ['left', 'right'];
-    for (const side of sides) {
-      const isActive = side === activeSide;
-      const catAlpha = isActive ? alpha : (alpha * 0.38);
-      this._drawSingleCatapult(dt, catAlpha, isActive ? slingPull : null, side, isActive, aimInfo, isCharging, chargePower, ammoType);
-    }
-
-    // Effet de glissé fluide : lueur dorée qui glisse sur le rivage d'une catapulte à l'autre
-    const { ctx } = this;
-    const { s, ox, oy } = this.view;
-    if (Math.abs(targetSlide - this.catapultSlide) > 0.01) {
-      const currentX = ox + (CATAPULT_X + this.catapultSlide * (CATAPULT_RIGHT_X - CATAPULT_X)) * s;
-      ctx.save();
-      ctx.fillStyle = 'rgba(254, 240, 138, 0.55)';
-      ctx.beginPath();
-      ctx.ellipse(currentX, oy + (GROUND_Y + 0.5) * s, 22 * s, 3.5 * s, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
+    // Dessiner UNIQUEMENT la catapulte active : pas besoin d'avoir les deux catapultes en même temps chargées sur l'écran !
+    this._drawSingleCatapult(dt, alpha, slingPull, activeSide, true, aimInfo, isCharging, chargePower, ammoType);
   }
 
   _drawSingleCatapult(dt, alpha, slingPull, side, isActive, aimInfo, isCharging, chargePower, ammoType) {

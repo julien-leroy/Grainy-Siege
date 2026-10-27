@@ -1072,76 +1072,39 @@ function syncUI() {
       timelineEl.classList.remove('hidden');
       const curShooter = s.players.find((p) => p.id === s.turn.shooterId);
       const curTarget = s.players.find((p) => p.id === s.turn.targetId);
-      const isMyShot = s.turn.shooterId === myId;
-      const isMyDefense = s.turn.targetId === myId;
-
-      let html = `
-        <div class="timeline-step current ${isMyShot ? 'is-me-shooter' : isMyDefense ? 'is-me-target' : ''}">
-          <span class="timeline-badge-label">⚡ ROUND ${s.turn.round || 1}</span>
-          <div class="fresque-duo">
-            <div class="fresque-card shooter" style="border-color:${curShooter?.color || '#ccc'}; background: linear-gradient(135deg, ${curShooter?.color || '#ccc'}22, rgba(0,0,0,0.5))">
-              <span class="fresque-role">🎯 TIREUR</span>
-              <span class="fresque-name"><span class="color-dot" style="background:${curShooter?.color || '#ccc'}"></span> ${escapeHtml(curShooter?.name || '?')} ${isMyShot ? '<strong>(TOI)</strong>' : ''}</span>
-            </div>
-            <div class="fresque-vs">
-              <span class="fresque-arrow-icon">☄️ ➔</span>
-            </div>
-            <div class="fresque-card target" style="border-color:${curTarget?.color || '#ccc'}; background: linear-gradient(135deg, ${curTarget?.color || '#ccc'}22, rgba(0,0,0,0.5))">
-              <span class="fresque-role">🛡️ CIBLE</span>
-              <span class="fresque-name"><span class="color-dot" style="background:${curTarget?.color || '#ccc'}"></span> ${escapeHtml(curTarget?.name || '?')} ${isMyDefense ? '<strong>(TOI)</strong>' : ''}</span>
-            </div>
-          </div>
-        </div>
-      `;
-
-      // 1. Ordre complet des tours des joueurs avec leurs couleurs
-      const turnOrder = s.turn.turnOrder || s.players.filter((p) => p.alive).map((p) => ({
-        id: p.id,
-        name: p.name,
-        color: p.color,
-        isShooter: p.id === s.turn.shooterId,
-      }));
-      if (turnOrder.length > 0) {
-        html += `<div class="turn-order-seq" title="Ordre de passage des bâtisseurs">`;
-        turnOrder.forEach((p, idx) => {
-          if (idx > 0) html += `<span class="order-arrow">➔</span>`;
-          html += `<span class="order-pill ${p.isShooter ? 'active-shooter' : ''}" style="--c:${p.color}; border-color:${p.color};"><span class="color-dot" style="background:${p.color}"></span> ${escapeHtml(p.name)}</span>`;
-        });
-        html += `</div>`;
-      }
-
-      // 2. Encadré Prochain Tour avec Catapulte colorée + ⚔️ + Roi coloré
       const nextShooter = s.turn.nextShooter || (s.turn.nextShooterId ? s.players.find((p) => p.id === s.turn.nextShooterId) : null);
       const nextTarget = s.turn.nextTarget || (s.turn.nextTargetId ? s.players.find((p) => p.id === s.turn.nextTargetId) : null);
+
+      const crownSvg = (color, size = 26) => `
+        <svg viewBox="0 0 24 24" width="${size}" height="${size}" class="king-crown-icon" aria-hidden="true">
+          <path d="M4 19h16v2H4v-2zm16-9l-4 5-4-7-4 7-4-5v7h16v-7z" fill="${color || '#ccc'}" stroke="#ffffff" stroke-width="1.3" stroke-linejoin="round"/>
+          <circle cx="4" cy="9" r="1.5" fill="#facc15"/>
+          <circle cx="12" cy="7" r="1.5" fill="#facc15"/>
+          <circle cx="20" cy="9" r="1.5" fill="#facc15"/>
+        </svg>
+      `;
+
+      let html = `
+        <div class="king-duels-bar">
+          <div class="king-duel-item active" title="Tour en cours">
+            <span class="king-badge" style="--c:${curShooter?.color || '#ccc'}" title="Tireur : ${escapeHtml(curShooter?.name || '?')}">${crownSvg(curShooter?.color, 26)}</span>
+            <span class="duel-swords">⚔️</span>
+            <span class="king-badge" style="--c:${curTarget?.color || '#ccc'}" title="Cible : ${escapeHtml(curTarget?.name || '?')}">${crownSvg(curTarget?.color, 26)}</span>
+          </div>
+      `;
+
       if (nextShooter && nextTarget) {
         html += `
-          <div class="next-fight-box">
-            <span class="next-fight-tag">⚔️ PROCHAIN TOUR :</span>
-            <div class="next-fighter shooter" style="--c:${nextShooter.color}">
-              <span class="fighter-badge-icon" style="--c:${nextShooter.color}" title="Catapulte de ${escapeHtml(nextShooter.name)}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="${nextShooter.color}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M4 19h16M6 19l4-8h4l4 8M10 11l-3-6 2-1 4 7M12 11V5"/>
-                  <circle cx="6" cy="4" r="2.2" fill="${nextShooter.color}"/>
-                </svg>
-              </span>
-              <span style="color:${nextShooter.color}">${escapeHtml(nextShooter.name)}</span>
-            </div>
-            <span class="next-fight-clash">⚔️</span>
-            <div class="next-fighter defender" style="--c:${nextTarget.color}">
-              <span class="fighter-badge-icon" style="--c:${nextTarget.color}" title="Roi de ${escapeHtml(nextTarget.name)}">
-                <svg viewBox="0 0 24 24" fill="${nextTarget.color}" stroke="#fff" stroke-width="1.2" stroke-linejoin="round">
-                  <path d="M5 18h14v2H5v-2zm14-8l-3.5 4.5-3.5-6-3.5 6L5 10v6h14v-6z"/>
-                  <circle cx="5" cy="8" r="1.5" fill="#facc15"/>
-                  <circle cx="12" cy="6" r="1.5" fill="#facc15"/>
-                  <circle cx="19" cy="8" r="1.5" fill="#facc15"/>
-                </svg>
-              </span>
-              <span style="color:${nextTarget.color}">${escapeHtml(nextTarget.name)}</span>
-            </div>
+          <span class="duel-flow-arrow">➔</span>
+          <div class="king-duel-item next" title="Prochain tour">
+            <span class="king-badge next" style="--c:${nextShooter.color}" title="Prochain tireur : ${escapeHtml(nextShooter.name)}">${crownSvg(nextShooter.color, 20)}</span>
+            <span class="duel-swords next">⚔️</span>
+            <span class="king-badge next" style="--c:${nextTarget.color}" title="Prochaine cible : ${escapeHtml(nextTarget.name)}">${crownSvg(nextTarget.color, 20)}</span>
           </div>
         `;
       }
 
+      html += `</div>`;
       flowEl.innerHTML = html;
     } else {
       timelineEl.classList.add('hidden');
@@ -2088,28 +2051,8 @@ function frame(now) {
   const isShooter = phase === 'battle' && roomState?.turn?.shooterId === myId;
   const curCatSide = isShooter ? myCatapultSide : (roomState?.turn?.catapultSide || 'left');
 
-  // Gestion dynamique de la caméra :
-  // En construction : château centré sur l'écran (centre 210) avec zoom doux
-  // En combat : déplacement panoramique 21:9 cinématographique de bout en bout de l'île
-  //   - Catapulte Gauche : cible 119 (catapulte à 20% à gauche, château à 80% à droite)
-  //   - Catapulte Droite : cible 301 (château à 20% à gauche, catapulte à 80% à droite)
-  //   - Vol du boulet : suivi de trajectoire en direct à travers l'île avec zoom sur l'impact
-  if (phase === 'build') {
-    renderer.setCameraTarget(210, GROUND_Y - 45, 1.18);
-  } else if (phase === 'battle') {
-    const activeTargetWorld = (viewedPid && worlds.get(viewedPid)) || (roomState?.turn?.targetId && worlds.get(roomState.turn.targetId)) || demoWorld;
-    const flyingBall = activeTargetWorld?.ballPosition ? activeTargetWorld.ballPosition(now) : null;
-    if (flyingBall && (roomState?.turn?.state === 'flight' || !flyingBall.landed)) {
-      const ballCamX = Math.max(119, Math.min(301, flyingBall.x));
-      renderer.setCameraTarget(ballCamX, GROUND_Y - 42, 1.05);
-    } else if (curCatSide === 'right') {
-      renderer.setCameraTarget(301, GROUND_Y - 42, 1.0);
-    } else {
-      renderer.setCameraTarget(119, GROUND_Y - 42, 1.0);
-    }
-  } else {
-    renderer.setCameraTarget(210, GROUND_Y - 45, 1.0);
-  }
+  // Vue stable plein écran cadrée sur l'ensemble de l'île : catapulte et château toujours 100% visibles
+
 
   renderer.begin(dt);
 
