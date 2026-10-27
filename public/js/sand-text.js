@@ -1,206 +1,218 @@
 // ==============================================================================
-// EFFET DE SABLE TOMBANT POUR LE TITRE ET SOUS-TITRE — "GRAINY SIEGE"
-// Des grains de sable doré tombent du ciel pour former lentement le titre
-// et sous-titre, avec sémantique HTML préservée derrière pour le SEO.
+// TITRE "GRAINY SIEGE" EN PIXEL ART AVEC CHUTE DE CARRÉS DE SABLE
+// Des carrés de sable (comme dans le moteur physique du jeu) tombent du haut
+// pour s'empiler et sculpter le titre en pixel art avec contour haute lisibilité.
 // ==============================================================================
 
-export class SandTextEffect {
+export class SandTitlePixelArt {
   constructor() {
-    this.container = document.getElementById('sand-text-container');
-    this.canvas = document.getElementById('sand-text-canvas');
-    this.seoBlock = document.getElementById('brand-seo-titles');
-    if (!this.container || !this.canvas) return;
+    this.canvas = document.getElementById('sand-title-canvas');
+    if (!this.canvas) return;
 
     this.ctx = this.canvas.getContext('2d');
-    this.particles = [];
-    this.ambientGrains = [];
-    this.startTime = null;
+    this.grains = [];
+    this.strayGrains = [];
+    this.sparkles = [];
     this.allSettled = false;
-    this.revealed = false;
+    this.startTime = 0;
     this.running = true;
-
-    // Palette de grains de sable méditerranéens (sec, doré, humide, reflets)
-    this.colors = [
-      '#ffe082', // grain doré clair
-      '#facc15', // sable jaune chaud
-      '#f59e0b', // sable ambré
-      '#d97706', // sable dunaire profond
-      '#b45309', // grain mouillé
-      '#fef08a', // éclat de soleil
-      '#eab308'  // or sableux
-    ];
 
     this.init();
   }
 
   async init() {
-    // S'assurer que les polices web sont prêtes avant de mesurer les pixels
-    if (document.fonts && document.fonts.ready) {
+    // S'assurer que les polices (Silkscreen / Press Start 2P) sont bien chargées
+    if (document.fonts) {
       try {
-        await document.fonts.ready;
+        await Promise.allSettled([
+          document.fonts.load("700 14px 'Silkscreen'"),
+          document.fonts.load("700 14px 'Press Start 2P'")
+        ]);
       } catch (e) {
-        // Fallback silencieux
+        // Fallback
       }
     }
 
-    this.resize();
-    this.buildParticles();
+    this.setupGrid();
 
-    // Interaction : cliquer ou survoler déclenche une pluie de grains de sable
-    if (this.container) {
-      this.container.addEventListener('pointerenter', () => this.sprinkleGrains(60));
-      this.container.addEventListener('click', () => this.sprinkleGrains(120));
+    // Réactivité au clic et au survol pour faire pleuvoir des carrés de sable
+    if (this.canvas) {
+      this.canvas.addEventListener('pointerenter', () => this.dropSandShower(30));
+      this.canvas.addEventListener('click', () => this.dropSandShower(60));
     }
 
     const logo = document.querySelector('.brand-logo');
     if (logo) {
-      logo.addEventListener('pointerenter', () => this.sprinkleGrains(50));
+      logo.addEventListener('pointerenter', () => this.dropSandShower(30));
+      logo.addEventListener('click', () => this.dropSandShower(50));
     }
 
     let resizeTimer = null;
     window.addEventListener('resize', () => {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
-        this.resize();
-        this.buildParticles();
+        this.setupGrid();
       }, 150);
     });
 
-    this.lastFrameTime = performance.now();
-    this.startTime = performance.now();
     this.loop = this.loop.bind(this);
     requestAnimationFrame(this.loop);
   }
 
-  resize() {
-    if (!this.container || !this.canvas) return;
-    const rect = this.container.getBoundingClientRect();
+  setupGrid() {
+    if (!this.canvas) return;
+    const parent = this.canvas.parentElement;
+    const availableWidth = parent ? Math.min(parent.clientWidth || 520, 540) : 500;
+
+    // Taille des carrés de sable (comme dans le moteur physique du jeu : 4px ou 3px selon écran)
+    this.grainSize = availableWidth < 400 ? 3 : 4;
     this.dpr = Math.min(2, window.devicePixelRatio || 1);
-    this.width = Math.max(280, Math.floor(rect.width || 480));
-    this.height = Math.max(86, Math.floor(rect.height || 92));
 
-    this.canvas.width = this.width * this.dpr;
-    this.canvas.height = this.height * this.dpr;
-    this.canvas.style.width = `${this.width}px`;
-    this.canvas.style.height = `${this.height}px`;
-  }
+    // Hauteur adaptée à la grille de carrés
+    this.canvasCssWidth = availableWidth;
+    this.canvasCssHeight = this.grainSize === 3 ? 54 : 64;
 
-  buildParticles() {
-    this.particles = [];
-    this.ambientGrains = [];
-    this.allSettled = false;
-    this.revealed = false;
-    this.startTime = performance.now();
+    this.canvas.width = Math.floor(this.canvasCssWidth * this.dpr);
+    this.canvas.height = Math.floor(this.canvasCssHeight * this.dpr);
+    this.canvas.style.width = `${this.canvasCssWidth}px`;
+    this.canvas.style.height = `${this.canvasCssHeight}px`;
 
-    // Rendu hors-écran pour rasteriser les lettres et prélever la forme exacte
-    const offCanvas = document.createElement('canvas');
-    offCanvas.width = this.canvas.width;
-    offCanvas.height = this.canvas.height;
-    const offCtx = offCanvas.getContext('2d');
+    this.ctx.imageSmoothingEnabled = false;
+
+    // Rasterisation du texte dans un canvas tampon pour obtenir la grille exacte
+    const cols = Math.floor(this.canvasCssWidth / this.grainSize);
+    const rows = Math.floor(this.canvasCssHeight / this.grainSize);
+
+    const off = document.createElement('canvas');
+    off.width = cols;
+    off.height = rows;
+    const offCtx = off.getContext('2d');
     if (!offCtx) return;
 
-    offCtx.scale(this.dpr, this.dpr);
+    offCtx.imageSmoothingEnabled = false;
+    offCtx.fillStyle = '#000';
 
-    // Ajustement de la taille de police selon la largeur disponible
-    let titleFontSize = 44;
-    let subFontSize = 14.5;
-    if (this.width < 360) {
-      titleFontSize = 30;
-      subFontSize = 11;
-    } else if (this.width < 440) {
-      titleFontSize = 36;
-      subFontSize = 12.5;
+    const text = 'GRAINY SIEGE';
+    const targetWidthCols = cols - 4;
+    let fontSize = this.grainSize === 3 ? 12 : 14;
+    offCtx.font = `700 ${fontSize}px 'Silkscreen', 'Press Start 2P', monospace`;
+    while (offCtx.measureText(text).width > targetWidthCols && fontSize > 8) {
+      fontSize--;
+      offCtx.font = `700 ${fontSize}px 'Silkscreen', 'Press Start 2P', monospace`;
     }
 
-    const titleText = 'Grainy Siege';
-    const subText = 'battle royal de construction de chateau de sable';
+    offCtx.textBaseline = 'middle';
+    offCtx.textAlign = 'left';
+    const textY = Math.floor(rows / 2);
+    offCtx.fillText(text, 2, textY);
 
-    // Dessin du titre "Grainy Siege"
-    offCtx.fillStyle = '#000000';
-    offCtx.font = `700 ${titleFontSize}px 'Fredoka', cursive, -apple-system, BlinkMacSystemFont, sans-serif`;
-    offCtx.textBaseline = 'top';
-    const titleY = 4;
-    offCtx.fillText(titleText, 0, titleY);
-
-    // Dessin du sous-titre
-    offCtx.font = `700 ${subFontSize}px 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif`;
-    const subY = titleY + titleFontSize + 6;
-    offCtx.fillText(subText, 0, subY);
-
-    // Analyse des pixels pour extraire les positions cibles
-    const imgData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
+    const imgData = offCtx.getImageData(0, 0, cols, rows);
     const data = imgData.data;
 
-    // Échantillonnage régulier avec grain fin
-    const step = this.dpr >= 2 ? 3 : 2;
-
-    for (let py = 0; py < offCanvas.height; py += step) {
-      for (let px = 0; px < offCanvas.width; px += step) {
-        const idx = (py * offCanvas.width + px) * 4;
-        const alpha = data[idx + 3];
-
-        if (alpha > 120) {
-          const targetX = px / this.dpr;
-          const targetY = py / this.dpr;
-          const isTitle = targetY < subY;
-
-          // Délais progressifs : le titre se forme d'abord (0-1.6s),
-          // puis le sous-titre coule sous lui (1.1s-2.8s)
-          let delay;
-          if (isTitle) {
-            delay = Math.random() * 900 + (targetX / this.width) * 400;
-          } else {
-            delay = 1100 + Math.random() * 1100 + (targetX / this.width) * 500;
-          }
-
-          const startX = targetX + (Math.random() - 0.5) * 24;
-          const startY = -12 - Math.random() * 70;
-
-          this.particles.push({
-            tx: targetX,
-            ty: targetY,
-            x: startX,
-            y: startY,
-            vx: (Math.random() - 0.5) * 0.4,
-            vy: 0.6 + Math.random() * 1.4,
-            gravity: 0.12 + Math.random() * 0.05,
-            delay,
-            color: this.colors[Math.floor(Math.random() * this.colors.length)],
-            radius: (1.2 + Math.random() * 0.9),
-            settled: false,
-            bounces: 0,
-            phase: Math.random() * Math.PI * 2,
-            isTitle
-          });
-        }
+    // Grille 2D des pixels occupés
+    const grid = [];
+    for (let r = 0; r < rows; r++) {
+      grid[r] = [];
+      for (let c = 0; c < cols; c++) {
+        const idx = (r * cols + c) * 4;
+        grid[r][c] = data[idx + 3] > 80;
       }
     }
 
-    // Grains ambiants qui tombent en cascade continue pour simuler le sable vivant
-    for (let i = 0; i < 35; i++) {
-      this.ambientGrains.push({
-        x: Math.random() * this.width,
-        y: Math.random() * this.height,
-        vy: 0.8 + Math.random() * 1.5,
-        vx: (Math.random() - 0.5) * 0.3,
-        color: this.colors[Math.floor(Math.random() * this.colors.length)],
-        radius: 1.0 + Math.random() * 0.8,
-        alpha: 0.25 + Math.random() * 0.45
+    // Palette de sable haute lisibilité
+    // - Contour sombre très contrasté (#241407) pour faire ressortir le texte
+    // - Dégradé de sable doré méditerranéen (#fff29d, #f6cb57, #e2a42b, #b27014)
+    this.grains = [];
+    const now = performance.now();
+    this.startTime = now;
+    this.allSettled = false;
+
+    // Trouver le min/max de lignes pour le dégradé vertical
+    let minRow = rows, maxRow = 0;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (grid[r][c]) {
+          if (r < minRow) minRow = r;
+          if (r > maxRow) maxRow = r;
+        }
+      }
+    }
+    const textHeight = Math.max(1, maxRow - minRow);
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (!grid[r][c]) continue;
+
+        // Détection de contour (voisin vide)
+        let isBorder = false;
+        if (
+          r === 0 || r === rows - 1 || c === 0 || c === cols - 1 ||
+          !grid[r - 1][c] || !grid[r + 1][c] || !grid[r][c - 1] || !grid[r][c + 1]
+        ) {
+          isBorder = true;
+        }
+
+        let color;
+        if (isBorder) {
+          color = '#251508'; // Contour sombre pixel-art très net
+        } else {
+          const ratio = (r - minRow) / textHeight;
+          if (ratio < 0.22) {
+            color = '#fff3a3'; // Éclat de soleil supérieur
+          } else if (ratio < 0.55) {
+            color = '#f6cb58'; // Sable doré chaud
+          } else if (ratio < 0.85) {
+            color = '#e2a42b'; // Sable dunaire ambré
+          } else {
+            color = '#b27014'; // Ombre de sable mouillé
+          }
+        }
+
+        const targetX = c * this.grainSize;
+        const targetY = r * this.grainSize;
+
+        // Délai de chute : les grains du bas se détachent d'abord pour atterrir en premier,
+        // empilant le sable du bas vers le haut comme un château de sable
+        const colDelay = (c / cols) * 600;
+        const rowDelay = (1 - (r - minRow) / textHeight) * 280;
+        const delay = colDelay + rowDelay + Math.random() * 180;
+        const startY = -this.grainSize - Math.random() * 50;
+
+        this.grains.push({
+          targetX,
+          targetY,
+          x: targetX,
+          y: startY,
+          vy: 2.0 + Math.random() * 2.2,
+          gravity: 0.35,
+          color,
+          isBorder,
+          delay,
+          settled: false
+        });
+      }
+    }
+
+    // Grains parasites de sable qui débordent et tombent comme du vrai sable
+    this.strayGrains = [];
+    for (let i = 0; i < 20; i++) {
+      this.strayGrains.push({
+        x: Math.random() * this.canvasCssWidth,
+        y: -10 - Math.random() * 50,
+        vy: 2.0 + Math.random() * 2.5,
+        color: Math.random() > 0.4 ? '#f6cb58' : '#e2a42b'
       });
     }
   }
 
-  sprinkleGrains(count = 50) {
-    if (!this.width) return;
+  dropSandShower(count = 35) {
+    if (!this.canvasCssWidth) return;
     for (let i = 0; i < count; i++) {
-      this.ambientGrains.push({
-        x: Math.random() * (this.width * 0.85),
-        y: -10 - Math.random() * 40,
-        vy: 1.2 + Math.random() * 2.2,
-        vx: (Math.random() - 0.5) * 0.8,
-        color: this.colors[Math.floor(Math.random() * this.colors.length)],
-        radius: 1.2 + Math.random() * 1.0,
-        alpha: 0.6 + Math.random() * 0.4
+      this.strayGrains.push({
+        x: Math.random() * (this.canvasCssWidth * 0.85),
+        y: -10 - Math.random() * 30,
+        vy: 2.2 + Math.random() * 3.0,
+        color: ['#fff3a3', '#f6cb58', '#e2a42b', '#251508'][Math.floor(Math.random() * 4)]
       });
     }
   }
@@ -208,129 +220,99 @@ export class SandTextEffect {
   loop(now) {
     if (!this.running) return;
 
-    const elapsed = now - this.startTime;
     const ctx = this.ctx;
-    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
     ctx.save();
     ctx.scale(this.dpr, this.dpr);
+    ctx.clearRect(0, 0, this.canvasCssWidth, this.canvasCssHeight);
 
+    const elapsed = now - this.startTime;
     let settledCount = 0;
-    const total = this.particles.length;
+    const total = this.grains.length;
+    const size = this.grainSize;
 
-    // Mise à jour et dessin de chaque grain formant le texte
+    // Chute et dessin des carrés de sable
     for (let i = 0; i < total; i++) {
-      const p = this.particles[i];
+      const g = this.grains[i];
 
-      if (elapsed < p.delay) {
+      if (elapsed < g.delay) {
         continue;
       }
 
-      if (!p.settled) {
-        p.vy += p.gravity;
-        if (p.vy > 4.2) p.vy = 4.2; // Vitesse douce et progressive de chute de sable
-        p.y += p.vy;
-        p.x += Math.sin(p.y * 0.08 + p.phase) * 0.35;
+      if (!g.settled) {
+        g.vy += g.gravity;
+        if (g.vy > 6.0) g.vy = 6.0;
+        g.y += g.vy;
 
-        // Atterrissage sur le point cible du glyphe
-        if (p.y >= p.ty) {
-          if (p.bounces < 1 && Math.abs(p.vy) > 0.8) {
-            p.bounces++;
-            p.vy = -p.vy * 0.22;
-            p.y = p.ty;
-          } else {
-            p.settled = true;
-            p.x = p.tx;
-            p.y = p.ty;
-          }
+        if (g.y >= g.targetY) {
+          g.y = g.targetY;
+          g.settled = true;
         }
       } else {
         settledCount++;
       }
 
-      ctx.fillStyle = p.color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.fillStyle = g.color;
+      // Dessin au carré pixel parfait
+      ctx.fillRect(Math.round(g.x), Math.round(g.y), size, size);
     }
 
-    // Grains ambiants qui continuent de couler doucement
-    for (let i = this.ambientGrains.length - 1; i >= 0; i--) {
-      const g = this.ambientGrains[i];
-      g.y += g.vy;
-      g.x += g.vx;
+    // Grains de sable ambiants qui s'échappent en pluie légère
+    for (let i = this.strayGrains.length - 1; i >= 0; i--) {
+      const s = this.strayGrains[i];
+      s.y += s.vy;
 
-      if (g.y > this.height + 15) {
+      if (s.y > this.canvasCssHeight + 10) {
         if (this.allSettled) {
-          this.ambientGrains.splice(i, 1);
+          this.strayGrains.splice(i, 1);
           continue;
         } else {
-          g.y = -10;
-          g.x = Math.random() * this.width;
+          s.y = -10;
+          s.x = Math.random() * this.canvasCssWidth;
         }
       }
 
-      ctx.save();
-      ctx.globalAlpha = g.alpha;
-      ctx.fillStyle = g.color;
-      ctx.beginPath();
-      ctx.arc(g.x, g.y, g.radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+      ctx.fillStyle = s.color;
+      ctx.fillRect(Math.round(s.x), Math.round(s.y), size, size);
     }
 
-    // Reflet doré subtil traversant les lettres une fois le texte formé
-    if (total > 0 && settledCount / total > 0.85) {
-      if (!this.revealed) {
-        this.revealed = true;
-        if (this.seoBlock) {
-          this.seoBlock.classList.add('sand-revealed');
-        }
-      }
-
-      const gleamProgress = Math.min(1, (elapsed - 2200) / 1000);
-      if (gleamProgress > 0 && gleamProgress <= 1) {
-        const gleamX = gleamProgress * (this.width + 100) - 50;
-        const grad = ctx.createLinearGradient(gleamX - 35, 0, gleamX + 35, 0);
-        grad.addColorStop(0, 'rgba(255, 255, 255, 0)');
-        grad.addColorStop(0.5, 'rgba(255, 245, 180, 0.45)');
-        grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, this.width, this.height);
-      }
-
-      if (settledCount === total && elapsed > 4000 && this.ambientGrains.length === 0) {
+    // Étincelles pixel art discrètes une fois le titre formé
+    if (total > 0 && settledCount === total) {
+      if (!this.allSettled) {
         this.allSettled = true;
+      }
+
+      // Petite brillance pixel art toutes les ~3.5 secondes
+      const cycle = (now % 3500);
+      if (cycle < 600 && total > 20) {
+        const pIdx = Math.floor((cycle / 600) * total);
+        const refGrain = this.grains[pIdx];
+        if (refGrain && !refGrain.isBorder) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(Math.round(refGrain.x), Math.round(refGrain.y), size, size);
+        }
       }
     }
 
     ctx.restore();
 
-    // Ralentit la boucle après stabilisation complète pour 0% CPU
-    if (this.allSettled) {
-      setTimeout(() => {
-        requestAnimationFrame(this.loop);
-      }, 500);
-    } else {
-      requestAnimationFrame(this.loop);
-    }
+    requestAnimationFrame(this.loop);
   }
 }
 
-// Initialisation dès chargement
-export let sandTextInstance = null;
-export function initSandText() {
+// Initialisation au chargement
+export let sandTitleInstance = null;
+export function initSandTitle() {
   if (typeof document === 'undefined') return;
-  if (!sandTextInstance) {
-    sandTextInstance = new SandTextEffect();
-    window.sandTextInstance = sandTextInstance;
+  if (!sandTitleInstance) {
+    sandTitleInstance = new SandTitlePixelArt();
+    window.sandTitleInstance = sandTitleInstance;
   }
 }
 
 if (typeof document !== 'undefined') {
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initSandText);
+    document.addEventListener('DOMContentLoaded', initSandTitle);
   } else {
-    initSandText();
+    initSandTitle();
   }
 }
