@@ -356,8 +356,10 @@ export class Renderer {
     // sol de plage + petits coquillages et étoile de mer décoratifs
     ctx.save();
     ctx.fillStyle = this.groundPattern;
-    const m = new DOMMatrix().translate(ox, groundY).scale(s / SUB, s / SUB);
-    this.groundPattern.setTransform(m);
+    if (this.groundPattern && typeof DOMMatrix !== 'undefined' && typeof this.groundPattern.setTransform === 'function') {
+      const m = new DOMMatrix().translate(ox, groundY).scale(s / SUB, s / SUB);
+      this.groundPattern.setTransform(m);
+    }
     ctx.fillRect(0, groundY, cw, ch - groundY);
     ctx.restore();
     const lip = ctx.createLinearGradient(0, groundY, 0, groundY + 6 * s);
@@ -461,6 +463,7 @@ export class Renderer {
     const { ctx } = this;
     const { s, ox, oy } = this.view;
     const isRight = side === 'right';
+    const c = this.catapult;
     const speed = c.target < c.angle ? 0.045 : 0.007;
     c.angle += (c.target - c.angle) * Math.min(1, speed * dt);
 
