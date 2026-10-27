@@ -214,7 +214,7 @@
     <div class="switch-fab-badge" id="catapult-switch-arrow">▶</div>
   </button>
 
-  <!-- Interface balistique intégrée de la Catapulte active -->
+  <!-- Interface balistique relevée de la Catapulte active -->
   <section id="catapult-hud" class="catapult-onboard-hud side-left hidden" aria-label="Commandes balistiques de tir">
     <div class="hud-top-row">
       <div class="hud-cat-badge">
@@ -228,42 +228,63 @@
       </div>
     </div>
 
-    <!-- Réglage d'angle précis comme avant avec slider fluide et graduations -->
-    <div class="hud-angle-card">
-      <div class="hud-angle-header">
-        <span class="hud-angle-label">📐 ANGLE DE TIR</span>
-        <span class="hud-angle-readout"><strong id="angle-val">45.0</strong><span class="hud-deg">°</span></span>
-      </div>
-      <div class="hud-angle-slider-row">
-        <button type="button" class="hud-angle-step-btn" id="btn-angle-down" title="Baisser l'angle (-2.5°)">−</button>
-        <input id="angle-slider" type="range" min="8" max="82" value="45" step="0.5" class="hud-angle-range" aria-label="Angle de tir" />
-        <button type="button" class="hud-angle-step-btn" id="btn-angle-up" title="Monter l'angle (+2.5°)">+</button>
-      </div>
-      <div class="hud-angle-notches">
-        <span>10°</span><span>30°</span><span>45°</span><span>60°</span><span>80°</span>
-      </div>
-    </div>
-
-    <!-- Bouton qui gère la puissance SEULEMENT : maintien pour doser, relâchement pour tirer -->
-    <div class="hud-power-card">
-      <button id="fire-trigger-btn" class="hud-power-trigger-btn" type="button" title="Maintiens pour doser la puissance (va-et-vient continu), relâche pour faire feu immédiatement !">
-        <div class="hud-power-progress-fill" id="power-gauge-bar"></div>
-        <div class="hud-power-inner">
-          <span class="power-bolt">⚡</span>
-          <div class="power-text-group">
-            <span class="power-heading" id="trigger-label">MAINTENIR POUR DOSER</span>
-            <span class="power-subreadout"><strong id="power-val">0</strong>% • Relâcher pour tirer</span>
-          </div>
+    <!-- Rangée interactive : Cadran 90° d'angle + Bouton de puissance à côté -->
+    <div class="hud-controls-row">
+      <!-- Cadran 90° d'angle interactif -->
+      <div class="hud-dial-card" id="hud-dial-card" title="Clique ou glisse dans le quart de cercle 90° pour sélectionner l'angle">
+        <div class="dial-header">
+          <span class="dial-label-title">📐 ANGLE (90°)</span>
+          <span class="dial-angle-readout"><strong id="angle-val">45.0</strong>°</span>
         </div>
-      </button>
+        <div class="dial-svg-container" id="dial-svg-container">
+          <svg id="angle-dial-svg" class="angle-dial-svg" viewBox="0 0 100 100">
+            <!-- Secteur 90° ombré -->
+            <path id="dial-sector" class="dial-sector" d="M 14 86 L 86 86 A 72 72 0 0 0 14 14 Z" />
+            <!-- Arc extérieur -->
+            <path id="dial-arc" class="dial-arc" d="M 86 86 A 72 72 0 0 0 14 14" />
+            <!-- Rayon 45° de repère -->
+            <line id="dial-ray-45" class="dial-ray-ref" x1="14" y1="86" x2="64.9" y2="35.1" stroke-dasharray="2 2" />
+            <!-- Rayons intermédiaires 30° et 60° -->
+            <line id="dial-ray-30" class="dial-ray-sub" x1="14" y1="86" x2="76.3" y2="50" stroke-dasharray="1 3" />
+            <line id="dial-ray-60" class="dial-ray-sub" x1="14" y1="86" x2="50" y2="23.6" stroke-dasharray="1 3" />
+            <!-- Aiguille de visée -->
+            <line id="dial-needle" class="dial-needle" x1="14" y1="86" x2="64.9" y2="35.1" />
+            <!-- Curseur / Poignée glissable -->
+            <circle id="dial-knob" class="dial-knob" cx="64.9" cy="35.1" r="5.5" />
+            <!-- Point de pivot -->
+            <circle id="dial-pivot" class="dial-pivot" cx="14" cy="86" r="3.5" />
+            <!-- Graduations textuelles -->
+            <text id="dial-txt-0" class="dial-txt" x="84" y="96">0°</text>
+            <text id="dial-txt-45" class="dial-txt" x="70" y="28">45°</text>
+            <text id="dial-txt-90" class="dial-txt" x="4" y="16">90°</text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Bouton qui gère la puissance SEULEMENT : maintien pour doser, relâchement pour tirer -->
+      <div class="hud-power-card">
+        <button id="fire-trigger-btn" class="hud-power-trigger-btn" type="button" title="Maintiens pour doser la force du tir (va-et-vient continu), relâche pour faire feu immédiatement !">
+          <div class="hud-power-progress-fill" id="power-gauge-bar"></div>
+          <div class="hud-power-inner">
+            <span class="power-bolt">⚡</span>
+            <div class="power-text-group">
+              <span class="power-heading" id="trigger-label">MAINTENIR POUR DOSER</span>
+              <span class="power-subreadout"><strong id="power-val">0</strong>% • Relâcher pour tirer</span>
+            </div>
+          </div>
+        </button>
+      </div>
     </div>
 
-    <div class="hud-hint-bar">Glisse l'angle au slider ou vise au curseur • [Espace] ou Clic pour doser & tirer</div>
+    <div class="hud-hint-bar">Glisse dans le quart de cercle 90° • Maintiens [Espace] ou bouton pour doser</div>
 
     <!-- Éléments masqués conservés pour compatibilité -->
+    <input id="angle-slider" type="range" min="8" max="82" value="45" step="0.5" class="sr-only" aria-label="Angle de tir" />
     <input id="power-slider" type="range" min="5" max="100" value="65" class="sr-only" aria-label="Puissance en %"/>
     <button id="fire-btn" class="hidden" aria-hidden="true"></button>
     <div class="hidden" aria-hidden="true">
+      <button id="btn-angle-down"></button>
+      <button id="btn-angle-up"></button>
       <button id="btn-side-left"></button>
       <button id="btn-side-right"></button>
     </div>

@@ -63,6 +63,9 @@ function updateCatapultSwitchButton() {
     if (nameEl) {
       nameEl.textContent = myCatapultSide === 'left' ? 'CATAPULTE OUEST' : 'CATAPULTE EST';
     }
+    if (typeof updateDialSectorAndNeedle === 'function') {
+      updateDialSectorAndNeedle(aim.angle, myCatapultSide);
+    }
   }
 }
 
@@ -1529,55 +1532,95 @@ function tryPlaceAtPointer() {
   socket.emit('place', { shape: toolToUse, x: pointer.x, y: pointer.y, flipped: isMouldFlipped });
 }
 
-// ------------------------------------------------------------------ Inclinomètre & Catapulte Immersive
+// ------------------------------------------------------------------ Cadran 90° & Catapulte Immersive
 const angleSlider = $('angle-slider');
 const powerSlider = $('power-slider');
-const dialContainer = $('dial-container');
-const dialNeedle = $('dial-needle');
-const dialTip = $('dial-tip');
-const dialTicksGroup = $('dial-ticks');
+const dialCard = $('hud-dial-card');
+const dialSvg = $('angle-dial-svg');
 let lastRatchetDeg = 45;
 
-// Initialiser les graduations du cadran de l'inclinomètre (si présent)
-function initInclinometerTicks() {
-  if (!dialTicksGroup || dialTicksGroup._init) return;
-  dialTicksGroup._init = true;
-  dialTicksGroup.innerHTML = '';
-  for (let deg = 10; deg <= 80; deg += 5) {
-    const rad = (deg * Math.PI) / 180;
-    const isMajor = deg % 10 === 0;
-    const r1 = isMajor ? 57 : 62;
-    const r2 = 68;
-    const x1 = 80 + Math.cos(rad) * r1;
-    const y1 = 90 - Math.sin(rad) * r1;
-    const x2 = 80 + Math.cos(rad) * r2;
-    const y2 = 90 - Math.sin(rad) * r2;
+function updateDialSectorAndNeedle(angleRad, side = 'left') {
+  const isRight = side === 'right';
+  const ox = isRight ? 86 : 14;
+  const oy = 86;
+  const R = 72;
 
-    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    line.setAttribute('x1', x1.toFixed(1));
-    line.setAttribute('y1', y1.toFixed(1));
-    line.setAttribute('x2', x2.toFixed(1));
-    line.setAttribute('y2', y2.toFixed(1));
-    line.setAttribute('stroke', isMajor ? '#fae29c' : 'rgba(212, 175, 55, 0.65)');
-    line.setAttribute('stroke-width', isMajor ? '2' : '1.2');
-    dialTicksGroup.appendChild(line);
+  const dialSector = $('dial-sector');
+  const dialArc = $('dial-arc');
+  const dialPivot = $('dial-pivot');
+  const dialRay45 = $('dial-ray-45');
+  const dialRay30 = $('dial-ray-30');
+  const dialRay60 = $('dial-ray-60');
+  const dialNeedle = $('dial-needle');
+  const dialKnob = $('dial-knob');
+  const dialTxt0 = $('dial-txt-0');
+  const dialTxt45 = $('dial-txt-45');
+  const dialTxt90 = $('dial-txt-90');
 
-    if (isMajor && deg % 20 === 0) {
-      const tx = 80 + Math.cos(rad) * 49;
-      const ty = 90 - Math.sin(rad) * 49 + 3;
-      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      text.setAttribute('x', tx.toFixed(1));
-      text.setAttribute('y', ty.toFixed(1));
-      text.setAttribute('fill', '#eab308');
-      text.setAttribute('font-size', '7.5');
-      text.setAttribute('font-weight', '700');
-      text.setAttribute('text-anchor', 'middle');
-      text.textContent = String(deg);
-      dialTicksGroup.appendChild(text);
+  if (dialSector) {
+    if (isRight) {
+      dialSector.setAttribute('d', `M ${ox} ${oy} L 14 ${oy} A ${R} ${R} 0 0 1 ${ox} 14 Z`);
+    } else {
+      dialSector.setAttribute('d', `M ${ox} ${oy} L 86 ${oy} A ${R} ${R} 0 0 0 ${ox} 14 Z`);
     }
   }
+
+  if (dialArc) {
+    if (isRight) {
+      dialArc.setAttribute('d', `M 14 ${oy} A ${R} ${R} 0 0 1 ${ox} 14`);
+    } else {
+      dialArc.setAttribute('d', `M 86 ${oy} A ${R} ${R} 0 0 0 ${ox} 14`);
+    }
+  }
+
+  if (dialPivot) {
+    dialPivot.setAttribute('cx', String(ox));
+    dialPivot.setAttribute('cy', String(oy));
+  }
+
+  const sign = isRight ? -1 : 1;
+  const setRay = (el, deg) => {
+    if (!el) return;
+    const r = (deg * Math.PI) / 180;
+    const rx = ox + sign * Math.cos(r) * R;
+    const ry = oy - Math.sin(r) * R;
+    el.setAttribute('x1', String(ox));
+    el.setAttribute('y1', String(oy));
+    el.setAttribute('x2', rx.toFixed(1));
+    el.setAttribute('y2', ry.toFixed(1));
+  };
+
+  setRay(dialRay45, 45);
+  setRay(dialRay30, 30);
+  setRay(dialRay60, 60);
+
+  // Aiguille et curseur au bout de l'aiguille
+  const nx = ox + sign * Math.cos(angleRad) * R;
+  const ny = oy - Math.sin(angleRad) * R;
+  if (dialNeedle) {
+    dialNeedle.setAttribute('x1', String(ox));
+    dialNeedle.setAttribute('y1', String(oy));
+    dialNeedle.setAttribute('x2', nx.toFixed(1));
+    dialNeedle.setAttribute('y2', ny.toFixed(1));
+  }
+  if (dialKnob) {
+    dialKnob.setAttribute('cx', nx.toFixed(1));
+    dialKnob.setAttribute('cy', ny.toFixed(1));
+  }
+
+  if (dialTxt0) {
+    dialTxt0.setAttribute('x', isRight ? '6' : '82');
+    dialTxt0.setAttribute('y', '96');
+  }
+  if (dialTxt45) {
+    dialTxt45.setAttribute('x', isRight ? '24' : '68');
+    dialTxt45.setAttribute('y', '30');
+  }
+  if (dialTxt90) {
+    dialTxt90.setAttribute('x', isRight ? '84' : '4');
+    dialTxt90.setAttribute('y', '16');
+  }
 }
-initInclinometerTicks();
 
 function syncAimSliders() {
   const deg = (aim.angle * 180) / Math.PI;
@@ -1588,26 +1631,15 @@ function syncAimSliders() {
   const angleVal = $('angle-val');
   if (angleVal) angleVal.textContent = deg.toFixed(1);
 
-  // Mettre à jour l'aiguille de l'inclinomètre si affiché
-  if (dialNeedle) {
-    const rad = aim.angle;
-    const len = 58;
-    const nx = 80 + Math.cos(rad) * len;
-    const ny = 90 - Math.sin(rad) * len;
-    dialNeedle.setAttribute('x2', nx.toFixed(1));
-    dialNeedle.setAttribute('y2', ny.toFixed(1));
-    if (dialTip) {
-      dialTip.setAttribute('cx', nx.toFixed(1));
-      dialTip.setAttribute('cy', ny.toFixed(1));
-    }
-  }
+  // Mettre à jour le cadran 90° interactif
+  updateDialSectorAndNeedle(aim.angle, myCatapultSide);
 }
 
 function changeAngleStep(deltaDeg) {
   unlock();
   let deg = (aim.angle * 180) / Math.PI + deltaDeg;
-  if (deg < 8) deg = 8;
-  if (deg > 82) deg = 82;
+  if (deg < 6) deg = 6;
+  if (deg > 84) deg = 84;
   aim.angle = (deg * Math.PI) / 180;
   syncAimSliders();
   sfx.ratchet(640 + deg * 5);
@@ -1630,24 +1662,26 @@ $('catapult-switch-btn')?.addEventListener('click', () => {
   setCatapultSide(nextSide);
 });
 
-// Interaction avec l'inclinomètre (clic / glisser de l'aiguille)
+// Interaction avec le cadran 90° (clic / glisser de l'aiguille dans le quart de cercle)
 let isDraggingDial = false;
 
-function setAngleFromEvent(e) {
-  if (!dialContainer) return;
-  const rect = dialContainer.getBoundingClientRect();
+function setAngleFromDialEvent(e) {
+  const svg = $('angle-dial-svg');
+  if (!svg) return;
+  const rect = svg.getBoundingClientRect();
   const px = e.clientX - rect.left;
   const py = e.clientY - rect.top;
-  const cx = rect.width / 2;
-  const cy = rect.height * 0.9;
-  const dx = px - cx;
-  const dy = cy - py; // axe Y vers le haut
-  let rad = Math.atan2(dy, dx);
+  const isRight = myCatapultSide === 'right';
+  const originX = isRight ? (rect.width * 0.86) : (rect.width * 0.14);
+  const originY = rect.height * 0.86;
+  const dx = isRight ? (originX - px) : (px - originX);
+  const dy = originY - py; // axe Y vers le haut
+  let rad = Math.atan2(Math.max(0.01, dy), Math.max(0.01, dx));
   let deg = (rad * 180) / Math.PI;
-  if (deg < 8) deg = 8;
-  if (deg > 82) deg = 82;
+  if (deg < 6) deg = 6;
+  if (deg > 84) deg = 84;
 
-  if (Math.abs(deg - lastRatchetDeg) >= 2.5) {
+  if (Math.abs(deg - lastRatchetDeg) >= 2.0) {
     sfx.ratchet(640 + deg * 5);
     lastRatchetDeg = deg;
   }
@@ -1663,8 +1697,8 @@ function setAngleFromCoords(cx, cy, catX, catY, isRight) {
   const dy = catY - cy; // Y inversé (vers le haut)
   let rad = Math.atan2(Math.max(2, dy), Math.max(2, dx));
   let deg = (rad * 180) / Math.PI;
-  if (deg < 8) deg = 8;
-  if (deg > 82) deg = 82;
+  if (deg < 6) deg = 6;
+  if (deg > 84) deg = 84;
 
   if (Math.abs(deg - lastRatchetDeg) >= 2.0) {
     sfx.ratchet(640 + deg * 5);
@@ -1676,23 +1710,23 @@ function setAngleFromCoords(cx, cy, catX, catY, isRight) {
   socket.emit('aim', { angle: aim.angle, power: aim.power, side: myCatapultSide });
 }
 
-if (dialContainer) {
-  dialContainer.addEventListener('pointerdown', (e) => {
+if (dialCard) {
+  dialCard.addEventListener('pointerdown', (e) => {
     unlock();
     isDraggingDial = true;
-    dialContainer.setPointerCapture(e.pointerId);
-    setAngleFromEvent(e);
+    try { dialCard.setPointerCapture(e.pointerId); } catch (_) {}
+    setAngleFromDialEvent(e);
   });
 
-  dialContainer.addEventListener('pointermove', (e) => {
-    if (isDraggingDial) setAngleFromEvent(e);
+  dialCard.addEventListener('pointermove', (e) => {
+    if (isDraggingDial) setAngleFromDialEvent(e);
   });
 
   const endDialDrag = () => {
     isDraggingDial = false;
   };
-  dialContainer.addEventListener('pointerup', endDialDrag);
-  dialContainer.addEventListener('pointercancel', endDialDrag);
+  dialCard.addEventListener('pointerup', endDialDrag);
+  dialCard.addEventListener('pointercancel', endDialDrag);
 }
 
 if (angleSlider) {
@@ -1725,24 +1759,24 @@ function startCharging() {
   unlock();
   isCharging = true;
   chargeStartTime = performance.now();
-  currentChargePower = 0.12;
+  currentChargePower = 0.15;
   if (fireTriggerBtn) fireTriggerBtn.classList.add('charging');
-  if (triggerLabel) triggerLabel.textContent = '⚡ TENSION EN COURS...';
-  sfx.winch(0.12);
+  if (triggerLabel) triggerLabel.textContent = '⚡ DOSAGE EN COURS...';
+  sfx.winch(0.15);
   lastWinchTick = performance.now();
 
   function chargeLoop(now) {
     if (!isCharging) return;
     const elapsed = now - chargeStartTime;
 
-    // Oscillation fluide et continue (ping-pong) : va au max, puis redescend au min, puis remonte au max !
-    const halfCycle = 800; // 800ms pour monter au max, 800ms pour redescendre au min
+    // Oscillation fluide et continue (ping-pong) : 1800ms pour monter au max, 1800ms pour redescendre (doux et dosable !)
+    const halfCycle = 1800;
     const fullCycle = halfCycle * 2;
     const cycleProgress = (elapsed % fullCycle) / fullCycle;
     // Vague triangulaire : monte de 0 à 1 puis redescend de 1 à 0
     const wave = cycleProgress <= 0.5 ? (cycleProgress * 2) : (2 - cycleProgress * 2);
 
-    const minP = 0.12;
+    const minP = 0.15;
     const maxP = 1.0;
     currentChargePower = minP + wave * (maxP - minP);
 
@@ -1752,7 +1786,7 @@ function startCharging() {
     aim.power = currentChargePower;
     socket.emit('aim', { angle: aim.angle, power: aim.power, side: myCatapultSide });
 
-    if (now - lastWinchTick > 120) {
+    if (now - lastWinchTick > 140) {
       sfx.winch(currentChargePower);
       lastWinchTick = now;
     }
@@ -1766,11 +1800,11 @@ function releaseAndFire() {
   isCharging = false;
   if (chargeRafId) cancelAnimationFrame(chargeRafId);
   if (fireTriggerBtn) fireTriggerBtn.classList.remove('charging');
-  if (triggerLabel) triggerLabel.textContent = 'MAINTENIR POUR BANDER';
+  if (triggerLabel) triggerLabel.textContent = 'MAINTENIR POUR DOSER';
 
   const elapsed = performance.now() - chargeStartTime;
-  // Si le joueur a cliqué brièvement (<140ms), puissance minimale décente de 0.40
-  const effectivePower = elapsed < 140 ? Math.max(0.40, currentChargePower) : currentChargePower;
+  // Si le joueur a cliqué brièvement (<160ms), puissance minimale décente de 0.40
+  const effectivePower = elapsed < 160 ? Math.max(0.40, currentChargePower) : currentChargePower;
   aim.power = effectivePower;
   fireCatapult();
 
@@ -2047,15 +2081,18 @@ function frame(now) {
   const isShooter = phase === 'battle' && roomState?.turn?.shooterId === myId;
   const curCatSide = isShooter ? myCatapultSide : (roomState?.turn?.catapultSide || 'left');
 
-  // Gestion dynamique de la caméra : zoom doux sur le château en construction (centre 210),
-  // et slide panoramique cinématographique d'une catapulte à l'autre en combat (gauche 135 <-> droite 285) !
+  // Gestion dynamique de la caméra :
+  // En construction : château centré sur l'écran (centre 210) avec zoom doux
+  // En combat : déplacement panoramique 21:9 cinématographique
+  //   - Catapulte Gauche : cible 152 (catapulte à gauche, château sur la moitié droite)
+  //   - Catapulte Droite : cible 268 (château sur la moitié gauche, catapulte à droite)
   if (phase === 'build') {
-    renderer.setCameraTarget(210, GROUND_Y - 45, 1.25);
+    renderer.setCameraTarget(210, GROUND_Y - 45, 1.18);
   } else if (phase === 'battle') {
     if (curCatSide === 'right') {
-      renderer.setCameraTarget(308, GROUND_Y - 42, 1.22);
+      renderer.setCameraTarget(268, GROUND_Y - 42, 1.0);
     } else {
-      renderer.setCameraTarget(112, GROUND_Y - 42, 1.22);
+      renderer.setCameraTarget(152, GROUND_Y - 42, 1.0);
     }
   } else {
     renderer.setCameraTarget(210, GROUND_Y - 45, 1.0);

@@ -55,8 +55,8 @@ export const TICK_RATE = 60;
 
 // Balistique de la catapulte (cellules / tick)
 export const BALL_GRAVITY = 0.05;
-export const BALL_SPEED_MIN = 1.6;
-export const BALL_SPEED_MAX = 5.2;
+export const BALL_SPEED_MIN = 1.2;
+export const BALL_SPEED_MAX = 4.0;
 export const BALL_RADIUS = 3.2;
 
 export const PLAYER_COLORS = [

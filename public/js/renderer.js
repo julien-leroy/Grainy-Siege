@@ -98,17 +98,21 @@ export class Renderer {
   }
 
   updateCamera(dt) {
-    const f = Math.min(1, 0.006 * dt);
+    const f = 1 - Math.exp(-0.0055 * dt);
     this.camera.currentX += (this.camera.targetX - this.camera.currentX) * f;
     this.camera.currentY += (this.camera.targetY - this.camera.currentY) * f;
     this.camera.currentZoom += (this.camera.targetZoom - this.camera.currentZoom) * f;
 
     const cw = this.canvas.width;
     const ch = this.canvas.height;
-    const baseS = Math.min(cw / (GRID_W * 1.0), ch / (GRID_H * 1.05));
+    // Panorama 21:9 cinématographique : la hauteur remplit l'écran et le monde déborde latéralement
+    // permettant un vrai déplacement de caméra fluide de gauche à droite
+    const fitH = (ch - 14 * this.dpr) / (GRID_H * 1.02);
+    const fitW = cw / (GRID_W * 0.72);
+    const baseS = Math.max(fitH, fitW);
     const s = baseS * this.camera.currentZoom;
     const ox = cw / 2 - this.camera.currentX * s;
-    const oy = (ch - 18 * this.dpr) - GROUND_Y * s;
+    const oy = (ch - 16 * this.dpr) - GROUND_Y * s;
     this.view = { s, ox, oy };
   }
 
@@ -123,10 +127,12 @@ export class Renderer {
     this.dpr = dpr;
     const cw = this.canvas.width;
     const ch = this.canvas.height;
-    const baseS = Math.min(cw / (GRID_W * 1.0), ch / (GRID_H * 1.05));
+    const fitH = (ch - 14 * this.dpr) / (GRID_H * 1.02);
+    const fitW = cw / (GRID_W * 0.72);
+    const baseS = Math.max(fitH, fitW);
     const s = baseS * (this.camera ? this.camera.currentZoom : 1.0);
     const ox = cw / 2 - (this.camera ? this.camera.currentX : GRID_W / 2) * s;
-    const oy = (ch - 18 * this.dpr) - GROUND_Y * s;
+    const oy = (ch - 16 * this.dpr) - GROUND_Y * s;
     this.view = { s, ox, oy };
     this.drawnKey = null;
   }

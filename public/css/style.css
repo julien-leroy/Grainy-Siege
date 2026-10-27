@@ -1084,24 +1084,25 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
 }
 
 /* ====================================================================
-   INTERFACE BALISTIQUE INTÉGRÉE DE LA CATAPULTE
+   INTERFACE BALISTIQUE INTÉGRÉE DE LA CATAPULTE (RELEVÉE)
    ==================================================================== */
 .catapult-onboard-hud {
   position: fixed;
-  bottom: 24px;
+  top: 76px; /* Relevée pour dégager totalement la catapulte au sol ! */
+  bottom: auto;
   z-index: 28;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  background: rgba(26, 18, 12, 0.94);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  gap: 8px;
+  background: rgba(22, 14, 8, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 2px solid rgba(245, 158, 11, 0.85);
-  border-radius: 20px;
-  padding: 14px 16px;
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.65), 0 0 24px rgba(245, 158, 11, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border-radius: 18px;
+  padding: 10px 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 28px rgba(245, 158, 11, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   color: #fff;
-  width: 290px;
+  width: 350px;
   pointer-events: auto;
   user-select: none;
   touch-action: none;
@@ -1109,149 +1110,160 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
 }
 
 .catapult-onboard-hud.side-left {
-  left: 28px;
+  left: 32px;
   right: auto;
 }
 
 .catapult-onboard-hud.side-right {
-  right: 28px;
+  right: 32px;
   left: auto;
+}
+
+.hud-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .hud-cat-badge {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 900;
   letter-spacing: 0.6px;
   color: #fde047;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 }
 
-/* Carte Réglage d'Angle */
-.hud-angle-card {
-  background: rgba(15, 10, 6, 0.6);
-  border: 1px solid rgba(212, 175, 55, 0.35);
-  border-radius: 12px;
-  padding: 8px 10px;
+/* Rangée des deux contrôles côte à côte : Angle 90° à gauche + Puissance à droite */
+.hud-controls-row {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: stretch;
+  gap: 10px;
 }
 
-.hud-angle-header {
+/* Carte Cadran 90° interactif */
+.hud-dial-card {
+  flex: 0 0 128px;
+  background: rgba(14, 9, 5, 0.7);
+  border: 1.5px solid rgba(212, 175, 55, 0.45);
+  border-radius: 14px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  touch-action: none;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
+  transition: border-color 0.15s ease;
+}
+
+.hud-dial-card:hover {
+  border-color: #facc15;
+}
+
+.dial-header {
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  font-size: 0.68rem;
+  padding: 0 2px;
 }
 
-.hud-angle-label {
-  font-size: 0.72rem;
+.dial-label-title {
   font-weight: 800;
-  letter-spacing: 0.5px;
   color: #cbd5e1;
+  letter-spacing: 0.3px;
 }
 
-.hud-angle-readout {
+.dial-angle-readout {
   font-family: 'Courier New', Courier, monospace;
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   font-weight: 900;
   color: #fef08a;
-  text-shadow: 0 0 8px rgba(250, 204, 21, 0.5);
+  text-shadow: 0 0 8px rgba(250, 204, 21, 0.6);
 }
 
-.hud-angle-slider-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.hud-angle-step-btn {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(245, 158, 11, 0.5);
-  color: #facc15;
-  font-size: 1.1rem;
-  font-weight: 900;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+.dial-svg-container {
+  width: 114px;
+  height: 114px;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  transition: all 0.12s ease;
 }
 
-.hud-angle-step-btn:hover {
-  background: rgba(245, 158, 11, 0.4);
-  color: #fff;
-  transform: scale(1.08);
-}
-
-.hud-angle-step-btn:active {
-  transform: scale(0.92);
-}
-
-.hud-angle-range {
-  flex: 1;
-  -webkit-appearance: none;
-  appearance: none;
-  height: 8px;
-  border-radius: 4px;
-  background: linear-gradient(90deg, #1e293b 0%, #334155 100%);
-  border: 1px solid rgba(250, 204, 21, 0.4);
-  outline: none;
-  cursor: pointer;
-}
-
-.hud-angle-range::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: radial-gradient(circle, #fef08a 0%, #eab308 60%, #ca8a04 100%);
-  border: 2px solid #78350f;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5), 0 0 8px rgba(250, 204, 21, 0.7);
-  cursor: pointer;
-  transition: transform 0.1s ease;
-}
-
-.hud-angle-range::-webkit-slider-thumb:hover {
-  transform: scale(1.15);
-}
-
-.hud-angle-range::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: radial-gradient(circle, #fef08a 0%, #eab308 60%, #ca8a04 100%);
-  border: 2px solid #78350f;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5), 0 0 8px rgba(250, 204, 21, 0.7);
-  cursor: pointer;
-}
-
-.hud-angle-notches {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.62rem;
-  color: #94a3b8;
-  font-weight: 700;
-  padding: 0 4px;
-}
-
-/* Carte Bouton de Puissance */
-.hud-power-card {
+.angle-dial-svg {
   width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.dial-sector {
+  fill: rgba(245, 158, 11, 0.14);
+  stroke: none;
+}
+
+.dial-arc {
+  fill: none;
+  stroke: #f59e0b;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+.dial-needle {
+  stroke: #facc15;
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 4px rgba(250, 204, 21, 0.9));
+}
+
+.dial-knob {
+  fill: #ef4444;
+  stroke: #ffffff;
+  stroke-width: 2.2;
+  cursor: grab;
+  filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.95));
+}
+
+.dial-pivot {
+  fill: #f59e0b;
+  stroke: #ffffff;
+  stroke-width: 1.5;
+}
+
+.dial-ray-ref {
+  stroke: rgba(254, 240, 138, 0.55);
+  stroke-width: 1.2;
+}
+
+.dial-ray-sub {
+  stroke: rgba(254, 240, 138, 0.22);
+  stroke-width: 1;
+}
+
+.dial-txt {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 8.5px;
+  font-weight: 800;
+  fill: #fef08a;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+/* Carte Bouton de Puissance (à côté du cadran) */
+.hud-power-card {
+  flex: 1;
+  display: flex;
 }
 
 .hud-power-trigger-btn {
   position: relative;
   width: 100%;
-  height: 54px;
-  background: linear-gradient(180deg, #9a3412 0%, #7c2d12 100%);
-  border: 2.5px solid #ea580c;
+  min-height: 120px;
+  background: linear-gradient(145deg, #852a0a 0%, #681f08 100%);
+  border: 2px solid #ea580c;
   border-radius: 14px;
   color: #fff;
   overflow: hidden;
@@ -1260,6 +1272,9 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   user-select: none;
   touch-action: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .hud-power-trigger-btn:hover {
