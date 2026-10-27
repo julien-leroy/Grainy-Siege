@@ -424,37 +424,33 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   justify-content: center;
 }
 
-.sand-text-wrapper {
-  position: relative;
-  width: 100%;
-  min-height: 84px;
-  display: flex;
-  align-items: center;
+.brand-title {
+  font-family: 'Pixelify Sans', cursive, monospace, sans-serif;
+  font-size: 2.85rem;
+  font-weight: 700;
+  line-height: 1.08;
+  margin: 0 0 6px 0;
+  color: #f59e0b;
+  text-shadow:
+    2px 0 0 #451a03,
+    -1px 0 0 #451a03,
+    0 2px 0 #451a03,
+    0 -1px 0 #451a03,
+    2px 2px 0 #451a03,
+    -1px -1px 0 #fef08a,
+    3px 4px 0 rgba(69, 26, 3, 0.35);
+  letter-spacing: 0.02em;
 }
 
-.sand-text-canvas {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: auto;
-  z-index: 2;
-  cursor: pointer;
-}
-
-.brand-headings {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-  opacity: 0;
-  pointer-events: none;
+.brand-subtitle {
+  font-family: 'Pixelify Sans', cursive, monospace, sans-serif;
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: #78350f;
+  margin: 0;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  text-shadow: 1px 1px 0 rgba(254, 240, 138, 0.85);
 }
 
 @media (max-width: 680px) {
@@ -467,17 +463,11 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
     max-width: 110px;
     max-height: 110px;
   }
-  .sand-text-wrapper {
-    justify-content: center;
-  }
-  .brand-headings {
-    align-items: center;
-  }
   .brand-title {
-    font-size: 1.95rem;
+    font-size: 2.1rem;
   }
   .brand-subtitle {
-    font-size: 0.84rem;
+    font-size: 0.88rem;
   }
 }
 
