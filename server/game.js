@@ -192,7 +192,7 @@ export class Room {
       p.hasSpikeBall = false;
       p.hasGrenade = false;
       p.bonusAmmo = 0;
-      p.plan = p.isBot ? makeBuildPlan(this.rng, BUILD_SECONDS * 1000) : null;
+      p.plan = p.isBot ? makeBuildPlan(this.rng, BUILD_SECONDS * 1000, p.world.king?.x ?? 210) : null;
     }
     this.order = [...this.players.keys()];
     this.phase = 'build';

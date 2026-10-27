@@ -9,7 +9,7 @@ function run(world, ticks) {
 
 test('un seau posé sur le sol tient debout', () => {
   const w = new SandWorld(1);
-  w.stamp('seau', 200, 100);
+  w.stamp('seau', 160, 100);
   run(w, 240);
   const c = w.countTypes();
   assert.ok(c.wet > 400, `il devrait rester du sable mouillé (${c.wet})`);
@@ -97,11 +97,11 @@ test('une tour lâchée dans les airs chute d\'un bloc et atterrit debout', () =
 
 test('le séchage progressif en bataille diminue l\'humidité en surface', () => {
   const w = new SandWorld(77);
-  w.stamp('seau', 200, 130, false);
+  w.stamp('seau', 160, 130, false);
   run(w, 20);
   let surfaceIdx = -1;
   for (let y = 120; y < 150 && surfaceIdx === -1; y++) {
-    for (let x = 190; x < 210; x++) {
+    for (let x = 150; x < 170; x++) {
       const idx = y * GRID_W + x;
       if (w.type[idx] === 2 && w.type[idx - GRID_W] === 0) {
         surfaceIdx = idx;

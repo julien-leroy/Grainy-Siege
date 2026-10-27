@@ -51,25 +51,25 @@ export const SHAPES = [
   }),
 
   // 2) Arche royale : grande voûte pour abriter le Roi dessous !
-  make('arche', 'Arche', 'Voûte idéale pour abriter le Roi', 35, 20, (x, y, w, h) => {
+  make('arche', 'Arche', 'Voûte idéale pour abriter le Roi', 41, 24, (x, y, w, h) => {
     const cx = (w - 1) / 2;
-    const r = 11.5;
-    const dx = x - cx;
-    const dy = y - (h - 1);
-    if (dx * dx + dy * dy < r * r) return false;
+    const rw = 14.5;
+    const rh = 18.0;
+    const dx = (x - cx) / rw;
+    const dy = (y - (h - 1)) / rh;
+    if (dx * dx + dy * dy < 1) return false;
     if (y < 3) return crenel(x, y, w, 3, 3, 2);
     return true;
   }),
 
   // 3) Bunker Dôme : coque semi-circulaire creuse qui dévie les boulets
-  make('dome', 'Bunker', 'Dôme creux blindé au-dessus du Roi', 34, 18, (x, y, w, h) => {
+  make('dome', 'Bunker', 'Dôme creux blindé au-dessus du Roi', 44, 24, (x, y, w, h) => {
     const cx = (w - 1) / 2;
     const dx = x - cx;
     const dy = y - (h - 1);
-    const rOut = 16.8;
-    const rIn = 9.2;
-    const d2 = dx * dx + dy * dy * 1.15;
-    return d2 <= rOut * rOut && d2 >= rIn * rIn;
+    const dOut = (dx / 21.0) ** 2 + (dy / 23.0) ** 2;
+    const dIn = (dx / 16.0) ** 2 + (dy / 18.5) ** 2;
+    return dOut <= 1.0 && dIn >= 1.0;
   }),
 
   // 4) Tour de garde : haute et élancée avec meurtrière centrale
@@ -183,12 +183,12 @@ export function getShape(shapeId, flipped = false) {
   return flipped ? getFlippedShape(base) : base;
 }
 
-export const SAFE_ZONE_PAD_X = 3;
-export const SAFE_ZONE_PAD_Y = 1;
+export const SAFE_ZONE_PAD_X = 6;
+export const SAFE_ZONE_PAD_Y = 2;
 
 export function isNearKing(gx, gy, king) {
   if (!king) return false;
-  // Safe zone élargie : espace sacré autour du Roi (3 cellules de chaque côté, 1 cellule au-dessus)
+  // Safe zone doublée : espace sacré étendu autour du Roi (6 cellules de chaque côté, 2 cellules au-dessus)
   return (
     gx >= king.x - SAFE_ZONE_PAD_X &&
     gx < king.x + 5 + SAFE_ZONE_PAD_X &&

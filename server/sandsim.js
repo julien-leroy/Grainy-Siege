@@ -1009,13 +1009,17 @@ export class SandWorld {
     const k = this.king;
     if (!k) return 0;
 
-    // Vérifier si le Roi a la tête ensevelie sous du sable effondré / granulaire (DRY / LOOSE)
-    let buriedCols = 0;
-    for (let x = 0; x < KING_W; x++) {
-      const aboveY = k.y - 1;
-      if (aboveY >= 0 && isGranular(this.type[aboveY * W + k.x + x])) buriedCols++;
+    // Vérifier si le Roi a du sable (mouillé, durci, granulaire ou sec) sur la tête ou qui l'écrase
+    let sandTouchingHead = 0;
+    const aboveY = k.y - 1;
+    if (aboveY >= 0) {
+      for (let x = 0; x < KING_W; x++) {
+        const t = this.type[aboveY * W + k.x + x];
+        if (t !== EMPTY && t !== GROUND && t !== KING) sandTouchingHead++;
+      }
     }
-    if (buriedCols >= 3 && this.tick % 10 === 0) {
+    // Dégâts réguliers si du sable (mouillé, durci ou sec) repose sur la tête du Roi
+    if (sandTouchingHead > 0 && this.tick % 8 === 0) {
       this.kingHit(1.2);
     }
 
@@ -1068,12 +1072,12 @@ export class SandWorld {
       if (!buckets[d]) buckets[d] = [];
       else buckets[d].length = 0;
     }
-    // sources : sable mouillé/durci posé sur le sol, le roi ou du sable granulaire au repos
+    // sources : sable mouillé/durci posé sur le sol ou du sable granulaire compacté au repos (le Roi ne supporte pas de sable !)
     for (let i = 0; i < N - W; i++) {
       if (!isStructural(type[i])) continue;
       const b = i + W;
       const bt = type[b];
-      if (bt === GROUND || bt === KING || (isGranular(bt) && vel[b] === 0)) {
+      if (bt === GROUND || (isGranular(bt) && vel[b] === 0)) {
         const d0 = damage[i] >> 1;
         if (d0 <= strength && d0 < dist[i]) {
           dist[i] = d0;
@@ -1172,6 +1176,7 @@ export class SandWorld {
       const compCells = [];
       let touchesSupported = false;
       let blockedBelow = false;
+      let hitKing = false;
 
       while (qh < qt) {
         const cur = queue[qh++];
@@ -1198,8 +1203,12 @@ export class SandWorld {
           const belowIdx = cur + W;
           const bt = type[belowIdx];
           if (bt !== EMPTY && !failsSet[belowIdx]) {
-            blockedBelow = true;
-            if (bt === KING) this.kingHit(1.5);
+            if (bt === KING) {
+              hitKing = true;
+              this.kingHit(2.5);
+            } else {
+              blockedBelow = true;
+            }
           }
         }
 
@@ -1221,7 +1230,15 @@ export class SandWorld {
         }
       }
 
-      if (touchesSupported) {
+      if (hitKing) {
+        // Le bloc de sable mouillé s'écrase sur le Roi : il éclate en mottes (LOOSE) et inflige de lourds dégâts d'impact
+        for (let c = 0; c < compCells.length; c++) {
+          const idx = compCells[c];
+          type[idx] = LOOSE;
+          vel[idx] = 1.0;
+          damage[idx] = 0;
+        }
+      } else if (touchesSupported) {
         // Rupture de cisaillement d'un porte-à-faux dans le vide : se détache en mottes de sable mouillé (LOOSE)
         // Ne se transforme JAMAIS en sable sec spontané !
         for (let c = 0; c < compCells.length; c++) {

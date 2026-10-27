@@ -11,56 +11,70 @@ export function botName(i) {
 }
 
 const TEMPLATES = [
-  // 1) Forteresse sous Arche + Piliers latéraux + Dôme blindé + Spray
+  // 1) Forteresse Voûtée Royale : Arche au centre + Tours de flanc + Glacis incliné
   (kx) => [
-    ['king', kx, GROUND_Y - 5],
-    ['cube', kx - 14, GROUND_Y - 8],
-    ['cube', kx + 14, GROUND_Y - 8],
-    ['arche', kx, GROUND_Y - 14],
-    ['spray', kx, GROUND_Y - 18],
-    ['tour', kx - 28, GROUND_Y - 16],
-    ['tour', kx + 28, GROUND_Y - 16],
-    ['rampe', kx - 48, GROUND_Y - 10],
-    ['dalle', kx, GROUND_Y - 26],
-    ['spray', kx - 28, GROUND_Y - 16],
-    ['cone', kx, GROUND_Y - 38],
+    ['arche', kx, GROUND_Y - 12],
+    ['spray', kx, GROUND_Y - 20],
+    ['tour', kx - 26, GROUND_Y - 16],
+    ['tour', kx + 26, GROUND_Y - 16],
+    ['spray', kx - 26, GROUND_Y - 16],
+    ['spray', kx + 26, GROUND_Y - 16],
+    ['rampe', kx - 45, GROUND_Y - 10],
+    ['barbacane', kx + 41, GROUND_Y - 9],
+    ['spray', kx - 45, GROUND_Y - 10],
+    ['spray', kx + 41, GROUND_Y - 9],
   ],
-  // 2) Bunker Dôme avec double glacis et remparts
+  // 2) Bunker Dôme Blindé : Dôme au centre + Donjons latéraux + Pente anti-boulets
   (kx) => [
-    ['king', kx, GROUND_Y - 5],
-    ['cube', kx - 20, GROUND_Y - 8],
-    ['cube', kx + 20, GROUND_Y - 8],
-    ['dalle', kx, GROUND_Y - 14],
-    ['dome', kx, GROUND_Y - 22],
-    ['spray', kx, GROUND_Y - 22],
-    ['rampe', kx - 52, GROUND_Y - 10],
-    ['tour', kx - 38, GROUND_Y - 16],
-    ['spray', kx - 38, GROUND_Y - 18],
-    ['cone', kx, GROUND_Y - 36],
-  ],
-  // 3) Citadelle haute avec le Roi au 1er étage sous une arche
-  (kx) => [
-    ['cube', kx - 16, GROUND_Y - 8],
-    ['cube', kx + 16, GROUND_Y - 8],
-    ['dalle', kx, GROUND_Y - 16],
+    ['dome', kx, GROUND_Y - 12],
     ['spray', kx, GROUND_Y - 16],
-    ['king', kx, GROUND_Y - 24],
-    ['tour', kx - 26, GROUND_Y - 24],
-    ['tour', kx + 26, GROUND_Y - 24],
-    ['arche', kx, GROUND_Y - 30],
-    ['spray', kx, GROUND_Y - 32],
-    ['rampe', kx - 54, GROUND_Y - 10],
+    ['donjon', kx - 34, GROUND_Y - 14],
+    ['donjon', kx + 34, GROUND_Y - 14],
+    ['spray', kx - 34, GROUND_Y - 14],
+    ['spray', kx + 34, GROUND_Y - 14],
+    ['rampe', kx - 59, GROUND_Y - 10],
+    ['barbacane', kx + 55, GROUND_Y - 9],
+    ['spray', kx - 59, GROUND_Y - 10],
+  ],
+  // 3) Citadelle Royale : Arche centrale + Murs crénelés + Colonnes + Chapeaux pointus
+  (kx) => [
+    ['arche', kx, GROUND_Y - 12],
+    ['spray', kx, GROUND_Y - 18],
+    ['colonne', kx - 25, GROUND_Y - 12],
+    ['colonne', kx + 25, GROUND_Y - 12],
+    ['spray', kx - 25, GROUND_Y - 12],
+    ['spray', kx + 25, GROUND_Y - 12],
+    ['mur', kx - 46, GROUND_Y - 5],
+    ['mur', kx + 46, GROUND_Y - 5],
+    ['spray', kx - 46, GROUND_Y - 5],
+    ['spray', kx + 46, GROUND_Y - 5],
+    ['cone', kx - 25, GROUND_Y - 32],
+    ['cone', kx + 25, GROUND_Y - 32],
+  ],
+  // 4) Bastion Lourd : Colonnes + Dalle + Arche + Glacis double
+  (kx) => [
+    ['arche', kx, GROUND_Y - 12],
+    ['spray', kx, GROUND_Y - 18],
+    ['donjon', kx - 33, GROUND_Y - 14],
+    ['tour', kx + 27, GROUND_Y - 16],
+    ['spray', kx - 33, GROUND_Y - 14],
+    ['spray', kx + 27, GROUND_Y - 16],
+    ['rampe', kx - 58, GROUND_Y - 10],
+    ['rampe', kx + 46, GROUND_Y - 10],
+    ['spray', kx - 58, GROUND_Y - 10],
+    ['spray', kx + 46, GROUND_Y - 10],
   ],
 ];
 
-export function makeBuildPlan(rng, buildMs) {
-  const kx = 180 + Math.floor(rng() * 65);
+export function makeBuildPlan(rng, buildMs, kingX = 210) {
+  const kx = Math.round(kingX);
   const tpl = TEMPLATES[Math.floor(rng() * TEMPLATES.length)](kx);
   const plan = [];
   let t = 1400 + rng() * 1200;
   const spacing = Math.min(4200, (buildMs - 7000) / tpl.length);
   for (const [shape, x, y] of tpl) {
-    plan.push({ at: t, shape, x: x + Math.round((rng() - 0.5) * 4), y });
+    const jitter = (shape === 'arche' || shape === 'dome') ? 0 : Math.round((rng() - 0.5) * 2);
+    plan.push({ at: t, shape, x: x + jitter, y });
     t += spacing * (0.75 + rng() * 0.5);
   }
   return plan;
