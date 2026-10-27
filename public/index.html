@@ -58,13 +58,19 @@
   <!-- Panneau Menu / Salon d'accueil (Hub 2 Colonnes sans scroll) -->
   <section id="lobby-modal" class="modal-backdrop">
     <div class="modal-card lobby-hub-card">
-      <header class="brand">
+      <header class="brand" role="banner">
         <div class="logo-box">
-          <img src="/logo.png" alt="Grainy Siege" class="brand-logo" />
+          <img src="/logo.png" alt="Grainy Siege - battle royal de construction de chateau de sable" class="brand-logo" width="150" height="150" />
         </div>
-        <p class="subtitle">
-          Bataille Royale de Châteaux de Sable & Catapultes 👑🏖️
-        </p>
+        <div class="brand-text-block">
+          <div class="sand-text-container" id="sand-text-container">
+            <canvas id="sand-text-canvas" class="sand-text-canvas" aria-hidden="true"></canvas>
+            <div class="brand-seo-titles" id="brand-seo-titles">
+              <h1 class="brand-title" id="brand-title">Grainy Siege</h1>
+              <h2 class="brand-subtitle" id="brand-subtitle">battle royal de construction de chateau de sable</h2>
+            </div>
+          </div>
+        </div>
       </header>
 
       <div class="lobby-hub-grid">
@@ -391,6 +397,7 @@
   <script src="/vendor/confetti/confetti.browser.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <script type="module" src="/js/site-bg.js"></script>
+  <script type="module" src="/js/sand-text.js"></script>
   <script type="module" src="/js/tutorial.js"></script>
   <script type="module" src="/js/main.js"></script>
 </body>
