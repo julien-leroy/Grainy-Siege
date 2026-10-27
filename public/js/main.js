@@ -8,7 +8,7 @@ import {
 } from '/shared/constants.js';
 import { ClientWorld } from './world.js';
 import { Renderer, drawThumb } from './renderer.js';
-import { sfx, unlock, isMuted, toggleMute } from './audio.js';
+import { sfx, music, unlock, isMuted, toggleMute } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -564,8 +564,21 @@ socket.on('room', (state) => {
       viewedPid = myId;
       selectTool('pate');
       playIntroSequence('build');
+      music.startBuild();
     } else if (state.phase === 'battle') {
+      if (prevPhase === 'build') {
+        music.stopBuild(true); // Sifflet de fin de chantier
+      }
       playIntroSequence('battle');
+      music.startBattle();
+    } else if (state.phase === 'settle') {
+      if (prevPhase === 'build') {
+        music.stopBuild(true); // Sifflet d'arrêt immédiat de la construction !
+      } else {
+        music.stopAll();
+      }
+    } else if (state.phase === 'ended' || state.phase === 'lobby') {
+      music.stopAll();
     }
   }
   syncUI();
@@ -703,7 +716,7 @@ socket.on('fx', (e) => {
     }
   } else if (e.type === 'collapse') {
     if (e.pid === activePid) {
-      sfx.collapse();
+      sfx.sandCrumble();
       renderer.shake = Math.min(10, 3 + e.count * 0.05);
     }
   } else if (e.type === 'kingDanger') {
@@ -749,6 +762,7 @@ socket.on('fx', (e) => {
     }
   } else if (e.type === 'impact') {
     sfx.impact(Math.min(1.5, (e.speed || 2) / 3));
+    sfx.sandSlide(Math.min(1.5, (e.r || 5) / 5));
     renderer.shake = Math.min(18, 5 + (e.r || 5) * 1.3);
     renderer.puff(e.x, e.y, e.r || 6, 24);
   } else if (e.type === 'miss') {
@@ -810,13 +824,13 @@ socket.on('fx', (e) => {
     renderer.popup(e.x, e.y - 8, '💦 +1 Spray Défensif en réserve !', '#38bdf8');
   } else if (e.type === 'flatten') {
     if (e.pid === activePid) {
-      sfx.place();
+      sfx.flatten();
       renderer.puff(e.x, e.y, 6, 14, '240,215,160');
       renderer.popup(e.x, e.y - 6, '🔨 Sol aplati !', '#60a5fa');
     }
   } else if (e.type === 'dig') {
     if (e.pid === activePid) {
-      sfx.collapse();
+      sfx.dig();
       renderer.puff(e.x, e.y, 8, 14, '210,180,140');
       renderer.popup(e.x, e.y - 6, '🥄 Creusé !', '#ef4444');
     }
@@ -1351,7 +1365,7 @@ function tryPlaceAtPointer() {
     }
     lastPlaceAttempt = now;
     nextPlaceAllowedAt = now + 400;
-    sfx.place();
+    sfx.flatten();
     renderer.puff(pointer.x, pointer.y, 6, 14, '240,215,160');
     renderer.popup(pointer.x, pointer.y - 6, '🔨 Aplati !', '#60a5fa');
     socket.emit('flatten', { x: pointer.x, y: pointer.y });
@@ -1373,7 +1387,7 @@ function tryPlaceAtPointer() {
     }
     lastPlaceAttempt = now;
     nextPlaceAllowedAt = now + 400;
-    sfx.collapse();
+    sfx.dig();
     renderer.puff(pointer.x, pointer.y, 8, 14, '210,180,140');
     renderer.popup(pointer.x, pointer.y - 6, '🥄 Creusé !', '#ef4444');
     socket.emit('dig', { x: pointer.x, y: pointer.y });
@@ -2057,6 +2071,9 @@ function frame(now) {
     $('timer-value').textContent = `${m}:${String(s).padStart(2, '0')}`;
     timerBox.classList.remove('hidden');
     timerBox.classList.toggle('urgent', sec <= 10);
+    if (phase === 'build') {
+      music.updateBuildTimer(sec);
+    }
     if (sec <= 5 && sec > 0 && sec !== lastSecondTick) {
       lastSecondTick = sec;
       sfx.tick();
