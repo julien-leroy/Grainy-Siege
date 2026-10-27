@@ -424,30 +424,64 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   justify-content: center;
 }
 
-.sand-title-area {
+.sand-text-wrapper {
   position: relative;
   width: 100%;
+  min-height: 84px;
   display: flex;
   align-items: center;
-  margin-bottom: 6px;
 }
 
-.sand-title-canvas {
-  display: block;
-  image-rendering: -moz-crisp-edges;
-  image-rendering: pixelated;
+.sand-text-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+  z-index: 2;
   cursor: pointer;
 }
 
-.brand-subtitle {
-  font-family: 'Silkscreen', 'Press Start 2P', monospace;
-  font-size: 0.82rem;
+.brand-headings {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.8s ease-in-out;
+  pointer-events: none;
+}
+
+.brand-headings.sand-revealed {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.brand-title {
+  font-family: 'Fredoka', 'Quicksand', -apple-system, sans-serif;
+  font-size: 2.5rem;
   font-weight: 700;
-  color: #2b1809;
-  letter-spacing: 0.04em;
-  line-height: 1.45;
+  line-height: 1.05;
+  margin: 0 0 3px 0;
+  color: #78350f;
+  background: linear-gradient(180deg, #fef08a 0%, #f59e0b 50%, #b45309 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 0 #5c2807) drop-shadow(0 3px 6px rgba(60, 25, 5, 0.3));
+  letter-spacing: 0.02em;
+}
+
+.brand-subtitle {
+  font-family: 'Fredoka', 'Quicksand', -apple-system, sans-serif;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: #5c2807;
+  letter-spacing: 0.01em;
   margin: 0;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.85), 0 2px 4px rgba(60, 30, 10, 0.15);
+  line-height: 1.35;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 @media (max-width: 680px) {
@@ -460,12 +494,17 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
     max-width: 110px;
     max-height: 110px;
   }
-  .sand-title-area {
+  .sand-text-wrapper {
     justify-content: center;
   }
+  .brand-headings {
+    align-items: center;
+  }
+  .brand-title {
+    font-size: 1.95rem;
+  }
   .brand-subtitle {
-    font-size: 0.72rem;
-    text-align: center;
+    font-size: 0.84rem;
   }
 }
 
@@ -1053,234 +1092,98 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
    BOUTON ICÔNE IMPOSANT POUR CHANGER DE CATAPULTE
    ==================================================================== */
 /* ====================================================================
-   PLATEAU DE COMMANDES INFÉRIEUR INTÉGRÉ SOUS LE SABLE REHAUSSÉ
+   ACTIONS DE TIR DIRECTEMENT DANS LE SABLE (SANS FOOTER, SANS CONTOUR)
    ==================================================================== */
-.battle-bottom-deck {
+.sand-catapult-hud {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 84px;
+  bottom: 14px;
   z-index: 25;
-  background: linear-gradient(180deg, rgba(28, 18, 12, 0.95) 0%, rgba(14, 9, 6, 0.98) 100%);
-  border-top: 2.5px solid rgba(245, 158, 11, 0.75);
-  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 0 16px;
+  gap: 12px;
+  pointer-events: none;
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0;
   user-select: none;
-  pointer-events: auto;
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+  transition: left 0.3s cubic-bezier(0.16, 1, 0.3, 1), right 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
 }
 
-.battle-bottom-deck.hidden {
+.sand-catapult-hud.hidden {
   display: none !important;
 }
 
-.deck-inner-container {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  max-width: 1080px;
-  height: 100%;
+.sand-catapult-hud > * {
+  pointer-events: auto;
 }
 
-.deck-sub-label {
-  font-size: 0.60rem;
-  font-weight: 900;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-  color: #cbd5e1;
-  opacity: 0.85;
+/* Catapulte GAUCHE : commandes à gauche, bouton tir et boulets à droite de la catapulte */
+.sand-catapult-hud.cat-left {
+  left: 28px;
+  right: auto;
+  flex-direction: row;
 }
 
-/* 1. Bouton changement de catapulte */
-.deck-cat-btn {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  height: 56px;
-  padding: 0 14px;
-  border-radius: 14px;
-  background: linear-gradient(145deg, rgba(42, 28, 16, 0.9), rgba(22, 14, 8, 0.95));
-  border: 1.8px solid rgba(245, 158, 11, 0.65);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+/* Catapulte DROITE : commandes à droite, bouton tir et boulets à gauche de la catapulte */
+.sand-catapult-hud.cat-right {
+  right: 28px;
+  left: auto;
+  flex-direction: row-reverse;
+}
+
+/* 1. Bouton icône pour changer de catapulte du côté de la catapulte */
+.catapult-icon-switch-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #78350f, #451a03);
+  border: 2.5px solid #facc15;
+  box-shadow: 0 4px 14px rgba(45, 20, 5, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25);
   color: #fff;
   cursor: pointer;
-  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   transition: all 0.18s ease;
 }
 
-.deck-cat-btn:hover {
-  border-color: #facc15;
-  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.4);
-  transform: translateY(-1px);
+.catapult-icon-switch-btn:hover {
+  transform: scale(1.08) translateY(-2px);
+  border-color: #fef08a;
+  box-shadow: 0 6px 18px rgba(250, 204, 21, 0.45);
 }
 
-.deck-cat-btn:active {
-  transform: translateY(1px);
+.catapult-icon-switch-btn:active {
+  transform: scale(0.95);
 }
 
-.deck-cat-icon {
-  font-size: 1.3rem;
-  line-height: 1;
+.cat-switch-icon {
+  font-size: 1.35rem;
 }
 
-.deck-cat-text {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  line-height: 1.15;
-}
-
-.deck-cat-side-txt {
-  font-size: 0.78rem;
+.cat-switch-tag {
+  font-size: 0.65rem;
   font-weight: 900;
   color: #fde047;
   letter-spacing: 0.3px;
+  margin-top: 1px;
 }
 
-.deck-cat-badge {
-  font-size: 1rem;
-  font-weight: 900;
-  color: #facc15;
-  margin-left: 2px;
-}
-
-/* 2. Contrôle d'angle 90° compact */
-.deck-angle-control {
+/* 2. Râtelier de boulets posé dans le sable */
+.sand-ammo-rack {
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: 56px;
-  padding: 0 10px;
-  border-radius: 14px;
-  background: rgba(14, 9, 5, 0.75);
-  border: 1.5px solid rgba(212, 175, 55, 0.45);
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.5);
-  color: #fff;
-}
-
-.deck-angle-step-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #facc15;
-  font-size: 0.75rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-}
-
-.deck-angle-step-btn:hover {
-  background: rgba(250, 204, 21, 0.25);
-  border-color: #facc15;
-  transform: scale(1.08);
-}
-
-.deck-angle-step-btn:active {
-  transform: scale(0.92);
-}
-
-.deck-angle-center {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  line-height: 1.1;
-  min-width: 52px;
-}
-
-.deck-angle-readout {
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 0.95rem;
-  font-weight: 900;
-  color: #fef08a;
-  text-shadow: 0 0 8px rgba(250, 204, 21, 0.6);
-}
-
-.deck-mini-dial {
-  width: 46px;
-  height: 46px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: grab;
-}
-
-.deck-mini-dial svg {
-  width: 100%;
-  height: 100%;
-}
-
-.dial-sector {
-  fill: rgba(245, 158, 11, 0.16);
-}
-
-.dial-arc {
-  fill: none;
-  stroke: #f59e0b;
-  stroke-width: 2.2;
-}
-
-.dial-needle {
-  stroke: #facc15;
-  stroke-width: 3.2;
-  filter: drop-shadow(0 0 4px rgba(250, 204, 21, 0.9));
-}
-
-.dial-knob {
-  fill: #ef4444;
-  stroke: #ffffff;
-  stroke-width: 2.2;
-  filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.95));
-}
-
-.dial-pivot {
-  fill: #f59e0b;
-  stroke: #ffffff;
-  stroke-width: 1.5;
-}
-
-.dial-ray-ref {
-  stroke: rgba(254, 240, 138, 0.55);
-  stroke-width: 1.2;
-}
-
-.dial-ray-sub {
-  stroke: rgba(254, 240, 138, 0.22);
-  stroke-width: 1;
-}
-
-.dial-txt {
-  font-family: system-ui, sans-serif;
-  font-size: 8.5px;
-  font-weight: 800;
-  fill: #fef08a;
-}
-
-/* 3. Râtelier de munitions (voir les boules qu'on a) */
-.deck-ammo-rack {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  height: 56px;
+  gap: 6px;
+  height: 50px;
   padding: 0 12px;
-  border-radius: 14px;
-  background: rgba(14, 9, 5, 0.75);
-  border: 1.5px solid rgba(245, 158, 11, 0.45);
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.5);
-  white-space: nowrap;
+  border-radius: 999px;
+  background: rgba(45, 20, 5, 0.82);
+  border: 2px solid rgba(245, 158, 11, 0.65);
+  box-shadow: 0 4px 14px rgba(40, 20, 5, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
 }
 
 .shots-balls {
@@ -1293,8 +1196,8 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   font-size: 1.15rem;
   background: rgba(255, 255, 255, 0.08);
@@ -1304,53 +1207,57 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
 
 .shot-ball.available {
   border-color: #facc15;
-  background: radial-gradient(circle, rgba(250, 204, 21, 0.3), rgba(0, 0, 0, 0.4));
+  background: radial-gradient(circle, rgba(250, 204, 21, 0.35), rgba(0, 0, 0, 0.4));
   box-shadow: 0 0 10px rgba(250, 204, 21, 0.45);
   transform: scale(1.05);
 }
 
 .shot-ball.used {
-  opacity: 0.28;
+  opacity: 0.25;
   filter: grayscale(1);
   transform: scale(0.9);
 }
 
-/* 4. Bouton de puissance étiré en longueur */
-.deck-power-wide-card {
-  flex: 1;
-  min-width: 240px;
-  height: 56px;
-  display: flex;
-}
-
-.deck-power-trigger-btn {
+/* 3. Grand bouton de puissance étiré en longueur directement dans le sable */
+.sand-power-trigger-btn {
   position: relative;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(145deg, #852a0a 0%, #681f08 100%);
-  border: 2px solid #ea580c;
-  border-radius: 14px;
+  height: 50px;
+  min-width: 190px;
+  max-width: 260px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: linear-gradient(145deg, #7c2d12, #431407);
+  border: 2.5px solid #ea580c;
+  box-shadow: 0 5px 16px rgba(45, 20, 5, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25);
   color: #fff;
   overflow: hidden;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25);
   user-select: none;
   touch-action: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease;
 }
 
-.deck-power-trigger-btn:hover {
+.sand-power-trigger-btn:hover {
   border-color: #f97316;
-  box-shadow: 0 6px 18px rgba(234, 88, 12, 0.55);
+  box-shadow: 0 6px 18px rgba(234, 88, 12, 0.45);
 }
 
-.deck-power-trigger-btn.charging {
+.sand-power-trigger-btn:active {
+  transform: scale(0.97);
+}
+
+.sand-power-trigger-btn.charging {
   border-color: #facc15;
-  box-shadow: 0 0 26px rgba(245, 158, 11, 0.85), inset 0 2px 4px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 20px rgba(250, 204, 21, 0.65), 0 6px 18px rgba(234, 88, 12, 0.5);
   animation: trigger-vibrate 0.08s infinite alternate;
+}
+
+@keyframes trigger-vibrate {
+  from { transform: translateY(0); }
+  to { transform: translateY(-1.5px); }
 }
 
 .hud-power-progress-fill {
@@ -1362,46 +1269,40 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   background: linear-gradient(90deg, #ca8a04 0%, #ea580c 50%, #ef4444 100%);
   opacity: 0.88;
   pointer-events: none;
+  border-radius: 999px;
   box-shadow: 0 0 16px rgba(239, 68, 68, 0.8);
   transition: width 0.03s linear;
 }
 
-.deck-power-inner {
+.sand-power-inner {
   position: relative;
   z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  padding: 0 14px;
   pointer-events: none;
+  font-family: 'Fredoka', 'Quicksand', sans-serif;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
-.deck-power-inner .power-bolt {
-  font-size: 1.45rem;
+.sand-power-inner .power-bolt {
+  font-size: 1.35rem;
   line-height: 1;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
 }
 
-.deck-power-text-group {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  line-height: 1.15;
-}
-
-.deck-power-heading {
-  font-size: 0.84rem;
-  font-weight: 900;
+.sand-power-heading {
+  font-size: 0.95rem;
   letter-spacing: 0.5px;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
   color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 }
 
-.deck-power-sub {
-  font-size: 0.70rem;
-  font-weight: 700;
+.sand-power-sub {
+  font-size: 0.82rem;
   color: #fef08a;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }

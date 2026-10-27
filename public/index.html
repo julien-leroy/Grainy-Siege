@@ -8,7 +8,7 @@
   <link rel="apple-touch-icon" href="/logo.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&family=Press+Start+2P&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&family=Quicksand:wght@600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
@@ -47,9 +47,6 @@
     <div id="banner-msg" class="banner-msg">En attente des joueurs…</div>
   </header>
 
-  <!-- Galerie des châteaux joueurs (miniatures en haut) -->
-  <aside id="players-strip" class="players-strip hidden"></aside>
-
   <!-- Timeline de bataille : duels de Rois en icônes épurées -->
   <div id="battle-timeline" class="battle-timeline hidden">
     <div id="timeline-flow" class="timeline-flow"></div>
@@ -63,11 +60,13 @@
           <img src="/logo.png" alt="Grainy Siege - battle royal de construction de chateau de sable" class="brand-logo" width="150" height="150" />
         </div>
         <div class="brand-text-block">
-          <div class="sand-title-area" id="sand-title-area">
-            <canvas id="sand-title-canvas" class="sand-title-canvas" aria-label="Grainy Siege"></canvas>
-            <h1 class="sr-only">Grainy Siege</h1>
+          <div class="sand-text-wrapper" id="sand-text-wrapper">
+            <canvas id="sand-text-canvas" class="sand-text-canvas" aria-hidden="true"></canvas>
+            <div class="brand-headings" id="brand-headings">
+              <h1 class="brand-title" id="brand-title">Grainy Siege</h1>
+              <h2 class="brand-subtitle" id="brand-subtitle">battle royal de construction de chateau de sable</h2>
+            </div>
           </div>
-          <h2 class="brand-subtitle" id="brand-subtitle">battle royal de construction de chateau de sable</h2>
         </div>
       </header>
 
@@ -177,12 +176,6 @@
       <button id="toggle-build-sidebar" class="sidebar-toggle-btn" type="button" title="Réduire ou déplier l'inventaire" aria-label="Réduire">◀</button>
     </div>
 
-    <div class="sidebar-alerts">
-      <div class="dock-hint" id="king-warning">
-        👑 <strong>Protège ton Roi</strong> sans faire s'écrouler de sable sur sa tête !
-      </div>
-    </div>
-
     <!-- 1. Outils de modelage au-dessus des patrons de sable -->
     <div class="sidebar-section-label">🛠️ OUTILS & MODELAGE</div>
     <div class="atelier-tools-row" id="atelier-tools-row"></div>
@@ -203,69 +196,32 @@
     <div class="tool-list atelier-moulds-grid" id="tool-list"></div>
   </nav>
 
-  <!-- Plateau de tir inférieur intégré sous le sable rehaussé -->
-  <footer id="catapult-hud" class="battle-bottom-deck hidden" aria-label="Commandes balistiques de tir">
-    <div class="deck-inner-container">
+  <!-- Actions de tir directement dans le sable (sans footer, sans contour, sans input d'angle) -->
+  <div id="catapult-hud" class="sand-catapult-hud hidden" aria-label="Commandes de tir dans le sable">
+    <!-- 1. Bouton icône pour changer de catapulte du côté de la catapulte -->
+    <button id="catapult-switch-btn" class="catapult-icon-switch-btn" type="button" title="Changer de catapulte [Touche C ou D]" aria-label="Changer de catapulte">
+      <span class="cat-switch-icon">☄️</span>
+      <span class="cat-switch-tag" id="hud-cat-name">⇄</span>
+    </button>
 
-      <!-- 1. Sélection de la catapulte active (Bouton switch) -->
-      <button id="catapult-switch-btn" class="deck-cat-btn" type="button" title="Changer de catapulte [Touche C ou D]" aria-label="Changer de catapulte">
-        <span class="deck-cat-icon">☄️</span>
-        <div class="deck-cat-text">
-          <span class="deck-sub-label">CATAPULTE</span>
-          <strong id="hud-cat-name" class="deck-cat-side-txt">OUEST (GAUCHE)</strong>
-        </div>
-        <span class="deck-cat-badge" id="catapult-switch-arrow">⇄</span>
-      </button>
-
-      <!-- 2. Réglage d'angle (Boutons - / +, valeur numérique & mini-cadran 90°) -->
-      <div class="deck-angle-control" id="hud-dial-card" title="Régler l'angle de tir (flèches ou clic dans le cadran)">
-        <button id="btn-angle-down" class="deck-angle-step-btn" type="button" title="Diminuer l'angle [-2.5°]">▼</button>
-        <div class="deck-angle-center">
-          <span class="deck-sub-label">ANGLE</span>
-          <span class="deck-angle-readout"><strong id="angle-val">45.0</strong>°</span>
-        </div>
-        <button id="btn-angle-up" class="deck-angle-step-btn" type="button" title="Augmenter l'angle [+2.5°]">▲</button>
-        <div class="deck-mini-dial" id="dial-svg-container">
-          <svg id="angle-dial-svg" class="angle-dial-svg" viewBox="0 0 100 100">
-            <path id="dial-sector" class="dial-sector" d="M 14 86 L 86 86 A 72 72 0 0 0 14 14 Z" />
-            <path id="dial-arc" class="dial-arc" d="M 86 86 A 72 72 0 0 0 14 14" />
-            <line id="dial-ray-45" class="dial-ray-ref" x1="14" y1="86" x2="64.9" y2="35.1" stroke-dasharray="2 2" />
-            <line id="dial-ray-30" class="dial-ray-sub" x1="14" y1="86" x2="76.3" y2="50" stroke-dasharray="1 3" />
-            <line id="dial-ray-60" class="dial-ray-sub" x1="14" y1="86" x2="50" y2="23.6" stroke-dasharray="1 3" />
-            <line id="dial-needle" class="dial-needle" x1="14" y1="86" x2="64.9" y2="35.1" />
-            <circle id="dial-knob" class="dial-knob" cx="64.9" cy="35.1" r="5.5" />
-            <circle id="dial-pivot" class="dial-pivot" cx="14" cy="86" r="3.5" />
-            <text id="dial-txt-0" class="dial-txt" x="84" y="96">0°</text>
-            <text id="dial-txt-45" class="dial-txt" x="70" y="28">45°</text>
-            <text id="dial-txt-90" class="dial-txt" x="4" y="16">90°</text>
-          </svg>
-        </div>
+    <!-- 2. Râtelier des boulets disponibles (max 3) -->
+    <div class="sand-ammo-rack" id="sand-ammo-rack" title="Boulets disponibles pour cette manche (max 3)">
+      <div class="shots-balls" id="shots-balls">
+        <span class="shot-ball available" id="shot-1">☄️</span>
+        <span class="shot-ball available" id="shot-2">☄️</span>
       </div>
-
-      <!-- 3. Râtelier des boulets disponibles (voir les différentes boules : normales, pointes, grenades) -->
-      <div class="deck-ammo-rack" title="Boulets disponibles pour cette manche (max 3)">
-        <span class="deck-sub-label">BOULETS</span>
-        <div class="shots-balls" id="shots-balls">
-          <span class="shot-ball available" id="shot-1">☄️</span>
-          <span class="shot-ball available" id="shot-2">☄️</span>
-        </div>
-      </div>
-
-      <!-- 4. Grand bouton de puissance étiré en longueur (Hold to Charge) -->
-      <div class="deck-power-wide-card">
-        <button id="fire-trigger-btn" class="deck-power-trigger-btn" type="button" title="Maintiens [Espace] ou clique pour doser la puissance, relâche pour faire feu immédiatement !">
-          <div class="hud-power-progress-fill" id="power-gauge-bar"></div>
-          <div class="deck-power-inner">
-            <span class="power-bolt">⚡</span>
-            <div class="deck-power-text-group">
-              <span class="deck-power-heading" id="trigger-label">MAINTENIR POUR DOSER LA PUISSANCE</span>
-              <span class="deck-power-sub"><strong id="power-val">0</strong>% • Relâcher pour tirer [Espace]</span>
-            </div>
-          </div>
-        </button>
-      </div>
-
     </div>
+
+    <!-- 3. Grand bouton de puissance et tir étiré dans la longueur directement dans le sable -->
+    <button id="fire-trigger-btn" class="sand-power-trigger-btn" type="button" title="Maintiens pour doser la puissance, relâche pour tirer !">
+      <div class="hud-power-progress-fill" id="power-gauge-bar"></div>
+      <div class="sand-power-inner">
+        <span class="power-bolt">⚡</span>
+        <span class="sand-power-heading" id="trigger-label">TIRER</span>
+        <span class="sand-power-sub"><strong id="power-val">0</strong>%</span>
+      </div>
+    </button>
+  </div>
 
     <!-- Éléments masqués conservés pour compatibilité complète -->
     <input id="angle-slider" type="range" min="8" max="82" value="45" step="0.5" class="sr-only" aria-label="Angle de tir" />

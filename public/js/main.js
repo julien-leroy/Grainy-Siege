@@ -51,8 +51,16 @@ function updateCatapultSwitchButton() {
 
   const nameEl = $('hud-cat-name');
   if (nameEl) {
-    nameEl.textContent = myCatapultSide === 'left' ? 'OUEST (GAUCHE)' : 'EST (DROITE)';
+    nameEl.textContent = myCatapultSide === 'left' ? '⇄ DROITE' : '⇄ GAUCHE';
   }
+
+  const hud = $('catapult-hud');
+  if (hud) {
+    hud.classList.toggle('hidden', !inBattle || !isShooter);
+    hud.classList.toggle('cat-left', myCatapultSide === 'left');
+    hud.classList.toggle('cat-right', myCatapultSide === 'right');
+  }
+
   if (typeof updateDialSectorAndNeedle === 'function') {
     updateDialSectorAndNeedle(aim.angle, myCatapultSide);
   }
@@ -129,7 +137,6 @@ function initTools() {
     const btn = document.createElement('button');
     btn.className = `tool-btn${t.isFlip ? ' flip-tool' : ''}${t.isSpray ? ' spray-tool' : ''}${t.id === activeTool ? ' active' : ''}`;
     btn.dataset.tool = t.id;
-    btn.title = t.desc || t.label;
 
     const icon = document.createElement('canvas');
     icon.width = 40;
@@ -1119,55 +1126,9 @@ function syncUI() {
 
 function renderPlayersStrip() {
   const strip = $('players-strip');
-  if (!roomState || roomState.phase === 'lobby') {
-    strip.classList.add('hidden');
-    return;
-  }
-  strip.classList.remove('hidden');
+  if (!strip) return;
+  strip.classList.add('hidden');
   strip.innerHTML = '';
-
-  for (const p of roomState.players) {
-    const card = document.createElement('div');
-    const isTarget = roomState.phase === 'battle' && roomState.turn?.targetId === p.id;
-    const isShooter = roomState.phase === 'battle' && roomState.turn?.shooterId === p.id;
-    card.className = `player-card${isTarget ? ' active-target' : ''}${isShooter ? ' active-shooter' : ''}${!p.alive ? ' dead' : ''}`;
-    card.dataset.pid = p.id;
-
-    const thumb = document.createElement('canvas');
-    thumb.className = 'player-thumb';
-    thumb.width = 60;
-    thumb.height = 34;
-    thumb.id = `thumb-${p.id}`;
-    const w = worlds.get(p.id);
-    if (w) drawThumb(thumb, w, p.color);
-
-    const meta = document.createElement('div');
-    meta.className = 'player-meta';
-    const status = !p.alive
-      ? '💀 Roi enseveli'
-      : roomState.phase === 'build'
-        ? `🧱 ${p.placed} blocs`
-        : isShooter
-          ? '🎯 Tireur'
-          : isTarget
-            ? '🛡️ Ciblé'
-            : '👑 En vie';
-
-    meta.innerHTML = `
-      <div class="player-name"><span class="color-dot" style="background:${p.color}"></span>${escapeHtml(p.name)}</div>
-      <div class="player-status">${status}</div>
-    `;
-
-    card.append(thumb, meta);
-    card.addEventListener('click', () => {
-      if (roomState.phase === 'battle' && roomState.turn?.shooterId === myId && roomState.turn.state === 'aim') {
-        if (p.alive && p.id !== myId) socket.emit('chooseTarget', { targetId: p.id });
-      } else {
-        viewedPid = p.id;
-      }
-    });
-    strip.appendChild(card);
-  }
 }
 
 function refreshThumb(pid) {

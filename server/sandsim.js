@@ -631,8 +631,14 @@ export class SandWorld {
           const bt = type[below];
           const falling = vel[cur] > 0.45 || n > 0;
           if (falling) {
-            if (bt === KING) this.kingHit(v);
-            else if (isStructural(bt) && v > 2) {
+            if (bt === KING) {
+              this.kingHit(v);
+              type[cur] = EMPTY;
+              vel[cur] = 0;
+              this.damage[cur] = 0;
+              this.structDirty = true;
+              continue;
+            } else if (isStructural(bt) && v > 2) {
               const factor = bt === HARD ? 0.45 : 1;
               this.damage[below] = Math.min(255, this.damage[below] + v * CONFIG.impactDamage * factor);
               this.structDirty = true;
@@ -719,8 +725,12 @@ export class SandWorld {
         if (cy >= 0) {
           const ct = type[cy * W + cx];
           if (ct !== EMPTY) {
-            if (ct === KING) this.kingHit(Math.hypot(p.vx, p.vy));
-            else if (isStructural(ct) && sp > 2.5) {
+            if (ct === KING) {
+              this.kingHit(Math.hypot(p.vx, p.vy));
+              alive = false;
+              break;
+            }
+            if (isStructural(ct) && sp > 2.5) {
               const j = cy * W + cx;
               const factor = ct === HARD ? 0.45 : 1;
               this.damage[j] = Math.min(255, this.damage[j] + sp * 6 * factor);
@@ -1021,6 +1031,18 @@ export class SandWorld {
     // Dégâts réguliers si du sable (mouillé, durci ou sec) repose sur la tête du Roi
     if (sandTouchingHead > 0 && this.tick % 8 === 0) {
       this.kingHit(1.2);
+      if (aboveY >= 0) {
+        for (let x = 0; x < KING_W; x++) {
+          const idx = aboveY * W + k.x + x;
+          const t = this.type[idx];
+          if (t !== EMPTY && t !== GROUND && t !== KING) {
+            this.type[idx] = EMPTY;
+            this.vel[idx] = 0;
+            this.damage[idx] = 0;
+            this.structDirty = true;
+          }
+        }
+      }
     }
 
     const by = k.y + KING_H;
@@ -1206,6 +1228,11 @@ export class SandWorld {
             if (bt === KING) {
               hitKing = true;
               this.kingHit(2.5);
+              type[cur] = EMPTY;
+              vel[cur] = 0;
+              this.damage[cur] = 0;
+              this.structDirty = true;
+              continue;
             } else {
               blockedBelow = true;
             }

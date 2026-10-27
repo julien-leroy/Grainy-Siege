@@ -487,4 +487,27 @@ test('catapulte: puissance oscillante ping-pong (min -> max -> min -> max)', () 
   assert.equal(calcPower(2400), 1.0, 'la puissance remonte au max au cycle suivant');
 });
 
+test('sandsim: quand le roi prend un degat de sable, le grain de sable est supprime du monde', () => {
+  const world = new SandWorld();
+  const kx = 180;
+  const ky = GROUND_Y - 10;
+  world.placeKing(kx, ky);
+  assert.ok(world.king, 'roi présent');
+
+  // Lâcher un grain de sable au-dessus du roi
+  const sandX = kx + 2;
+  const sandY = ky - 2;
+  world.type[sandY * GRID_W + sandX] = 2; // WET sand
+  world.vel[sandY * GRID_W + sandX] = 1.0;
+
+  const hitsBefore = world.king.hits;
+  for (let k = 0; k < 20; k++) world.step();
+
+  assert.ok(world.king.hits > hitsBefore, 'le roi a pris un dégât');
+  // Le grain ayant infligé le dégât a été supprimé du monde
+  const aboveHead = world.type[(ky - 1) * GRID_W + sandX];
+  assert.equal(aboveHead, 0, 'le grain de sable ayant touché le roi a été supprimé du monde');
+});
+
+
 
