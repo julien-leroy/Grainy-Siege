@@ -1008,178 +1008,154 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
 /* ====================================================================
    BOUTON ICÔNE IMPOSANT POUR CHANGER DE CATAPULTE
    ==================================================================== */
-.catapult-switch-fab {
-  position: fixed;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 35;
-  width: 72px;
-  height: 72px;
-  border-radius: 20px;
-  background: linear-gradient(145deg, rgba(42, 28, 16, 0.95), rgba(22, 14, 8, 0.98));
-  border: 2.5px solid #facc15;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(250, 204, 21, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  user-select: none;
-  touch-action: manipulation;
-  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-  animation: pulse-fab 2.4s infinite ease-in-out;
-}
-
-.catapult-switch-fab.side-left {
-  right: 28px;
-  left: auto;
-}
-
-.catapult-switch-fab.side-right {
-  left: 28px;
-  right: auto;
-}
-
-.catapult-switch-fab:hover {
-  transform: translateY(-50%) scale(1.08);
-  border-color: #fef08a;
-  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.7), 0 0 30px rgba(250, 204, 21, 0.7);
-}
-
-.catapult-switch-fab:active {
-  transform: translateY(-50%) scale(0.95);
-}
-
-.switch-fab-icon-wrap {
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.switch-fab-catapult-svg {
-  width: 100%;
-  height: 100%;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
-}
-
-.switch-fab-badge {
-  font-size: 0.9rem;
-  font-weight: 900;
-  color: #facc15;
-  line-height: 1;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
-}
-
-@keyframes pulse-fab {
-  0%, 100% {
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 16px rgba(250, 204, 21, 0.35);
-  }
-  50% {
-    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.65), 0 0 26px rgba(250, 204, 21, 0.65);
-  }
-}
-
 /* ====================================================================
-   INTERFACE BALISTIQUE INTÉGRÉE DE LA CATAPULTE (RELEVÉE)
+   PLATEAU DE COMMANDES INFÉRIEUR INTÉGRÉ SOUS LE SABLE REHAUSSÉ
    ==================================================================== */
-.catapult-onboard-hud {
+.battle-bottom-deck {
   position: fixed;
-  top: 76px; /* Relevée pour dégager totalement la catapulte au sol ! */
-  bottom: auto;
-  z-index: 28;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 84px;
+  z-index: 25;
+  background: linear-gradient(180deg, rgba(28, 18, 12, 0.95) 0%, rgba(14, 9, 6, 0.98) 100%);
+  border-top: 2.5px solid rgba(245, 158, 11, 0.75);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  background: rgba(22, 14, 8, 0.94);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 2px solid rgba(245, 158, 11, 0.85);
-  border-radius: 18px;
-  padding: 10px 14px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 28px rgba(245, 158, 11, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  color: #fff;
-  width: 350px;
-  pointer-events: auto;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
   user-select: none;
-  touch-action: none;
-  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+  pointer-events: auto;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
 }
 
-.catapult-onboard-hud.side-left {
-  left: 32px;
-  right: auto;
+.battle-bottom-deck.hidden {
+  display: none !important;
 }
 
-.catapult-onboard-hud.side-right {
-  right: 32px;
-  left: auto;
-}
-
-.hud-top-row {
+.deck-inner-container {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  max-width: 1080px;
+  height: 100%;
 }
 
-.hud-cat-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.76rem;
+.deck-sub-label {
+  font-size: 0.60rem;
   font-weight: 900;
   letter-spacing: 0.6px;
-  color: #fde047;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  text-transform: uppercase;
+  color: #cbd5e1;
+  opacity: 0.85;
 }
 
-/* Rangée des deux contrôles côte à côte : Angle 90° à gauche + Puissance à droite */
-.hud-controls-row {
+/* 1. Bouton changement de catapulte */
+.deck-cat-btn {
   display: flex;
-  align-items: stretch;
-  gap: 10px;
+  align-items: center;
+  gap: 9px;
+  height: 56px;
+  padding: 0 14px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(42, 28, 16, 0.9), rgba(22, 14, 8, 0.95));
+  border: 1.8px solid rgba(245, 158, 11, 0.65);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s ease;
 }
 
-/* Carte Cadran 90° interactif */
-.hud-dial-card {
-  flex: 0 0 128px;
-  background: rgba(14, 9, 5, 0.7);
-  border: 1.5px solid rgba(212, 175, 55, 0.45);
-  border-radius: 14px;
-  padding: 6px;
+.deck-cat-btn:hover {
+  border-color: #facc15;
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.4);
+  transform: translateY(-1px);
+}
+
+.deck-cat-btn:active {
+  transform: translateY(1px);
+}
+
+.deck-cat-icon {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.deck-cat-text {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-  touch-action: none;
-  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
-  transition: border-color 0.15s ease;
+  align-items: flex-start;
+  line-height: 1.15;
 }
 
-.hud-dial-card:hover {
-  border-color: #facc15;
-}
-
-.dial-header {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 0.68rem;
-  padding: 0 2px;
-}
-
-.dial-label-title {
-  font-weight: 800;
-  color: #cbd5e1;
+.deck-cat-side-txt {
+  font-size: 0.78rem;
+  font-weight: 900;
+  color: #fde047;
   letter-spacing: 0.3px;
 }
 
-.dial-angle-readout {
+.deck-cat-badge {
+  font-size: 1rem;
+  font-weight: 900;
+  color: #facc15;
+  margin-left: 2px;
+}
+
+/* 2. Contrôle d'angle 90° compact */
+.deck-angle-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 56px;
+  padding: 0 10px;
+  border-radius: 14px;
+  background: rgba(14, 9, 5, 0.75);
+  border: 1.5px solid rgba(212, 175, 55, 0.45);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.5);
+  color: #fff;
+}
+
+.deck-angle-step-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #facc15;
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.deck-angle-step-btn:hover {
+  background: rgba(250, 204, 21, 0.25);
+  border-color: #facc15;
+  transform: scale(1.08);
+}
+
+.deck-angle-step-btn:active {
+  transform: scale(0.92);
+}
+
+.deck-angle-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+  min-width: 52px;
+}
+
+.deck-angle-readout {
   font-family: 'Courier New', Courier, monospace;
   font-size: 0.95rem;
   font-weight: 900;
@@ -1187,36 +1163,33 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   text-shadow: 0 0 8px rgba(250, 204, 21, 0.6);
 }
 
-.dial-svg-container {
-  width: 114px;
-  height: 114px;
+.deck-mini-dial {
+  width: 46px;
+  height: 46px;
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: grab;
 }
 
-.angle-dial-svg {
+.deck-mini-dial svg {
   width: 100%;
   height: 100%;
-  overflow: visible;
 }
 
 .dial-sector {
-  fill: rgba(245, 158, 11, 0.14);
-  stroke: none;
+  fill: rgba(245, 158, 11, 0.16);
 }
 
 .dial-arc {
   fill: none;
   stroke: #f59e0b;
   stroke-width: 2.2;
-  stroke-linecap: round;
 }
 
 .dial-needle {
   stroke: #facc15;
   stroke-width: 3.2;
-  stroke-linecap: round;
   filter: drop-shadow(0 0 4px rgba(250, 204, 21, 0.9));
 }
 
@@ -1224,7 +1197,6 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   fill: #ef4444;
   stroke: #ffffff;
   stroke-width: 2.2;
-  cursor: grab;
   filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.95));
 }
 
@@ -1245,30 +1217,79 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
 }
 
 .dial-txt {
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: system-ui, sans-serif;
   font-size: 8.5px;
   font-weight: 800;
   fill: #fef08a;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
 }
 
-/* Carte Bouton de Puissance (à côté du cadran) */
-.hud-power-card {
+/* 3. Râtelier de munitions (voir les boules qu'on a) */
+.deck-ammo-rack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 56px;
+  padding: 0 12px;
+  border-radius: 14px;
+  background: rgba(14, 9, 5, 0.75);
+  border: 1.5px solid rgba(245, 158, 11, 0.45);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+}
+
+.shots-balls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.shot-ball {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 1.15rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.2s ease;
+}
+
+.shot-ball.available {
+  border-color: #facc15;
+  background: radial-gradient(circle, rgba(250, 204, 21, 0.3), rgba(0, 0, 0, 0.4));
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.45);
+  transform: scale(1.05);
+}
+
+.shot-ball.used {
+  opacity: 0.28;
+  filter: grayscale(1);
+  transform: scale(0.9);
+}
+
+/* 4. Bouton de puissance étiré en longueur */
+.deck-power-wide-card {
   flex: 1;
+  min-width: 240px;
+  height: 56px;
   display: flex;
 }
 
-.hud-power-trigger-btn {
+.deck-power-trigger-btn {
   position: relative;
   width: 100%;
-  min-height: 120px;
+  height: 100%;
   background: linear-gradient(145deg, #852a0a 0%, #681f08 100%);
   border: 2px solid #ea580c;
   border-radius: 14px;
   color: #fff;
   overflow: hidden;
   cursor: pointer;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25);
   user-select: none;
   touch-action: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease;
@@ -1277,14 +1298,14 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   justify-content: center;
 }
 
-.hud-power-trigger-btn:hover {
+.deck-power-trigger-btn:hover {
   border-color: #f97316;
-  box-shadow: 0 8px 22px rgba(234, 88, 12, 0.55);
+  box-shadow: 0 6px 18px rgba(234, 88, 12, 0.55);
 }
 
-.hud-power-trigger-btn.charging {
+.deck-power-trigger-btn.charging {
   border-color: #facc15;
-  box-shadow: 0 0 28px rgba(245, 158, 11, 0.85), inset 0 2px 4px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 26px rgba(245, 158, 11, 0.85), inset 0 2px 4px rgba(0, 0, 0, 0.4);
   animation: trigger-vibrate 0.08s infinite alternate;
 }
 
@@ -1301,75 +1322,44 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   transition: width 0.03s linear;
 }
 
-.hud-power-inner {
+.deck-power-inner {
   position: relative;
   z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  height: 100%;
-  padding: 0 12px;
+  width: 100%;
+  padding: 0 14px;
   pointer-events: none;
 }
 
-.hud-power-inner .power-bolt {
-  font-size: 1.5rem;
+.deck-power-inner .power-bolt {
+  font-size: 1.45rem;
   line-height: 1;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
 }
 
-.power-text-group {
+.deck-power-text-group {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
-.power-heading {
-  font-size: 0.88rem;
+.deck-power-heading {
+  font-size: 0.84rem;
   font-weight: 900;
   letter-spacing: 0.5px;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
   color: #fff;
 }
 
-.power-subreadout {
-  font-size: 0.68rem;
+.deck-power-sub {
+  font-size: 0.70rem;
   font-weight: 700;
   color: #fef08a;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-}
-
-.hud-trigger-title {
-  font-size: 0.82rem;
-  font-weight: 900;
-  letter-spacing: 0.5px;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
-  color: #fff;
-}
-
-.hud-power-readout {
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: #fef08a;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-}
-
-.hud-hint-bar {
-  font-size: 0.64rem;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.7);
-  text-align: center;
-  letter-spacing: 0.3px;
-}
-
-.trigger-shortcut-hint {
-  font-size: 0.64rem;
-  color: #fde047;
-  text-align: center;
-  font-weight: 700;
-  opacity: 0.85;
 }
 
 .sr-only {

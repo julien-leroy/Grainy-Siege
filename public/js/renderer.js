@@ -104,13 +104,15 @@ export class Renderer {
   updateCamera(dt) {
     const cw = this.canvas.width;
     const ch = this.canvas.height;
-    // Vue globale stable : la totalité de la scène (catapulte + château) rentre à 100% sur l'écran
+    // Sable rehaussé : réserve un plateau élégant de 86px en bas pour les commandes et munitions
+    const bottomDeckHeight = 86 * this.dpr;
+    const topMargin = 50 * this.dpr;
     const fitW = cw / (GRID_W * 1.02);
-    const fitH = (ch - 24 * this.dpr) / (GRID_H * 1.05);
+    const fitH = (ch - bottomDeckHeight - topMargin) / (GRID_H * 1.04);
     const baseS = Math.min(fitW, fitH);
     const s = baseS;
     const ox = (cw - GRID_W * s) / 2;
-    const oy = (ch - 18 * this.dpr) - GROUND_Y * s;
+    const oy = (ch - bottomDeckHeight) - GROUND_Y * s;
     this.view = { s, ox, oy };
   }
 
@@ -125,12 +127,14 @@ export class Renderer {
     this.dpr = dpr;
     const cw = this.canvas.width;
     const ch = this.canvas.height;
+    const bottomDeckHeight = 86 * this.dpr;
+    const topMargin = 50 * this.dpr;
     const fitW = cw / (GRID_W * 1.02);
-    const fitH = (ch - 24 * this.dpr) / (GRID_H * 1.05);
+    const fitH = (ch - bottomDeckHeight - topMargin) / (GRID_H * 1.04);
     const baseS = Math.min(fitW, fitH);
     const s = baseS;
     const ox = (cw - GRID_W * s) / 2;
-    const oy = (ch - 18 * this.dpr) - GROUND_Y * s;
+    const oy = (ch - bottomDeckHeight) - GROUND_Y * s;
     this.view = { s, ox, oy };
     this.drawnKey = null;
   }

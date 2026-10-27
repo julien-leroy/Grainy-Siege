@@ -48,24 +48,13 @@ function updateCatapultSwitchButton() {
   const inBattle = roomState?.phase === 'battle';
   const isShooter = inBattle && roomState?.turn?.shooterId === myId && roomState.turn.state === 'aim';
   switchBtn.classList.toggle('hidden', !inBattle || !isShooter);
-  switchBtn.classList.toggle('side-left', myCatapultSide === 'left');
-  switchBtn.classList.toggle('side-right', myCatapultSide === 'right');
-  const arrEl = $('catapult-switch-arrow');
-  if (arrEl) {
-    arrEl.textContent = myCatapultSide === 'left' ? '▶' : '◀';
-  }
 
-  const hud = $('catapult-hud');
-  if (hud) {
-    hud.classList.toggle('side-left', myCatapultSide === 'left');
-    hud.classList.toggle('side-right', myCatapultSide === 'right');
-    const nameEl = $('hud-cat-name');
-    if (nameEl) {
-      nameEl.textContent = myCatapultSide === 'left' ? 'CATAPULTE OUEST' : 'CATAPULTE EST';
-    }
-    if (typeof updateDialSectorAndNeedle === 'function') {
-      updateDialSectorAndNeedle(aim.angle, myCatapultSide);
-    }
+  const nameEl = $('hud-cat-name');
+  if (nameEl) {
+    nameEl.textContent = myCatapultSide === 'left' ? 'OUEST (GAUCHE)' : 'EST (DROITE)';
+  }
+  if (typeof updateDialSectorAndNeedle === 'function') {
+    updateDialSectorAndNeedle(aim.angle, myCatapultSide);
   }
 }
 
@@ -998,23 +987,36 @@ function syncUI() {
       shotsBallsEl.innerHTML = '';
       for (let i = 1; i <= total; i++) {
         const span = document.createElement('span');
-        span.className = `shot-ball ${i <= left ? 'available' : 'used'}`;
-        const isGrenadeShot = (i === (total - left + 1)) && me?.hasGrenade;
-        span.textContent = isGrenadeShot ? '💣' : '☄️';
-        span.title = i <= left ? (isGrenadeShot ? 'Grenade explosive retardée prête' : `Tir ${i} prêt`) : `Tir ${i} déjà tiré`;
+        const isAvailable = i <= left;
+        span.className = `shot-ball ${isAvailable ? 'available' : 'used'}`;
+        const isNextShot = i === (total - left + 1);
+        let icon = '☄️';
+        let label = `Boulet standard ${i}`;
+        if (isNextShot && me?.hasGrenade) {
+          icon = '💣';
+          label = 'Grenade explosive retardée';
+        } else if (isNextShot && me?.hasSpikeBall) {
+          icon = '💣';
+          label = 'Boulet d\'acier à pointes';
+        }
+        span.textContent = icon;
+        span.title = isAvailable ? `${label} (prêt)` : `Tir ${i} effectué`;
         shotsBallsEl.appendChild(span);
       }
     }
 
     const triggerLabelEl = $('trigger-label');
-    const triggerBoltEl = document.querySelector('.power-bolt') || document.querySelector('.trigger-bolt');
+    const triggerBoltEl = document.querySelector('.power-bolt');
     if (triggerLabelEl && triggerBoltEl) {
       if (me?.hasGrenade) {
         triggerBoltEl.textContent = '💣';
-        if (!isCharging) triggerLabelEl.textContent = 'LANCER LA GRENADE (2s)';
+        if (!isCharging) triggerLabelEl.textContent = 'MAINTENIR POUR LANCER LA GRENADE (2s)';
+      } else if (me?.hasSpikeBall) {
+        triggerBoltEl.textContent = '💣';
+        if (!isCharging) triggerLabelEl.textContent = 'MAINTENIR POUR TIRER LE BOULET D\'ACIER';
       } else {
         triggerBoltEl.textContent = '⚡';
-        if (!isCharging) triggerLabelEl.textContent = 'MAINTENIR POUR DOSER';
+        if (!isCharging) triggerLabelEl.textContent = 'MAINTENIR POUR DOSER LA PUISSANCE';
       }
     }
 
@@ -2140,12 +2142,6 @@ function frame(now) {
     ammoType,
   );
 
-  // Ancrage dynamique du HUD de tir selon la Catapulte active (gauche / droite)
-  const hud = $('catapult-hud');
-  if (hud && !hud.classList.contains('hidden')) {
-    hud.classList.toggle('side-left', curCatSide === 'left');
-    hud.classList.toggle('side-right', curCatSide === 'right');
-  }
 
   renderer.drawWorld(world, {
     color: activePlayer?.color || '#e4572e',
