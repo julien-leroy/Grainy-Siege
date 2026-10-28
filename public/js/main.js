@@ -615,7 +615,6 @@ socket.on('room', (state) => {
       if (prevPhase === 'build') {
         music.stopBuild(true); // Sifflet de fin de chantier
       }
-      playIntroSequence('battle');
       music.startBattle();
     } else if (state.phase === 'settle') {
       if (prevPhase === 'build') {
@@ -627,8 +626,116 @@ socket.on('room', (state) => {
       music.stopAll();
     }
   }
+
+  // Petite introduction au début de chaque combat (montre le tireur à la catapulte vs le roi ciblé)
+  if (state.phase === 'battle' && state.turn) {
+    const turnKey = `${state.round || 0}_${state.turn.shooterId}_${state.turn.targetId}_${state.turn.attackPhaseEndsAt || ''}`;
+    if (turnKey !== lastDuelTurnKey) {
+      lastDuelTurnKey = turnKey;
+      const shooter = state.players.find((p) => p.id === state.turn.shooterId);
+      const target = state.players.find((p) => p.id === state.turn.targetId);
+      if (shooter && target) {
+        showDuelIntro(shooter, target);
+      }
+    }
+  } else if (state.phase !== 'battle') {
+    lastDuelTurnKey = null;
+    dismissDuelIntro();
+  }
+
   syncUI();
 });
+
+let duelIntroTimeout = null;
+let lastDuelTurnKey = null;
+
+function dismissDuelIntro() {
+  if (duelIntroTimeout) {
+    clearTimeout(duelIntroTimeout);
+    duelIntroTimeout = null;
+  }
+  const overlay = $('duel-intro-overlay');
+  if (!overlay || overlay.classList.contains('hidden')) return;
+  overlay.classList.add('closing');
+  setTimeout(() => {
+    overlay.classList.add('hidden');
+    overlay.classList.remove('closing');
+  }, 280);
+}
+
+function showDuelIntro(shooter, target) {
+  if (duelIntroTimeout) {
+    clearTimeout(duelIntroTimeout);
+    duelIntroTimeout = null;
+  }
+  const overlay = $('duel-intro-overlay');
+  if (!overlay) return;
+
+  const shooterAvatar = $('duel-shooter-avatar');
+  const shooterName = $('duel-shooter-name');
+  const shooterBox = $('duel-shooter-box');
+
+  const targetAvatar = $('duel-target-avatar');
+  const targetName = $('duel-target-name');
+  const targetBox = $('duel-target-box');
+
+  const summary = $('duel-summary-text');
+  const subhint = $('duel-subhint-text');
+
+  const isMeShooter = shooter?.id === myId;
+  const isMeTarget = target?.id === myId;
+
+  if (shooterAvatar) shooterAvatar.textContent = shooter?.isBot ? '🤖' : (isMeShooter ? '🎯' : '🧑');
+  if (shooterName) shooterName.textContent = shooter?.name || 'Tireur';
+  if (shooterBox && shooter?.color) {
+    shooterBox.style.borderColor = shooter.color;
+    shooterBox.style.boxShadow = `0 6px 18px rgba(0, 0, 0, 0.5), 0 0 22px ${shooter.color}88`;
+  }
+
+  if (targetAvatar) targetAvatar.textContent = target?.isBot ? '🤖' : '👑';
+  if (targetName) targetName.textContent = target?.name || 'Cible';
+  if (targetBox && target?.color) {
+    targetBox.style.borderColor = target.color;
+    targetBox.style.boxShadow = `0 6px 18px rgba(0, 0, 0, 0.5), 0 0 22px ${target.color}88`;
+  }
+
+  if (summary) {
+    if (isMeShooter) {
+      summary.innerHTML = `<strong>À TOI DE TIRER !</strong> Ta catapulte ☄️ vise le Roi 👑 de <strong>${escapeHtml(target?.name || 'l\'adversaire')}</strong> !`;
+    } else if (isMeTarget) {
+      summary.innerHTML = `🛡️ <strong>ATTENTION !</strong> <strong>${escapeHtml(shooter?.name || 'L\'adversaire')}</strong> à la catapulte ☄️ vise ton Roi 👑 !`;
+    } else {
+      summary.innerHTML = `<strong>${escapeHtml(shooter?.name || 'Tireur')}</strong> à la catapulte ☄️ attaque le Roi 👑 de <strong>${escapeHtml(target?.name || 'Cible')}</strong> !`;
+    }
+  }
+
+  if (subhint) {
+    if (isMeShooter) {
+      subhint.textContent = 'Maintiens "Tirer !!" pour jauger la puissance ou change de catapulte !';
+    } else if (isMeTarget) {
+      subhint.textContent = 'Clique sur ton château ou [E] pour durcir le sable au Spray 💦 !';
+    } else {
+      subhint.textContent = 'Observez la trajectoire balistique et le souffle du vent 💨 !';
+    }
+  }
+
+  sfx.winch?.(0.2);
+  try { sfx.go?.(); } catch (_) {}
+
+  overlay.classList.remove('hidden', 'closing');
+
+  if (!overlay._hasClickDismiss) {
+    overlay._hasClickDismiss = true;
+    overlay.addEventListener('click', (e) => {
+      e.preventDefault();
+      dismissDuelIntro();
+    });
+  }
+
+  duelIntroTimeout = setTimeout(() => {
+    dismissDuelIntro();
+  }, 2200);
+}
 
 let introTimeoutIds = [];
 function playIntroSequence(kind) {

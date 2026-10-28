@@ -1219,12 +1219,12 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
 @keyframes catapultSwitchPulse {
   0%, 100% {
     transform: translateY(-50%) scale(1);
-    box-shadow: 0 4px 14px rgba(45, 20, 5, 0.45), 0 0 0 0 rgba(250, 204, 21, 0.4);
+    box-shadow: 0 6px 20px rgba(45, 20, 5, 0.5), 0 0 0 0 rgba(250, 204, 21, 0.45);
     border-color: #facc15;
   }
   50% {
-    transform: translateY(-50%) scale(1.15);
-    box-shadow: 0 8px 24px rgba(45, 20, 5, 0.6), 0 0 18px 4px rgba(250, 204, 21, 0.65);
+    transform: translateY(-50%) scale(1.1);
+    box-shadow: 0 10px 30px rgba(45, 20, 5, 0.65), 0 0 24px 8px rgba(250, 204, 21, 0.7);
     border-color: #fef08a;
   }
 }
@@ -1235,12 +1235,12 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   bottom: auto;
   transform: translateY(-50%);
   z-index: 35;
-  width: 62px;
-  height: 62px;
+  width: 124px;
+  height: 124px;
   border-radius: 50%;
   background: linear-gradient(145deg, #78350f, #451a03);
-  border: 2.5px solid #facc15;
-  box-shadow: 0 4px 14px rgba(45, 20, 5, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  border: 4px solid #facc15;
+  box-shadow: 0 8px 24px rgba(45, 20, 5, 0.55), inset 0 2px 0 rgba(255, 255, 255, 0.3);
   color: #fff;
   cursor: pointer;
   display: flex;
@@ -1254,12 +1254,12 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
 }
 
 .catapult-icon-switch-btn.pos-right {
-  right: 24px;
+  right: 28px;
   left: auto;
 }
 
 .catapult-icon-switch-btn.pos-left {
-  left: 24px;
+  left: 28px;
   right: auto;
 }
 
@@ -1269,9 +1269,9 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
 
 .catapult-icon-switch-btn:hover {
   animation-play-state: paused;
-  transform: translateY(-50%) scale(1.22);
+  transform: translateY(-50%) scale(1.15);
   border-color: #fef08a;
-  box-shadow: 0 8px 28px rgba(250, 204, 21, 0.75), 0 0 20px rgba(250, 204, 21, 0.5);
+  box-shadow: 0 12px 36px rgba(250, 204, 21, 0.8), 0 0 25px rgba(250, 204, 21, 0.55);
 }
 
 .catapult-icon-switch-btn:active {
@@ -1279,15 +1279,264 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
 }
 
 .cat-switch-icon {
-  font-size: 1.35rem;
+  font-size: 2.85rem;
 }
 
 .cat-switch-tag {
-  font-size: 0.65rem;
+  font-size: 1.05rem;
   font-weight: 900;
   color: #fde047;
-  letter-spacing: 0.3px;
-  margin-top: 1px;
+  letter-spacing: 0.8px;
+  margin-top: 4px;
+}
+
+/* ==========================================================================
+   Overlay d'introduction cinématique de duel au début de chaque combat
+   ========================================================================== */
+.duel-intro-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 15, 29, 0.58);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  pointer-events: auto;
+  cursor: pointer;
+  animation: duelBackdropFadeIn 0.3s ease-out forwards;
+}
+
+.duel-intro-overlay.hidden {
+  display: none !important;
+}
+
+.duel-intro-overlay.closing {
+  animation: duelBackdropFadeOut 0.28s ease-in forwards;
+}
+
+@keyframes duelBackdropFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes duelBackdropFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.duel-intro-card {
+  position: relative;
+  width: 90%;
+  max-width: 580px;
+  background: linear-gradient(155deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.98));
+  border: 3.5px solid #f59e0b;
+  border-radius: 26px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 35px rgba(245, 158, 11, 0.4);
+  padding: 24px 30px;
+  text-align: center;
+  color: #fff;
+  user-select: none;
+  animation: duelCardPop 0.38s cubic-bezier(0.18, 1.25, 0.35, 1) forwards;
+}
+
+.duel-intro-overlay.closing .duel-intro-card {
+  animation: duelCardOut 0.28s ease-in forwards;
+}
+
+@keyframes duelCardPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.68) translateY(30px);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.03) translateY(-4px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes duelCardOut {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.85) translateY(-25px);
+  }
+}
+
+.duel-badge-top {
+  display: inline-block;
+  background: linear-gradient(90deg, #d97706, #f59e0b, #d97706);
+  color: #1e1b4b;
+  font-weight: 900;
+  font-size: 0.82rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 4px 16px;
+  border-radius: 999px;
+  margin-bottom: 18px;
+  box-shadow: 0 3px 10px rgba(245, 158, 11, 0.5);
+}
+
+.duel-matchup {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.duel-combatant {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.combatant-icon-wrapper {
+  position: relative;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.85);
+  border: 3.5px solid #38bdf8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 16px rgba(56, 189, 248, 0.35);
+  margin-bottom: 8px;
+  transition: transform 0.2s ease;
+}
+
+.duel-shooter .combatant-icon-wrapper {
+  border-color: #f59e0b;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 20px rgba(245, 158, 11, 0.45);
+}
+
+.duel-target .combatant-icon-wrapper {
+  border-color: #e11d48;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 20px rgba(225, 29, 72, 0.45);
+}
+
+.combatant-avatar {
+  font-size: 3rem;
+  line-height: 1;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4));
+}
+
+.combatant-subicon {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #1e293b;
+  border: 2px solid #facc15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.combatant-role {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.combatant-name {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #f8fafc;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.duel-vs {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+}
+
+.vs-text {
+  font-size: 1.8rem;
+  font-weight: 950;
+  font-style: italic;
+  background: linear-gradient(180deg, #fef08a, #ef4444);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 8px rgba(239, 68, 68, 0.6));
+  line-height: 1;
+}
+
+.vs-swords {
+  font-size: 1.25rem;
+  margin-top: 2px;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.5));
+}
+
+.duel-summary {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #fef08a;
+  line-height: 1.4;
+  margin-bottom: 6px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  border: 1px solid rgba(254, 240, 138, 0.2);
+}
+
+.duel-summary strong {
+  color: #ffffff;
+  font-weight: 900;
+  text-shadow: 0 0 10px rgba(250, 204, 21, 0.6);
+}
+
+.duel-subhint {
+  font-size: 0.85rem;
+  color: #cbd5e1;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+@media (max-width: 680px) {
+  .catapult-icon-switch-btn {
+    width: 86px;
+    height: 86px;
+  }
+  .cat-switch-icon {
+    font-size: 2rem;
+  }
+  .cat-switch-tag {
+    font-size: 0.78rem;
+  }
+  .combatant-icon-wrapper {
+    width: 70px;
+    height: 70px;
+  }
+  .combatant-avatar {
+    font-size: 2.2rem;
+  }
+  .duel-summary {
+    font-size: 0.95rem;
+  }
 }
 
 /* 2. Râtelier de boulets posé dans le sable */

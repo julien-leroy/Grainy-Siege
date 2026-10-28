@@ -272,6 +272,46 @@
     </div>
   </section>
 
+  <!-- Introduction cinématique du duel au début de chaque combat (tireur vs cible) -->
+  <div id="duel-intro-overlay" class="duel-intro-overlay hidden" aria-live="assertive">
+    <div class="duel-intro-card" id="duel-intro-card">
+      <div class="duel-badge-top">⚔️ COMBAT DE CHÂTEAU ⚔️</div>
+      <div class="duel-matchup">
+        <!-- Tireur à la catapulte -->
+        <div class="duel-combatant duel-shooter">
+          <div class="combatant-icon-wrapper" id="duel-shooter-box">
+            <span class="combatant-avatar" id="duel-shooter-avatar">🧑</span>
+            <span class="combatant-subicon" title="Catapulte">☄️</span>
+          </div>
+          <div class="combatant-role">CATAPULTE</div>
+          <div class="combatant-name" id="duel-shooter-name">Tireur</div>
+        </div>
+
+        <!-- VS -->
+        <div class="duel-vs">
+          <span class="vs-text">VS</span>
+          <span class="vs-swords">⚔️</span>
+        </div>
+
+        <!-- Roi ciblé -->
+        <div class="duel-combatant duel-target">
+          <div class="combatant-icon-wrapper" id="duel-target-box">
+            <span class="combatant-avatar" id="duel-target-avatar">👑</span>
+            <span class="combatant-subicon" title="Château">🏰</span>
+          </div>
+          <div class="combatant-role">ROI DU CHÂTEAU</div>
+          <div class="combatant-name" id="duel-target-name">Cible</div>
+        </div>
+      </div>
+      <div class="duel-summary" id="duel-summary-text">
+        <strong>Tireur</strong> à la catapulte attaque le Roi de <strong>Cible</strong> !
+      </div>
+      <div class="duel-subhint" id="duel-subhint-text">
+        Préparez vos tirs et vos sprays !
+      </div>
+    </div>
+  </div>
+
   <!-- Grand Overlay d'introduction cinématique ("Prêts ? Feu .. Construisez !" / "Prêts ? Feu .. Tirez !") -->
   <div id="intro-overlay" class="intro-overlay hidden" aria-hidden="true">
     <div class="intro-card" id="intro-card">
