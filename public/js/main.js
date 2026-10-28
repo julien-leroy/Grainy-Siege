@@ -1429,17 +1429,9 @@ canvas.addEventListener('pointerdown', (e) => {
       }
 
       if (dist <= 42) {
-        // Clic direct sur la catapulte pour régler l'angle en glissant !
+        // Clic direct sur la catapulte pour régler l'angle en glissant
         aim.draggingCatapult = true;
         setAngleFromCoords(cell.x, cell.y, catX, catY, isRight);
-      } else {
-        const isNearCat = isRight ? (cell.x > BUILD_MAX_X - 10) : (cell.x < BUILD_MIN_X + 10);
-        if (isNearCat) {
-          aim.dragging = true;
-          aim.pullX = cell.x;
-          aim.pullY = cell.y;
-          updateSlingshot(cell.x, cell.y);
-        }
       }
     } else if (roomState.turn?.targetId === myId) {
       // Si on SE DÉFEND pendant que l'adversaire nous vise ou tire : clic = Spray d'eau durcisseur !
@@ -1455,30 +1447,7 @@ window.addEventListener('pointerup', () => {
   if (aim.draggingCatapult) {
     aim.draggingCatapult = false;
   }
-  if (aim.dragging) {
-    aim.dragging = false;
-    fireCatapult();
-  }
 });
-
-function updateSlingshot(cx, cy) {
-  const isRight = (roomState?.turn?.catapultSide || myCatapultSide) === 'right';
-  const launchX = isRight ? (GRID_W - LAUNCH_X) : LAUNCH_X;
-  const catapultX = isRight ? (GRID_W - CATAPULT_X) : CATAPULT_X;
-
-  let dx = isRight ? (cx - launchX) : (LAUNCH_X - cx);
-  let dy = cy - LAUNCH_Y;
-  if (dx < 4) {
-    dx = isRight ? (catapultX - cx) : (cx - catapultX);
-    dy = GROUND_Y - 12 - cy;
-  }
-  const dist = Math.hypot(dx, dy);
-  const rawAngle = Math.atan2(Math.max(4, dy), Math.max(4, dx));
-  aim.angle = Math.max((8 * Math.PI) / 180, Math.min((82 * Math.PI) / 180, rawAngle));
-  aim.power = Math.max(0.08, Math.min(1, dist / 95));
-  syncAimSliders();
-  socket.emit('aim', { angle: aim.angle, power: aim.power, side: myCatapultSide });
-}
 
 function trySprayAt(cx, cy) {
   const now = performance.now();
@@ -2294,14 +2263,14 @@ function frame(now) {
     renderer.drawDrops(roomState.drops, now);
   }
 
-  const slingPull = aim.dragging ? { x: aim.pullX, y: aim.pullY } : null;
+  const slingPull = null;
   const isAimingShooter = isShooter && roomState?.turn?.state === 'aim';
   const ammoType = mePlayer?.hasGrenade ? 'grenade' : (mePlayer?.hasSpikeBall ? 'heavySpikeBall' : 'normal');
 
   renderer.drawCatapult(
     dt,
     phase === 'build' ? 0.35 : 1,
-    slingPull,
+    null,
     curCatSide,
     isAimingShooter ? aim : (remoteAim || null),
     isCharging,

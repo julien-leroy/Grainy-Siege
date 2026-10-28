@@ -791,12 +791,12 @@ export class Renderer {
       const knobX = X(px) + curDirX * arcR;
       const knobY = Y(py) + curDirY * arcR;
 
-      // Halo et bouton de préhension
-      ctx.fillStyle = '#ef4444';
-      ctx.strokeStyle = '#fff';
+      // Repère discret de l'angle sélectionné sur l'arc gradué
+      ctx.strokeStyle = '#facc15';
       ctx.lineWidth = 1.8 * this.dpr;
       ctx.beginPath();
-      ctx.arc(knobX, knobY, 4 * this.dpr, 0, Math.PI * 2);
+      ctx.arc(knobX, knobY, 1.8 * this.dpr, 0, Math.PI * 2);
+      ctx.fillStyle = '#fef08a';
       ctx.fill();
       ctx.stroke();
 
@@ -880,17 +880,7 @@ export class Renderer {
       ctx.restore();
     }
 
-    // Élastique de visée balistique manuel (slingshot)
-    if (slingPull) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-      ctx.lineWidth = 1.8 * this.dpr;
-      ctx.setLineDash([4 * this.dpr, 4 * this.dpr]);
-      ctx.beginPath();
-      ctx.moveTo(X(LAUNCH_X), Y(LAUNCH_Y));
-      ctx.lineTo(ox + slingPull.x * s, oy + slingPull.y * s);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
+
 
     // Étiquette élégante gravée au sol pour repérer la catapulte
     if (isActive && alpha > 0.5) {
