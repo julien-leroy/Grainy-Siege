@@ -135,7 +135,6 @@ function initTools() {
   const manipulationTools = [
     { id: 'pate', label: 'Pâté ✋', desc: 'Modelage manuel de sable mouillé [A ou 1]', key: 'A', isPate: true, shape: SHAPE_BY_ID.pate },
     { id: 'retirer', label: 'Creuser 🥄', desc: 'Retire du sable sur une petite surface [X]', key: 'X', isDig: true },
-    { id: 'aplatir', label: 'Aplatir 🔨', desc: 'Nivèle et tasse le sable pour faire une surface plane [F]', key: 'F', isFlatten: true },
     { id: 'spray', label: 'Spray 💦', desc: 'Arrose et durcit le sable (cooldown 3s) [E]', key: 'E', isSpray: true },
     { id: 'flip', label: 'Inverser 🔄', desc: 'Retourne le patron horizontalement [R]', key: 'R', isFlip: true },
   ];
@@ -225,7 +224,7 @@ function updateToolStocks() {
   const stocks = me?.moulds || roomState?.mouldStock;
   for (const btn of document.querySelectorAll('.tool-btn')) {
     const id = btn.dataset.tool;
-    if (id === 'flip' || id === 'spray' || id === 'aplatir' || id === 'retirer') {
+    if (id === 'flip' || id === 'spray' || id === 'retirer') {
       btn.classList.remove('depleted');
       btn.style.display = '';
       if (id === 'flip') btn.classList.toggle('active', isMouldFlipped);
@@ -1928,8 +1927,6 @@ window.addEventListener('keydown', (e) => {
   } else if (e.key.toLowerCase() === 'a') {
     if (roomState?.phase === 'battle') setCatapultSide('left');
     else selectTool('pate');
-  } else if (e.key.toLowerCase() === 'f') {
-    selectTool('aplatir');
   } else if (e.key.toLowerCase() === 'x') {
     selectTool('retirer');
   } else if (e.key.toLowerCase() === 'e') {
