@@ -64,6 +64,7 @@ function updateCatapultSwitchButton() {
     switchBtn._init = true;
     switchBtn.addEventListener('click', (e) => {
       e.preventDefault();
+      e.stopPropagation();
       unlock();
       setCatapultSide(myCatapultSide === 'left' ? 'right' : 'left');
     });
@@ -734,6 +735,10 @@ socket.on('fx', (e) => {
   const activePid = viewedPid || myId;
   if (e.type === 'catapultSide') {
     if (roomState?.turn) roomState.turn.catapultSide = e.side;
+    if (roomState?.turn?.shooterId !== myId) {
+      myCatapultSide = e.side;
+    }
+    updateCatapultSwitchButton();
   } else if (e.type === 'place') {
     if (e.pid !== myId) {
       sfx.place();
@@ -1315,6 +1320,14 @@ canvas.addEventListener('pointerdown', (e) => {
       const catY = GROUND_Y - 14;
       const dist = Math.hypot(cell.x - catX, cell.y - catY);
 
+      const otherCatX = isRight ? (CATAPULT_X + 6) : (GRID_W - (CATAPULT_X + 6));
+      const otherDist = Math.hypot(cell.x - otherCatX, cell.y - catY);
+      if (otherDist <= 42) {
+        // Clic direct sur l'autre catapulte : bascule immédiate vers celle-ci !
+        setCatapultSide(isRight ? 'left' : 'right');
+        return;
+      }
+
       if (dist <= 42) {
         // Clic direct sur la catapulte pour régler l'angle en glissant !
         aim.draggingCatapult = true;
@@ -1652,12 +1665,7 @@ $('btn-angle-up')?.addEventListener('click', (e) => {
   changeAngleStep(2.5);
 });
 
-// Bouton de changement de catapulte latéral (au centre sur le bord de l'écran)
-$('catapult-switch-btn')?.addEventListener('click', () => {
-  unlock();
-  const nextSide = myCatapultSide === 'left' ? 'right' : 'left';
-  setCatapultSide(nextSide);
-});
+// (Le clic sur catapult-switch-btn est initialisé de façon unique dans updateCatapultSwitchButton)
 
 // Interaction avec le cadran 90° (clic / glisser de l'aiguille dans le quart de cercle)
 let isDraggingDial = false;

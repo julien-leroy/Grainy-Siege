@@ -1175,9 +1175,9 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
 .catapult-icon-switch-btn {
   position: fixed;
   bottom: 20px;
-  z-index: 15;
-  width: 56px;
-  height: 56px;
+  z-index: 35;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   background: linear-gradient(145deg, #78350f, #451a03);
   border: 2.5px solid #facc15;
