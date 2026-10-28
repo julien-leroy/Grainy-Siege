@@ -286,13 +286,13 @@ test('game: reglages 30s timer, 3 boules par manche, 1 spray de defense et aperc
   room.startBattle();
 
   // 1. Constantes et tirs (2 boules de base par défaut)
-  assert.equal(AIM_SECONDS, 30, 'AIM_SECONDS doit être de 30 secondes');
+  assert.equal(AIM_SECONDS, 45, 'AIM_SECONDS doit être de 45 secondes');
   assert.equal(SHOTS_PER_TURN, 2, 'SHOTS_PER_TURN doit être de 2 boules');
   assert.equal(DEFENSE_SPRAY_MAX, 1, 'DEFENSE_SPRAY_MAX doit être de 1 par défaut');
 
-  // 2. Vérifier que la manche commence avec 2 tirs et 30 secondes max
+  // 2. Vérifier que la manche commence avec 2 tirs et 45 secondes max
   assert.equal(room.turn.shotsLeft, 2, '2 boules par manche par défaut');
-  assert.ok(room.turn.endsAt > Date.now() + 25000, '30 secondes au début du tour');
+  assert.ok(room.turn.endsAt > Date.now() + 40000, '45 secondes au début du tour');
 
   // 3. Vérifier que le défenseur a son spray de défense
   const targetPlayer = room.players.get(room.turn.targetId);
@@ -389,23 +389,22 @@ test('shapes: les nouveaux patrons (donjon, escalier, porte, colonne, barbacane,
   }
 });
 
-test('game: roi immobilisé sur un reposoir (5 talus), safe zone anti-étouffement et retournement R', () => {
+test('game: roi sur reposoir/dunes, safe zone anti-étouffement et replacement drag-and-drop', () => {
   const room = new Room('TEST', createFakeIo());
   const p1 = room.addPlayer({ name: 'Alice' });
   const p2 = room.addPlayer({ name: 'Bob' });
   room.start();
 
-  // 1. Le Roi est généré sur un des 5 reposoirs aléatoires
+  // 1. Le Roi est généré sur la plage avec reposoir
   assert.ok(p1.world.king, 'le roi est posé au départ');
-  assert.ok(p1.world.pedestalType >= 0 && p1.world.pedestalType < 5, 'reposoir parmi les 5 talus');
+  assert.ok(p1.world.pedestalType >= 0 && p1.world.pedestalType < 5, 'reposoir parmi les talus');
   const initKingX = p1.world.king.x;
-  const initKingY = p1.world.king.y;
 
-  // 2. Déplacement du roi interdit (immobilisé)
-  const moved = room.placeKing(p1.id, { x: 120, y: GROUND_Y });
-  assert.equal(moved, null, 'le roi ne peut plus être déplacé par le joueur');
-  assert.equal(p1.world.king.x, initKingX, 'la position X du roi reste inchangée');
-  assert.equal(p1.world.king.y, initKingY, 'la position Y du roi reste inchangée');
+  // 2. Déplacement du roi autorisé pendant la phase de construction
+  const moved = room.placeKing(p1.id, { x: 130, y: GROUND_Y - 5 });
+  assert.ok(moved && moved.valid, 'le roi peut être déplacé par le joueur');
+  assert.equal(p1.world.king.x, moved.left, 'la position X du roi est mise à jour');
+  assert.notEqual(p1.world.king.x, initKingX, 'la position a bien changé');
 
   // 3. Safe zone : interdiction de coller du sable contre le Roi
   const blockedStamp = p1.world.stamp('pate', p1.world.king.x + 2, p1.world.king.y + 2, 'spawn');

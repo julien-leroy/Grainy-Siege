@@ -46,7 +46,7 @@ export const MOIST_BUILD = 205;
 export const MOIST_SPRAY = 255;
 
 export const BUILD_SECONDS = 60;
-export const AIM_SECONDS = 30;
+export const AIM_SECONDS = 45;
 export const SHOTS_PER_TURN = 2;
 export const BUILD_PLACE_COOLDOWN_MS = 3000;
 export const PATE_COOLDOWN_MS = 800;

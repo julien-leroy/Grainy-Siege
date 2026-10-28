@@ -5,7 +5,7 @@ import { makeBuildPlan, botShot, botName } from './bot.js';
 import {
   BUILD_SECONDS, AIM_SECONDS, PLAYER_COLORS, LAUNCH_X, LAUNCH_Y, GROUND_Y, BUILD_MIN_X, BUILD_MAX_X,
   SPRAY_COOLDOWN_MS, launchVelocity, BUILD_PLACE_COOLDOWN_MS, PATE_COOLDOWN_MS, SHOTS_PER_TURN, DEFENSE_SPRAY_MAX,
-  MAX_AMMO_RESERVE, MAX_DEFENSE_SPRAYS, GRID_W,
+  MAX_AMMO_RESERVE, MAX_DEFENSE_SPRAYS, GRID_W, KING_W, KING_H,
 } from '../shared/constants.js';
 
 const SETTLE_MS = 3200;
@@ -217,10 +217,10 @@ export class Room {
 
     for (const p of this.players.values()) {
       p.world = new SandWorld((this.rng() * 2 ** 32) >>> 0);
-      // Reposoir aléatoire parmi 5 formes de talus, centré sur la zone de construction
+      // Plage aléatoire organique avec petites dunes et talus sur toute la zone de construction
       const pedestalType = Math.floor(this.rng() * 5);
       const kx = Math.round(210 + (this.rng() - 0.5) * 16);
-      p.world.initKingPedestal(pedestalType, kx);
+      p.world.initBeachDunes(pedestalType, kx);
       p.alive = true;
       p.placed = 0;
       p.lastPlace = 0;
@@ -250,7 +250,7 @@ export class Room {
     this.endsAt = Date.now() + SETTLE_MS;
     for (const p of this.players.values()) {
       if (!p.world.king) {
-        p.world.initKingPedestal(0, 210);
+        p.world.initBeachDunes(0, 210);
         this.say(`Le Roi de ${p.name} a été posé d'office sur son reposoir`);
       }
     }
@@ -442,7 +442,7 @@ export class Room {
         p.world = new SandWorld((this.rng() * 2 ** 32) >>> 0);
         const pedestalType = Math.floor(this.rng() * 5);
         const kx = Math.round(210 + (this.rng() - 0.5) * 16);
-        p.world.initKingPedestal(pedestalType, kx);
+        p.world.initBeachDunes(pedestalType, kx);
         p.alive = true;
         p.placed = 0;
         p.lastPlace = 0;
@@ -533,32 +533,58 @@ export class Room {
   }
 
   placeKing(playerId, { x, y }) {
-    // Le Roi est posé d'office sur son reposoir au départ et ne peut plus être déplacé par le joueur
-    console.log(`[PLACE_KING_REJECTED] Le Roi ne peut plus être déplacé.`);
-    return null;
+    if (this.phase !== 'build') return null;
+    const p = this.players.get(playerId);
+    if (!p || !p.alive) return null;
+    const nx = Number(x);
+    const ny = Number(y);
+    if (nx < BUILD_MIN_X + 2 || nx > BUILD_MAX_X - KING_W - 2) return null;
+    const pos = p.world.placeKing(nx, ny);
+    if (pos) {
+      this.dirtyState = true;
+      p.socket?.emit('fx', { type: 'kingPlaced', pid: p.id, ...pos });
+      this.io.to(this.channel).emit('fx', { type: 'kingMoved', pid: p.id, ...pos });
+    }
+    return pos;
   }
 
   /**
    * Spray d'eau durcisseur :
    * Utilisable pendant la phase de construction ('build') OU pendant la bataille ('battle')
-   * (limité à 1 utilisation par phase de défense pendant la bataille).
+   * (En bataille : UNIQUEMENT pour le défenseur ciblé, et UNIQUEMENT sur le château).
    */
   spray(playerId, { x, y }) {
     if (this.phase !== 'build' && this.phase !== 'battle' && this.phase !== 'settle') return null;
     const p = this.players.get(playerId);
     if (!p || !p.alive) return null;
+    const nx = Number(x);
+    const ny = Number(y);
+
+    if (this.phase === 'battle') {
+      // Accessible UNIQUEMENT pendant que le joueur se défend !
+      if (!this.turn || this.turn.targetId !== playerId) {
+        return { ok: false, error: 'Spray disponible uniquement quand tu te défends !' };
+      }
+      // Accessible UNIQUEMENT dans la zone de construction / château !
+      if (nx < BUILD_MIN_X || nx > BUILD_MAX_X || ny > GROUND_Y) {
+        return { ok: false, error: 'Le spray doit être appliqué sur le château !' };
+      }
+      if (p.defenseSpraysLeft <= 0) {
+        return { ok: false, error: 'Plus de spray de défense disponible !' };
+      }
+    }
+
     const now = Date.now();
     const elapsed = now - p.lastSpray;
     if (elapsed < SPRAY_COOLDOWN_MS) {
       return { ok: false, cooldownMs: SPRAY_COOLDOWN_MS - elapsed, error: 'Spray en recharge' };
     }
+
     if (this.phase === 'battle') {
-      if (p.defenseSpraysLeft <= 0) {
-        return { ok: false, error: 'Une seule utilisation de spray par phase de défense !' };
-      }
       p.defenseSpraysLeft--;
     }
-    const res = p.world.spray(Number(x), Number(y));
+
+    const res = p.world.spray(nx, ny);
     p.lastSpray = now;
     this.dirtyState = true;
     this.io.to(this.channel).emit('fx', {
@@ -659,6 +685,8 @@ export class Room {
           d.waterTouchAt = now;
           this.dirtyState = true;
           this.io.to(this.channel).emit('fx', { type: 'dropSplash', x: d.x, y: d.y });
+        } else if (this.tickCount % 5 === 0) {
+          this.dirtyState = true;
         }
       } else {
         // Flotte 2 secondes puis coule dans l'eau

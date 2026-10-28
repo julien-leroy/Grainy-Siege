@@ -264,11 +264,11 @@ export function getShape(shapeId, flipped = false) {
 }
 
 export const SAFE_ZONE_PAD_X = 6;
-export const SAFE_ZONE_PAD_Y = 2;
+export const SAFE_ZONE_PAD_Y = 3;
 
 export function isNearKing(gx, gy, king) {
   if (!king) return false;
-  // Safe zone doublée : espace sacré étendu autour du Roi (6 cellules de chaque côté, 2 cellules au-dessus)
+  // Safe zone accrue en hauteur : espace sacré étendu autour du Roi (6 cellules sur les côtés, 3 cellules au-dessus)
   return (
     gx >= king.x - SAFE_ZONE_PAD_X &&
     gx < king.x + 5 + SAFE_ZONE_PAD_X &&

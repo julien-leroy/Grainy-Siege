@@ -186,7 +186,8 @@ export class SandWorld {
     this.initKingPedestal();
   }
 
-  initKingPedestal(pedestalType = -1, cx = 210) {
+  initKingPedestal(pedestalType = -1, cx = 210, withDunes = false) {
+    if (withDunes) return this.initBeachDunes(pedestalType, cx);
     if (this.king) this.clearKingCells();
     const idx = (pedestalType >= 0 && pedestalType < PEDESTAL_SHAPES.length)
       ? pedestalType
@@ -202,6 +203,83 @@ export class SandWorld {
       this.moist[i] = MOIST_BUILD;
     };
     const { kingX, kingY } = p.build(setCell, cx, GROUND_Y);
+    this.king = { x: kingX, y: kingY, vy: 0, fallStart: -1, hits: 0, dead: false, cause: null };
+    this.writeKingCells();
+    this.version++;
+    this.structDirty = true;
+    return { pedestalType: idx, kingX, kingY };
+  }
+
+  // Plage aléatoire avec dunes douces sur toute la zone de construction et petits talus
+  initBeachDunes(pedestalType = -1, cx = 210) {
+    if (this.king) this.clearKingCells();
+    const idx = (pedestalType >= 0 && pedestalType < PEDESTAL_SHAPES.length)
+      ? pedestalType
+      : Math.floor(this.rng() * PEDESTAL_SHAPES.length);
+    this.pedestalType = idx;
+    const setCell = (x, y) => {
+      if (x < 0 || x >= W || y < 0 || y >= GROUND_Y) return;
+      const i = y * W + x;
+      this.type[i] = WET;
+      this.vel[i] = 0;
+      this.damage[i] = 0;
+      this.moist[i] = MOIST_BUILD;
+    };
+
+    // 1) Plage aléatoire avec dunes douces sur toute la zone de construction (BUILD_MIN_X à BUILD_MAX_X)
+    const zoneW = BUILD_MAX_X - BUILD_MIN_X; // 220
+    const phase1 = this.rng() * Math.PI * 2;
+    const phase2 = this.rng() * Math.PI * 2;
+    const freq1 = 2.4 + this.rng() * 1.2;
+    const freq2 = 5.2 + this.rng() * 1.8;
+
+    for (let x = BUILD_MIN_X; x <= BUILD_MAX_X; x++) {
+      const u = (x - BUILD_MIN_X) / zoneW; // 0..1
+      const env = Math.sin(u * Math.PI); // Raccord doux aux bords
+      const wave1 = Math.sin(u * Math.PI * 2 * freq1 + phase1);
+      const wave2 = Math.sin(u * Math.PI * 2 * freq2 + phase2) * 0.45;
+      const duneH = Math.max(0, Math.round(env * (2.2 + wave1 * 1.5 + wave2 * 0.8)));
+      for (let dy = 0; dy < duneH; dy++) {
+        setCell(x, GROUND_Y - 1 - dy);
+      }
+    }
+
+    // 2) Petits talus naturels supplémentaires disséminés sur la plage
+    const mounds = [
+      { x: Math.round(BUILD_MIN_X + zoneW * 0.22 + (this.rng() - 0.5) * 20), w: 6 + Math.round(this.rng() * 3), h: 3 + Math.round(this.rng() * 2) },
+      { x: Math.round(cx + (this.rng() - 0.5) * 16), w: 8 + Math.round(this.rng() * 3), h: 4 + Math.round(this.rng() * 2) },
+      { x: Math.round(BUILD_MIN_X + zoneW * 0.78 + (this.rng() - 0.5) * 20), w: 6 + Math.round(this.rng() * 3), h: 3 + Math.round(this.rng() * 2) },
+    ];
+
+    for (const m of mounds) {
+      for (let dy = 0; dy < m.h; dy++) {
+        const mw = Math.round(m.w * (1 - dy / (m.h + 0.5)));
+        for (let x = m.x - mw; x <= m.x + mw; x++) {
+          let topY = GROUND_Y - 1;
+          while (topY > 0 && this.type[topY * W + x] === WET) topY--;
+          setCell(x, topY);
+        }
+      }
+    }
+
+    // 3) Placement du Roi sur la dune / promontoire central stable
+    let kingTargetX = Math.round(cx - KING_W / 2);
+    kingTargetX = Math.max(BUILD_MIN_X + 6, Math.min(BUILD_MAX_X - KING_W - 6, kingTargetX));
+    let highestSandY = GROUND_Y;
+    for (let kx = kingTargetX; kx < kingTargetX + KING_W; kx++) {
+      let y = GROUND_Y - 1;
+      while (y > 0 && this.type[y * W + kx] === WET) y--;
+      if (y + 1 < highestSandY) highestSandY = y + 1;
+    }
+    // Palier d'assise sous les pieds du Roi
+    for (let kx = kingTargetX - 1; kx <= kingTargetX + KING_W; kx++) {
+      for (let y = highestSandY; y < GROUND_Y; y++) {
+        setCell(kx, y);
+      }
+    }
+    const kingX = kingTargetX;
+    const kingY = highestSandY - KING_H;
+
     this.king = { x: kingX, y: kingY, vy: 0, fallStart: -1, hits: 0, dead: false, cause: null };
     this.writeKingCells();
     this.version++;
@@ -843,9 +921,9 @@ export class SandWorld {
   impact(x, y, vx, vy, ballR, isSpike = false) {
     const { type, damage, rng } = this;
     const speed = Math.hypot(vx, vy);
-    const spikeRMult = isSpike ? 1.65 : 1.0;
+    const spikeRMult = isSpike ? 1.20 : 1.0;
     const R = Math.min(CONFIG.craterMax * 1.5, (CONFIG.craterBase + speed * CONFIG.craterPerSpeed) * spikeRMult) * this.ballScale;
-    const R2 = R * (isSpike ? CONFIG.shockFactor * 1.25 : CONFIG.shockFactor);
+    const R2 = R * (isSpike ? CONFIG.shockFactor * 1.08 : CONFIG.shockFactor);
     const x0 = Math.max(0, Math.floor(x - R2));
     const x1 = Math.min(W - 1, Math.ceil(x + R2));
     const y0 = Math.max(0, Math.floor(y - R2));
@@ -855,7 +933,7 @@ export class SandWorld {
 
     if (isSpike && this.king) {
       const kDist = Math.hypot(this.king.x + KING_W / 2 - x, this.king.y + KING_H / 2 - y);
-      if (kDist <= R * 1.35) {
+      if (kDist <= R * 1.05) {
         this.killKing('touché');
         this.events.push({ type: 'kingHit', x, y });
       }
@@ -870,17 +948,17 @@ export class SandWorld {
         const dy = cy + 0.5 - y;
         const d = Math.hypot(dx, dy);
         if (d > R2) continue;
-        // Le boulet à pointes pénètre même le sable durci (HARD)
+        // Le boulet à pointes pénètre le sable durci (HARD) avec un rayon modéré
         const craterRadius = isSpike
-          ? (t === HARD ? R * 0.95 : R * 1.15)
+          ? (t === HARD ? R * 0.75 : R * 0.98)
           : (t === HARD ? R * 0.62 : R);
         if (d <= craterRadius * (0.85 + rng() * 0.3)) {
           type[i] = EMPTY;
           this.vel[i] = 0;
           damage[i] = 0;
-          if (rng() < (isSpike ? 0.92 : CONFIG.ejectaRatio)) {
+          if (rng() < (isSpike ? 0.75 : CONFIG.ejectaRatio)) {
             const inv = 1 / (d || 1);
-            const kick = (0.6 + rng() * 1.6) * (0.5 + speed * 0.35) * (isSpike ? 1.4 : 1.0);
+            const kick = (0.6 + rng() * 1.6) * (0.5 + speed * 0.35) * (isSpike ? 1.15 : 1.0);
             this.spawnParticle(
               cx + 0.5, cy + 0.5,
               dx * inv * kick + nx * speed * 0.3 + (rng() - 0.5) * 0.6,
@@ -893,13 +971,13 @@ export class SandWorld {
           const resist = isSpike ? 0.85 : (t === HARD ? 0.48 : 1);
           const isDry = this.moist[i] < 60; // Sable structuré asséché
           const dryMult = isDry ? 2.6 : 1.0;
-          const spikeDmgMult = isSpike ? 2.4 : 1.0;
+          const spikeDmgMult = isSpike ? 1.4 : 1.0;
           damage[i] = Math.min(255, damage[i] + f * CONFIG.shockDamage * resist * dryMult * spikeDmgMult * (0.6 + rng() * 0.8));
-          if (t === HARD && (damage[i] > 175 || (isSpike && rng() < 0.6))) {
+          if (t === HARD && (damage[i] > 175 || (isSpike && rng() < 0.35))) {
             type[i] = WET;
           }
           const looseChance = isSpike
-            ? Math.min(0.98, f * 1.6)
+            ? Math.min(0.85, f * 1.15)
             : (isDry ? Math.min(0.96, f * 0.96) : (f * CONFIG.shockLooseChance * resist));
           if (rng() < looseChance) {
             type[i] = isDry && rng() < 0.55 ? DRY : LOOSE;

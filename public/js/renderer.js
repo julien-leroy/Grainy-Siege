@@ -1218,6 +1218,78 @@ export class Renderer {
     ctx.restore();
   }
 
+  // ---------------------------------------------------------------- Jauge de recharges de spray sous le château (Mode Défense)
+  drawDefenseSprayStock(spraysLeft, maxSprays = 3, cooldownRatio = 1, t = 0) {
+    const { ctx } = this;
+    const { s, ox, oy } = this.view;
+    const centerX = ox + ((BUILD_MIN_X + BUILD_MAX_X) / 2) * s;
+    const centerY = oy + (GROUND_Y + 10) * s;
+
+    ctx.save();
+    const badgeW = 260 * this.dpr;
+    const badgeH = 26 * this.dpr;
+    const r = 13 * this.dpr;
+    const left = centerX - badgeW / 2;
+    const top = centerY - badgeH / 2;
+
+    ctx.shadowColor = spraysLeft > 0 ? 'rgba(56, 189, 248, 0.45)' : 'rgba(0, 0, 0, 0.4)';
+    ctx.shadowBlur = spraysLeft > 0 ? 12 * this.dpr : 4 * this.dpr;
+
+    const grad = ctx.createLinearGradient(left, top, left + badgeW, top + badgeH);
+    grad.addColorStop(0, 'rgba(8, 47, 73, 0.94)');
+    grad.addColorStop(0.5, 'rgba(12, 74, 110, 0.92)');
+    grad.addColorStop(1, 'rgba(3, 105, 161, 0.94)');
+    ctx.fillStyle = grad;
+
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(left, top, badgeW, badgeH, r);
+    else ctx.rect(left, top, badgeW, badgeH);
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = spraysLeft > 0 ? 'rgba(56, 189, 248, 0.85)' : 'rgba(148, 163, 184, 0.4)';
+    ctx.lineWidth = 1.8 * this.dpr;
+    ctx.stroke();
+
+    const fontSize = Math.max(10, Math.round(11 * this.dpr));
+    ctx.font = `800 ${fontSize}px system-ui, -apple-system, sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('💦 SPRAY DÉFENSE :', left + 14 * this.dpr, centerY);
+
+    const dropletsX = left + 130 * this.dpr;
+    for (let i = 0; i < maxSprays; i++) {
+      const dx = dropletsX + i * 20 * this.dpr;
+      const isAvailable = i < spraysLeft;
+      if (isAvailable) {
+        ctx.font = `${Math.round(13 * this.dpr)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText('💧', dx, centerY);
+      } else {
+        ctx.fillStyle = 'rgba(148, 163, 184, 0.35)';
+        ctx.beginPath();
+        ctx.arc(dx, centerY, 5 * this.dpr, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.lineWidth = 1 * this.dpr;
+        ctx.stroke();
+      }
+    }
+
+    ctx.textAlign = 'right';
+    ctx.font = `700 ${Math.max(9, Math.round(9.5 * this.dpr))}px system-ui, sans-serif`;
+    if (spraysLeft > 0) {
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillText(`(${spraysLeft} prêt${spraysLeft > 1 ? 's' : ''}) Clic château !`, left + badgeW - 12 * this.dpr, centerY);
+    } else {
+      ctx.fillStyle = '#f87171';
+      ctx.fillText('Épuisé (Touche 🎁 en vol)', left + badgeW - 12 * this.dpr, centerY);
+    }
+
+    ctx.restore();
+  }
+
   // ---------------------------------------------------------------- Caisses de bonus parachutées (Party Game)
   // ---------------------------------------------------------------- Caisses de bonus parachutées (Arrière-plan marin)
   drawDrops(drops, t) {
@@ -1900,7 +1972,7 @@ export class Renderer {
       bgColor: info.bgColor,
       playerColor: playerColor || info.color,
       startTime: performance.now(),
-      duration: 2000,
+      duration: 3200,
     });
   }
 

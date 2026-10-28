@@ -41,6 +41,7 @@ const aim = {
 let remoteAim = null;
 let lastSecondTick = -1;
 let myCatapultSide = 'left';
+let draggingKing = false;
 
 function updateCatapultSwitchButton() {
   const switchBtn = $('catapult-switch-btn');
@@ -968,12 +969,8 @@ socket.on('fx', (e) => {
     }
   } else if (e.type === 'bonusSpray') {
     sfx.spray();
-    const player = roomState?.players?.find((p) => p.id === e.pid);
-    const pname = player?.name || '';
-    const pcolor = player?.color || '';
     const bx = Number.isFinite(e.x) ? e.x : 150;
     const by = Number.isFinite(e.y) ? e.y : 80;
-    renderer.addCollectedBonus(bx, by, 'spray', pname, pcolor);
     renderer.puff(bx, by, 8, 20, '56,189,248');
     renderer.waterMist(bx, by, 16);
   } else if (e.type === 'flatten') {
@@ -1046,8 +1043,9 @@ function syncUI() {
   const isHost = s.hostId === myId;
   const me = s.players.find((p) => p.id === myId);
 
-  // Bouton Spray dans le HUD (visible en build & battle)
-  $('spray-quick-btn').classList.toggle('hidden', s.phase !== 'build' && s.phase !== 'battle');
+  // Bouton Spray dans le HUD (visible en build et en défense uniquement)
+  const canSpray = s.phase === 'build' || (s.phase === 'battle' && s.turn?.targetId === myId);
+  $('spray-quick-btn').classList.toggle('hidden', !canSpray);
 
   // Modale Lobby
   $('lobby-modal').classList.toggle('hidden', s.phase !== 'lobby');
@@ -1322,6 +1320,15 @@ canvas.addEventListener('pointermove', (e) => {
   pointer.y = cell.y;
   pointer.inside = true;
 
+  if (roomState?.phase === 'build') {
+    const myW = worlds.get(myId);
+    if (myW?.king && !myW.king.dead) {
+      const k = myW.king;
+      const nearKing = Math.hypot(cell.x - (k.x + KING_W / 2), cell.y - (k.y + KING_H / 2)) <= 10;
+      canvas.style.cursor = draggingKing ? 'grabbing' : (nearKing ? 'grab' : 'crosshair');
+    }
+  }
+
   if (aim.draggingCatapult) {
     const isRight = (roomState?.turn?.catapultSide || myCatapultSide) === 'right';
     const catX = isRight ? (GRID_W - (CATAPULT_X + 6)) : (CATAPULT_X + 6);
@@ -1331,7 +1338,7 @@ canvas.addEventListener('pointermove', (e) => {
     aim.pullX = cell.x;
     aim.pullY = cell.y;
     updateSlingshot(cell.x, cell.y);
-  } else if (pointer.down && roomState?.phase === 'build' && activeTool !== 'spray') {
+  } else if (pointer.down && !draggingKing && roomState?.phase === 'build' && activeTool !== 'spray') {
     tryPlaceAtPointer();
   }
 });
@@ -1411,6 +1418,17 @@ canvas.addEventListener('pointerdown', (e) => {
 
   if (roomState?.phase === 'build') {
     viewedPid = myId;
+    // Vérifier si le joueur clique sur son Roi pour le déplacer en drag-and-drop
+    const myW = worlds.get(myId);
+    if (myW?.king && !myW.king.dead) {
+      const k = myW.king;
+      const kDist = Math.hypot(cell.x - (k.x + KING_W / 2), cell.y - (k.y + KING_H / 2));
+      if (kDist <= 10) {
+        draggingKing = true;
+        sfx.pop();
+        return;
+      }
+    }
     tryPlaceAtPointer();
   } else if (roomState?.phase === 'battle') {
     // Si on est le tireur en phase de visée : interaction directe sur la catapulte active (gauche ou droite)
@@ -1447,11 +1465,41 @@ window.addEventListener('pointerup', () => {
   if (aim.draggingCatapult) {
     aim.draggingCatapult = false;
   }
+  if (draggingKing) {
+    draggingKing = false;
+    if (roomState?.phase === 'build') {
+      const myW = worlds.get(myId);
+      if (myW) {
+        const targetX = Math.round(pointer.x);
+        const targetY = Math.round(pointer.y);
+        socket.emit('placeKing', { x: targetX, y: targetY }, (res) => {
+          if (res) {
+            sfx.king();
+            renderer.puff(targetX, targetY, 6, 16, '255,230,140');
+            renderer.popup(targetX, targetY - 6, '👑 Roi replacé !', '#fde047');
+          }
+        });
+      }
+    }
+  }
 });
 
 function trySprayAt(cx, cy) {
   const now = performance.now();
   if (roomState?.phase === 'battle') {
+    // Accessible UNIQUEMENT quand on se défend !
+    if (roomState.turn?.shooterId === myId) {
+      renderer.popup(cx, cy - 4, '⚔️ Tu es en attaque ! Le spray est réservé à la défense.', '#f87171');
+      return;
+    }
+    if (roomState.turn?.targetId !== myId) {
+      return;
+    }
+    // Accessible UNIQUEMENT dans la zone de construction / château !
+    if (cx < BUILD_MIN_X || cx > BUILD_MAX_X || cy > GROUND_Y) {
+      renderer.popup(cx, cy - 4, '🛡️ Le spray doit être appliqué sur le château !', '#fde047');
+      return;
+    }
     const me = roomState?.players.find((p) => p.id === myId);
     if (me && me.defenseSpraysLeft <= 0) {
       renderer.popup(cx, cy - 4, '🛡️ Plus de spray disponible ! (touche un colis 🎁 au canon)', '#f87171');
@@ -1833,7 +1881,7 @@ function startCharging() {
   unlock();
   isCharging = true;
   chargeStartTime = performance.now();
-  currentChargePower = 0.15;
+  currentChargePower = 0.0;
   if (fireTriggerBtn) fireTriggerBtn.classList.add('charging');
   if (triggerLabel) triggerLabel.textContent = '⚡ DOSAGE EN COURS...';
   sfx.winch(0.15);
@@ -1850,7 +1898,7 @@ function startCharging() {
     // Vague triangulaire : monte de 0 à 1 puis redescend de 1 à 0
     const wave = cycleProgress <= 0.5 ? (cycleProgress * 2) : (2 - cycleProgress * 2);
 
-    const minP = 0.15;
+    const minP = 0.0;
     const maxP = 1.0;
     currentChargePower = minP + wave * (maxP - minP);
 
@@ -1876,10 +1924,20 @@ function releaseAndFire() {
   if (fireTriggerBtn) fireTriggerBtn.classList.remove('charging');
   if (triggerLabel) triggerLabel.textContent = 'Tirer !!';
 
-  const elapsed = performance.now() - chargeStartTime;
-  // Si le joueur a cliqué brièvement (<160ms), puissance minimale décente de 0.40
-  const effectivePower = elapsed < 160 ? Math.max(0.40, currentChargePower) : currentChargePower;
-  aim.power = effectivePower;
+  // Ne tirer le boulet que si le chargement est à minimum 20%
+  if (currentChargePower < 0.20) {
+    currentChargePower = 0;
+    aim.power = 0;
+    if (powerBar) powerBar.style.width = '0%';
+    if (powerValText) powerValText.textContent = '0';
+    socket.emit('aim', { angle: aim.angle, power: 0, side: myCatapultSide });
+    const isRight = (roomState?.turn?.catapultSide || myCatapultSide) === 'right';
+    const catSideX = isRight ? (GRID_W - CATAPULT_X - 10) : (CATAPULT_X + 10);
+    renderer.popup(catSideX, GROUND_Y - 25, '⚠️ Chargement < 20% : Tir annulé !', '#facc15');
+    return;
+  }
+
+  aim.power = currentChargePower;
   fireCatapult();
 
   setTimeout(() => {
@@ -2228,11 +2286,11 @@ function frame(now) {
     const s = sec % 60;
     $('timer-value').textContent = `${m}:${String(s).padStart(2, '0')}`;
     timerBox.classList.remove('hidden');
-    timerBox.classList.toggle('urgent', sec <= 10);
+    timerBox.classList.toggle('urgent', phase === 'battle' ? sec <= 15 : sec <= 10);
     if (phase === 'build') {
       music.updateBuildTimer(sec);
     }
-    if (sec <= 5 && sec > 0 && sec !== lastSecondTick) {
+    if (((phase === 'battle' && sec <= 15) || sec <= 5) && sec > 0 && sec !== lastSecondTick) {
       lastSecondTick = sec;
       sfx.tick();
     }
@@ -2258,8 +2316,8 @@ function frame(now) {
     }
   }
 
-  // Colis et caisses de bonus parachutés en arrière-plan (visibles uniquement pour le tireur actif)
-  if (phase === 'battle' && roomState?.drops && roomState.turn?.shooterId === myId) {
+  // Colis et caisses de bonus parachutés en arrière-plan (visibles pour tous les joueurs en bataille)
+  if (phase === 'battle' && roomState?.drops) {
     renderer.drawDrops(roomState.drops, now);
   }
 
@@ -2305,7 +2363,11 @@ function frame(now) {
       activeBonuses.push({ icon: '💦', label: `${activePlayer.defenseSpraysLeft} SPRAY${activePlayer.defenseSpraysLeft > 1 ? 'S' : ''} DE RENFORT`, color: '#38bdf8' });
     }
   }
-  if (activeBonuses.length > 0) {
+
+  // En mode défense pendant la bataille : afficher la jauge bien visible de recharges de spray sous le château !
+  if (phase === 'battle' && roomState.turn?.targetId === activePid && activePlayer) {
+    renderer.drawDefenseSprayStock(activePlayer.defenseSpraysLeft, 3, sprayReadyFraction, now);
+  } else if (activeBonuses.length > 0) {
     renderer.drawActiveSandBonuses(activeBonuses, now);
   }
 
@@ -2332,9 +2394,12 @@ function frame(now) {
     }
   }
 
-  // Fantôme du moule ou curseur Spray en phase de construction
+  // Fantôme du moule, déplacement du Roi, ou curseur Spray en phase de construction
   if (phase === 'build' && pointer.inside && activePid === myId) {
-    if (activeTool === 'spray') {
+    if (draggingKing) {
+      const pos = kingDropPosition(world.isSolid, KING_W, KING_H, pointer.x, pointer.y);
+      renderer.drawKing({ x: pos.left, y: pos.top }, activePlayer?.color || '#e4572e', now, true);
+    } else if (activeTool === 'spray') {
       renderer.drawSprayCursor(pointer.x, pointer.y, sprayReadyFraction);
     } else if (activeTool === 'aplatir') {
       renderer.drawFlattenCursor(pointer.x, pointer.y);
