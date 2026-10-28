@@ -527,7 +527,6 @@ export class Renderer {
       armAngle = Math.min(3.1, c.angle + flex);
     }
 
-    const L = 23;
     const tx = px + Math.cos(armAngle) * L;
     const ty = py - Math.sin(armAngle) * L;
 
