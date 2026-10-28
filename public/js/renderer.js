@@ -82,6 +82,23 @@ export class Renderer {
       bucketLift: this._loadSprite('/assets/sprites/bucket_lift.png'),
       pateHold: this._loadSprite('/assets/sprites/pate_hold.png'),
       patePlace: this._loadSprite('/assets/sprites/pate_place.png'),
+      parachuteBag: this._loadSprite('/assets/sprites/parachute_bag.png'),
+      ballSand: this._loadSprite('/assets/sprites/ball_sand.png'),
+      ballDark: this._loadSprite('/assets/sprites/ball_dark.png'),
+      ballMetal: this._loadSprite('/assets/sprites/ball_metal.png'),
+      bomb: this._loadSprite('/assets/sprites/bomb.png'),
+      ballSpike: this._loadSprite('/assets/sprites/ball_spike.png'),
+      bonusRainCloud: this._loadSprite('/assets/sprites/bonus_rain_cloud.png'),
+      bonusSun: this._loadSprite('/assets/sprites/bonus_sun.png'),
+      potionFlask: this._loadSprite('/assets/sprites/potion_flask.png'),
+      toolSpray: this._loadSprite('/assets/sprites/tool_spray.png'),
+      toolTrowel: this._loadSprite('/assets/sprites/tool_trowel.png'),
+      toolSpoon: this._loadSprite('/assets/sprites/tool_spoon.png'),
+      boatSmall: this._loadSprite('/assets/sprites/boat_small.png'),
+      boatLarge: this._loadSprite('/assets/sprites/boat_large.png'),
+      seagull1: this._loadSprite('/assets/sprites/seagull_1.png'),
+      seagull2: this._loadSprite('/assets/sprites/seagull_2.png'),
+      seagull3: this._loadSprite('/assets/sprites/seagull_3.png'),
     };
     this.resize();
     window.addEventListener('resize', () => this.resize());
@@ -92,6 +109,26 @@ export class Renderer {
     const img = new Image();
     img.src = src;
     return img;
+  }
+
+  _getBonusSprite(type) {
+    if (!this.sprites) return null;
+    switch (type) {
+      case 'grenade':
+        return this.sprites.bomb;
+      case 'heavySpikeBall':
+        return this.sprites.ballSpike;
+      case 'ammo':
+        return this.sprites.ballMetal || this.sprites.ballDark;
+      case 'spray':
+        return this.sprites.toolSpray || this.sprites.potionFlask;
+      case 'wetAll':
+        return this.sprites.bonusRainCloud;
+      case 'dryOpponent':
+        return this.sprites.bonusSun;
+      default:
+        return this.sprites.potionFlask || this.sprites.ballMetal;
+    }
   }
 
   get width() {
@@ -292,39 +329,68 @@ export class Renderer {
     }
 
     // mouettes animées dans le ciel
-    ctx.strokeStyle = 'rgba(45,65,85,0.55)';
-    ctx.lineWidth = 1.6 * this.dpr;
+    const gullSprites = [this.sprites?.seagull1, this.sprites?.seagull2, this.sprites?.seagull3].filter(
+      (s) => s && s.complete && s.naturalWidth > 0
+    );
     for (const g of this.gulls) {
       const gx = (((g.x + t * g.v * 0.0005) % 1.15) - 0.08) * cw;
       const gy = g.y * hy + Math.sin(t * 0.002 + g.phase) * 4 * this.dpr;
-      const flap = Math.sin(t * 0.009 + g.phase) * 3.5 * this.dpr;
-      const w = 6 * this.dpr;
-      ctx.beginPath();
-      ctx.moveTo(gx - w, gy + flap);
-      ctx.quadraticCurveTo(gx - w * 0.4, gy - 3 * this.dpr, gx, gy);
-      ctx.quadraticCurveTo(gx + w * 0.4, gy - 3 * this.dpr, gx + w, gy + flap);
-      ctx.stroke();
+      if (gullSprites.length === 3) {
+        const frameIdx = Math.floor((t * 0.007 + g.phase * 2) % 3);
+        const spr = gullSprites[frameIdx];
+        const gw = 18 * this.dpr;
+        const gh = gw * (spr.naturalHeight / spr.naturalWidth);
+        ctx.drawImage(spr, gx - gw / 2, gy - gh / 2, gw, gh);
+      } else {
+        ctx.strokeStyle = 'rgba(45,65,85,0.55)';
+        ctx.lineWidth = 1.6 * this.dpr;
+        const flap = Math.sin(t * 0.009 + g.phase) * 3.5 * this.dpr;
+        const w = 6 * this.dpr;
+        ctx.beginPath();
+        ctx.moveTo(gx - w, gy + flap);
+        ctx.quadraticCurveTo(gx - w * 0.4, gy - 3 * this.dpr, gx, gy);
+        ctx.quadraticCurveTo(gx + w * 0.4, gy - 3 * this.dpr, gx + w, gy + flap);
+        ctx.stroke();
+      }
     }
 
-    // petit voilier à l'horizon
+    // navires à l'horizon (petit voilier et grand galion majestueux)
+    const bSmall = this.sprites?.boatSmall;
+    const bLarge = this.sprites?.boatLarge;
     const boatX = (((0.65 + t * 0.000004) % 1.1) - 0.05) * cw;
     const boatY = hy - 1 * this.dpr;
-    ctx.fillStyle = '#fff9f0';
-    ctx.beginPath();
-    ctx.moveTo(boatX, boatY - 14 * this.dpr);
-    ctx.lineTo(boatX + 9 * this.dpr, boatY - 2 * this.dpr);
-    ctx.lineTo(boatX, boatY - 2 * this.dpr);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = '#e4572e';
-    ctx.beginPath();
-    ctx.moveTo(boatX - 1 * this.dpr, boatY - 12 * this.dpr);
-    ctx.lineTo(boatX - 7 * this.dpr, boatY - 2 * this.dpr);
-    ctx.lineTo(boatX - 1 * this.dpr, boatY - 2 * this.dpr);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = '#5a3a1e';
-    ctx.fillRect(boatX - 8 * this.dpr, boatY - 2 * this.dpr, 18 * this.dpr, 3 * this.dpr);
+
+    if (bLarge && bLarge.complete && bLarge.naturalWidth > 0) {
+      const largeX = (((0.18 + t * 0.000002) % 1.1) - 0.05) * cw;
+      const largeBob = Math.sin(t * 0.001) * 1.5 * this.dpr;
+      const lw = 36 * this.dpr;
+      const lh = lw * (bLarge.naturalHeight / bLarge.naturalWidth);
+      ctx.drawImage(bLarge, largeX - lw / 2, hy - lh * 0.85 + largeBob, lw, lh);
+    }
+
+    if (bSmall && bSmall.complete && bSmall.naturalWidth > 0) {
+      const smallBob = Math.sin(t * 0.002 + 1) * 1.0 * this.dpr;
+      const sw = 22 * this.dpr;
+      const sh = sw * (bSmall.naturalHeight / bSmall.naturalWidth);
+      ctx.drawImage(bSmall, boatX - sw / 2, boatY - sh * 0.85 + smallBob, sw, sh);
+    } else {
+      ctx.fillStyle = '#fff9f0';
+      ctx.beginPath();
+      ctx.moveTo(boatX, boatY - 14 * this.dpr);
+      ctx.lineTo(boatX + 9 * this.dpr, boatY - 2 * this.dpr);
+      ctx.lineTo(boatX, boatY - 2 * this.dpr);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#e4572e';
+      ctx.beginPath();
+      ctx.moveTo(boatX - 1 * this.dpr, boatY - 12 * this.dpr);
+      ctx.lineTo(boatX - 7 * this.dpr, boatY - 2 * this.dpr);
+      ctx.lineTo(boatX - 1 * this.dpr, boatY - 2 * this.dpr);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#5a3a1e';
+      ctx.fillRect(boatX - 8 * this.dpr, boatY - 2 * this.dpr, 18 * this.dpr, 3 * this.dpr);
+    }
 
     // mer
     const sea = ctx.createLinearGradient(0, hy, 0, shoreY);
@@ -590,34 +656,47 @@ export class Renderer {
     // C. Munition spéciale dans le godet (grenade ou boule à piques)
     // (Le boulet classique en pierre est déjà dessiné dans le godet du sprite de bras !)
     if (c.loaded && (ammoType === 'grenade' || ammoType === 'heavySpikeBall')) {
-      const bRad = (ammoType === 'grenade' ? 2.4 : 3.4) * s;
+      const bRad = (ammoType === 'grenade' ? 2.5 : 3.4) * s;
       const ballX = X(tx);
       const ballY = Y(ty - 1.2);
 
       if (ammoType === 'grenade') {
-        ctx.fillStyle = '#15803d';
-        ctx.beginPath();
-        ctx.arc(ballX, ballY, bRad, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#052e16';
-        ctx.lineWidth = 1.1 * this.dpr;
-        ctx.stroke();
-        // Mèche qui crépite
-        ctx.fillStyle = Math.sin(performance.now() * 0.03) > 0 ? '#ef4444' : '#facc15';
-        ctx.beginPath();
-        ctx.arc(ballX, ballY - bRad - 1.0 * s, 1.0 * s, 0, Math.PI * 2);
-        ctx.fill();
-      } else if (ammoType === 'heavySpikeBall') {
-        ctx.fillStyle = '#1e293b';
-        ctx.beginPath();
-        ctx.arc(ballX, ballY, bRad, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#cbd5e1';
-        for (let sp = 0; sp < 6; sp++) {
-          const sa = (sp * Math.PI) / 3;
+        const bombSpr = this.sprites?.bomb;
+        if (bombSpr && bombSpr.complete && bombSpr.naturalWidth > 0) {
+          const bw = bRad * 2.2;
+          const bh = bw * (bombSpr.naturalHeight / bombSpr.naturalWidth);
+          ctx.drawImage(bombSpr, ballX - bw / 2, ballY - bh * 0.6, bw, bh);
+        } else {
+          ctx.fillStyle = '#15803d';
           ctx.beginPath();
-          ctx.arc(ballX + Math.cos(sa) * bRad * 1.2, ballY + Math.sin(sa) * bRad * 1.2, 1 * s, 0, Math.PI * 2);
+          ctx.arc(ballX, ballY, bRad, 0, Math.PI * 2);
           ctx.fill();
+          ctx.strokeStyle = '#052e16';
+          ctx.lineWidth = 1.1 * this.dpr;
+          ctx.stroke();
+          // Mèche qui crépite
+          ctx.fillStyle = Math.sin(performance.now() * 0.03) > 0 ? '#ef4444' : '#facc15';
+          ctx.beginPath();
+          ctx.arc(ballX, ballY - bRad - 1.0 * s, 1.0 * s, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (ammoType === 'heavySpikeBall') {
+        const spikeSpr = this.sprites?.ballSpike;
+        if (spikeSpr && spikeSpr.complete && spikeSpr.naturalWidth > 0) {
+          const size = bRad * 2.3;
+          ctx.drawImage(spikeSpr, ballX - size / 2, ballY - size / 2, size, size);
+        } else {
+          ctx.fillStyle = '#1e293b';
+          ctx.beginPath();
+          ctx.arc(ballX, ballY, bRad, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#cbd5e1';
+          for (let sp = 0; sp < 6; sp++) {
+            const sa = (sp * Math.PI) / 3;
+            ctx.beginPath();
+            ctx.arc(ballX + Math.cos(sa) * bRad * 1.2, ballY + Math.sin(sa) * bRad * 1.2, 1 * s, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
       }
     }
@@ -918,34 +997,49 @@ export class Renderer {
       if (b.grenade) {
         // GRENADE MILITAIRE À MÈCHE / MINUTERIE RETARDÉE
         const grR = b.r * s;
-        // Corps vert olive militaire
-        ctx.fillStyle = '#14532d';
-        ctx.beginPath();
-        ctx.arc(gx, gy, grR, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.lineWidth = 1.4 * this.dpr;
-        ctx.strokeStyle = '#052e16';
-        ctx.stroke();
+        const bombSpr = this.sprites?.bomb;
 
-        // Quadrillage de grenade quadrillée (ananas)
-        ctx.strokeStyle = '#4ade80';
-        ctx.lineWidth = 0.65 * this.dpr;
-        ctx.beginPath();
-        ctx.moveTo(gx - grR * 0.75, gy);
-        ctx.lineTo(gx + grR * 0.75, gy);
-        ctx.moveTo(gx, gy - grR * 0.75);
-        ctx.lineTo(gx, gy + grR * 0.75);
-        ctx.stroke();
+        if (bombSpr && bombSpr.complete && bombSpr.naturalWidth > 0) {
+          ctx.save();
+          ctx.translate(gx, gy);
+          if (!b.landed) {
+            const rot = (b.vx || b.vy) ? Math.atan2(b.vy || 0, b.vx || 1) + Math.PI / 2 : (b.age || 0) * 0.1;
+            ctx.rotate(rot);
+          }
+          const bw = grR * 2.4;
+          const bh = bw * (bombSpr.naturalHeight / bombSpr.naturalWidth);
+          ctx.drawImage(bombSpr, -bw / 2, -bh * 0.55, bw, bh);
+          ctx.restore();
+        } else {
+          // Corps vert olive militaire
+          ctx.fillStyle = '#14532d';
+          ctx.beginPath();
+          ctx.arc(gx, gy, grR, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.lineWidth = 1.4 * this.dpr;
+          ctx.strokeStyle = '#052e16';
+          ctx.stroke();
 
-        // Tête détonateur métallique
-        ctx.fillStyle = '#94a3b8';
-        ctx.fillRect(gx - 0.9 * s, gy - grR - 1.8 * s, 1.8 * s, 1.8 * s);
-        // Goupille ronde dorée
-        ctx.strokeStyle = '#facc15';
-        ctx.lineWidth = 0.85 * this.dpr;
-        ctx.beginPath();
-        ctx.arc(gx + 1.5 * s, gy - grR - 1.0 * s, 0.9 * s, 0, Math.PI * 2);
-        ctx.stroke();
+          // Quadrillage de grenade quadrillée (ananas)
+          ctx.strokeStyle = '#4ade80';
+          ctx.lineWidth = 0.65 * this.dpr;
+          ctx.beginPath();
+          ctx.moveTo(gx - grR * 0.75, gy);
+          ctx.lineTo(gx + grR * 0.75, gy);
+          ctx.moveTo(gx, gy - grR * 0.75);
+          ctx.lineTo(gx, gy + grR * 0.75);
+          ctx.stroke();
+
+          // Tête détonateur métallique
+          ctx.fillStyle = '#94a3b8';
+          ctx.fillRect(gx - 0.9 * s, gy - grR - 1.8 * s, 1.8 * s, 1.8 * s);
+          // Goupille ronde dorée
+          ctx.strokeStyle = '#facc15';
+          ctx.lineWidth = 0.85 * this.dpr;
+          ctx.beginPath();
+          ctx.arc(gx + 1.5 * s, gy - grR - 1.0 * s, 0.9 * s, 0, Math.PI * 2);
+          ctx.stroke();
+        }
 
         // Si la grenade a touché le sol (landed) : mèche qui crépite et décompte animé 2.0s
         if (b.landed) {
@@ -973,53 +1067,73 @@ export class Renderer {
         }
       } else if (b.spike) {
         // Boulet d'acier lourd avec des pics acérés !
-        ctx.fillStyle = '#1e293b';
-        ctx.beginPath();
-        ctx.arc(gx, gy, b.r * s, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.lineWidth = 1.6 * this.dpr;
-        ctx.strokeStyle = '#94a3b8';
-        ctx.stroke();
-
-        // Pics métalliques autour du boulet
-        const spikeCount = 8;
-        ctx.fillStyle = '#cbd5e1';
-        for (let k = 0; k < spikeCount; k++) {
-          const a = (k / spikeCount) * Math.PI * 2 + (b.age || 0) * 0.1;
-          const sx1 = gx + Math.cos(a - 0.22) * b.r * s * 0.9;
-          const sy1 = gy + Math.sin(a - 0.22) * b.r * s * 0.9;
-          const sx2 = gx + Math.cos(a + 0.22) * b.r * s * 0.9;
-          const sy2 = gy + Math.sin(a + 0.22) * b.r * s * 0.9;
-          const tipX = gx + Math.cos(a) * b.r * s * 1.55;
-          const tipY = gy + Math.sin(a) * b.r * s * 1.55;
+        const spikeSpr = this.sprites?.ballSpike;
+        if (spikeSpr && spikeSpr.complete && spikeSpr.naturalWidth > 0) {
+          ctx.save();
+          ctx.translate(gx, gy);
+          ctx.rotate((b.age || 0) * 0.15);
+          const size = b.r * s * 2.6;
+          ctx.drawImage(spikeSpr, -size / 2, -size / 2, size, size);
+          ctx.restore();
+        } else {
+          ctx.fillStyle = '#1e293b';
           ctx.beginPath();
-          ctx.moveTo(sx1, sy1);
-          ctx.lineTo(tipX, tipY);
-          ctx.lineTo(sx2, sy2);
-          ctx.closePath();
+          ctx.arc(gx, gy, b.r * s, 0, Math.PI * 2);
           ctx.fill();
+          ctx.lineWidth = 1.6 * this.dpr;
+          ctx.strokeStyle = '#94a3b8';
+          ctx.stroke();
+
+          // Pics métalliques autour du boulet
+          const spikeCount = 8;
+          ctx.fillStyle = '#cbd5e1';
+          for (let k = 0; k < spikeCount; k++) {
+            const a = (k / spikeCount) * Math.PI * 2 + (b.age || 0) * 0.1;
+            const sx1 = gx + Math.cos(a - 0.22) * b.r * s * 0.9;
+            const sy1 = gy + Math.sin(a - 0.22) * b.r * s * 0.9;
+            const sx2 = gx + Math.cos(a + 0.22) * b.r * s * 0.9;
+            const sy2 = gy + Math.sin(a + 0.22) * b.r * s * 0.9;
+            const tipX = gx + Math.cos(a) * b.r * s * 1.55;
+            const tipY = gy + Math.sin(a) * b.r * s * 1.55;
+            ctx.beginPath();
+            ctx.moveTo(sx1, sy1);
+            ctx.lineTo(tipX, tipY);
+            ctx.lineTo(sx2, sy2);
+            ctx.closePath();
+            ctx.fill();
+          }
         }
       } else {
-        const grad = ctx.createRadialGradient(
-          gx - b.r * s * 0.35, gy - b.r * s * 0.35, b.r * s * 0.15,
-          gx, gy, b.r * s,
-        );
-        grad.addColorStop(0, '#fef08a');
-        grad.addColorStop(0.5, '#eab308');
-        grad.addColorStop(1, '#854d0e');
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(gx, gy, b.r * s, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.lineWidth = 1.8 * this.dpr;
-        ctx.strokeStyle = '#451a03';
-        ctx.stroke();
+        const metalSpr = this.sprites?.ballMetal || this.sprites?.ballDark;
+        if (metalSpr && metalSpr.complete && metalSpr.naturalWidth > 0) {
+          ctx.save();
+          ctx.translate(gx, gy);
+          ctx.rotate((b.age || 0) * 0.08);
+          const size = b.r * s * 2.2;
+          ctx.drawImage(metalSpr, -size / 2, -size / 2, size, size);
+          ctx.restore();
+        } else {
+          const grad = ctx.createRadialGradient(
+            gx - b.r * s * 0.35, gy - b.r * s * 0.35, b.r * s * 0.15,
+            gx, gy, b.r * s,
+          );
+          grad.addColorStop(0, '#fef08a');
+          grad.addColorStop(0.5, '#eab308');
+          grad.addColorStop(1, '#854d0e');
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(gx, gy, b.r * s, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.lineWidth = 1.8 * this.dpr;
+          ctx.strokeStyle = '#451a03';
+          ctx.stroke();
 
-        // Reflet lumineux
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        ctx.beginPath();
-        ctx.arc(gx - b.r * s * 0.35, gy - b.r * s * 0.35, b.r * s * 0.3, 0, Math.PI * 2);
-        ctx.fill();
+          // Reflet lumineux
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+          ctx.beginPath();
+          ctx.arc(gx - b.r * s * 0.35, gy - b.r * s * 0.35, b.r * s * 0.3, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
     } else if (this.trail) {
       this.trail = null;
@@ -1198,8 +1312,73 @@ export class Renderer {
 
       ctx.save();
 
-      if (!inWater) {
-        // En vol : balancement très doux et naturel avec le vent en arrière-plan
+      const pBagSpr = this.sprites?.parachuteBag;
+      const bonusSpr = this._getBonusSprite(d.type);
+
+      if (pBagSpr && pBagSpr.complete && pBagSpr.naturalWidth > 0) {
+        const pw = 15.5 * s;
+        const ph = pw * (pBagSpr.naturalHeight / pBagSpr.naturalWidth);
+        const iconSize = 5.2 * s;
+
+        if (!inWater) {
+          // En vol : balancement très doux et naturel avec le vent
+          const sway = Math.sin(t * 0.0025 + d.x * 0.3) * 0.09;
+          ctx.translate(cx, cy);
+          ctx.rotate(sway);
+
+          // Dessin du parachute complet avec son sac
+          ctx.drawImage(pBagSpr, -pw / 2, -ph * 0.74, pw, ph);
+
+          // Icône du bonus dessinée bien nette directement sur le sac noué
+          if (bonusSpr && bonusSpr.complete && bonusSpr.naturalWidth > 0) {
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+            ctx.shadowBlur = 4 * this.dpr;
+            const iw = iconSize;
+            const ih = iw * (bonusSpr.naturalHeight / bonusSpr.naturalWidth);
+            ctx.drawImage(bonusSpr, -iw / 2, 0.2 * s - ih / 2, iw, ih);
+            ctx.restore();
+          } else {
+            const icon = d.type === 'grenade' ? '💣' : d.type === 'heavySpikeBall' ? '💣' : d.type === 'dryOpponent' ? '☀️' : d.type === 'wetAll' ? '💦' : '☄️';
+            ctx.font = `bold ${Math.max(8, Math.round(5 * s))}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(icon, 0, 0.2 * s);
+          }
+        } else {
+          // Flottant sur l'eau
+          ctx.translate(cx, cy);
+
+          // Ondulations d'eau autour du sac
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+          ctx.lineWidth = Math.max(1, 1.2 * this.dpr);
+          ctx.beginPath();
+          ctx.ellipse(0, 1.5 * s, 6.5 * s, 2 * s, 0, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.save();
+          const waterTilt = Math.sin(t * 0.003 + d.x * 0.5) * 0.08;
+          ctx.rotate(waterTilt);
+          ctx.drawImage(pBagSpr, -pw / 2, -ph * 0.74, pw, ph);
+
+          if (bonusSpr && bonusSpr.complete && bonusSpr.naturalWidth > 0) {
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+            ctx.shadowBlur = 4 * this.dpr;
+            const iw = iconSize;
+            const ih = iw * (bonusSpr.naturalHeight / bonusSpr.naturalWidth);
+            ctx.drawImage(bonusSpr, -iw / 2, 0.2 * s - ih / 2, iw, ih);
+          }
+          ctx.restore();
+
+          // Petites bulles d'eau
+          ctx.fillStyle = 'rgba(224, 242, 254, 0.8)';
+          ctx.beginPath();
+          ctx.arc(-2 * s, -1.5 * s, 0.8 * s, 0, Math.PI * 2);
+          ctx.arc(2.5 * s, -2.2 * s, 0.6 * s, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (!inWater) {
+        // Fallback procédural si sprite en cours de chargement
         const sway = Math.sin(t * 0.0025 + d.x * 0.3) * 0.09;
         ctx.translate(cx, cy);
         ctx.rotate(sway);
@@ -1209,11 +1388,10 @@ export class Renderer {
         const chuteY = -9.5 * s;
         const ringY = -1.8 * s;
 
-        // 1) Suspentes fines en soie - 100% symétriques autour de x = 0
+        // 1) Suspentes fines en soie
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
         ctx.lineWidth = Math.max(1, 0.75 * this.dpr);
         ctx.beginPath();
-        // 4 suspentes reliant les festons du dôme à l'anneau central
         ctx.moveTo(-chuteW, chuteY);
         ctx.lineTo(0, ringY);
         ctx.moveTo(-chuteW * 0.33, chuteY);
@@ -1224,30 +1402,19 @@ export class Renderer {
         ctx.lineTo(0, ringY);
         ctx.stroke();
 
-        // Anneau de suspension métallique au centre
         ctx.fillStyle = '#cbd5e1';
         ctx.beginPath();
         ctx.arc(0, ringY, 0.8 * s, 0, Math.PI * 2);
         ctx.fill();
 
-        // 2) Toile du parachute 100% symétrique avec festons découpés au bas
         const primaryColor = d.type === 'grenade' ? '#15803d' : d.type === 'heavySpikeBall' ? '#475569' : d.type === 'dryOpponent' ? '#ea580c' : d.type === 'wetAll' ? '#0284c7' : '#dc2626';
-        const stripeColor = '#fef08a';
-
-        // Contour du dôme hémisphérique symétrique avec festons au bord inférieur
         ctx.beginPath();
-        // Demi-ellipse supérieure de -chuteW à +chuteW passant par (0, chuteY - chuteH)
         ctx.ellipse(0, chuteY, chuteW, chuteH, 0, Math.PI, 0, false);
-        // Festons symétriques du bas (3 festons : droite, centre, gauche)
-        // 1. Feston droit : de +chuteW à +chuteW * 0.33
         ctx.quadraticCurveTo(chuteW * 0.66, chuteY - 0.7 * s, chuteW * 0.33, chuteY);
-        // 2. Feston central : de +chuteW * 0.33 à -chuteW * 0.33
         ctx.quadraticCurveTo(0, chuteY - 0.7 * s, -chuteW * 0.33, chuteY);
-        // 3. Feston gauche : de -chuteW * 0.33 à -chuteW
         ctx.quadraticCurveTo(-chuteW * 0.66, chuteY - 0.7 * s, -chuteW, chuteY);
         ctx.closePath();
 
-        // Dégradé radial centré sur l'axe x=0
         const canopyGrad = ctx.createRadialGradient(0, chuteY - chuteH * 0.3, 0.8 * s, 0, chuteY, chuteW);
         canopyGrad.addColorStop(0, '#ffffff');
         canopyGrad.addColorStop(0.38, primaryColor);
@@ -1255,46 +1422,11 @@ export class Renderer {
         ctx.fillStyle = canopyGrad;
         ctx.fill();
 
-        // Fuseau central à rayures jaune/doré parfaitement symétrique
-        ctx.fillStyle = stripeColor;
-        ctx.beginPath();
-        ctx.moveTo(0, chuteY - chuteH);
-        ctx.quadraticCurveTo(chuteW * 0.18, chuteY - chuteH * 0.3, chuteW * 0.33, chuteY);
-        ctx.quadraticCurveTo(0, chuteY - 0.7 * s, -chuteW * 0.33, chuteY);
-        ctx.quadraticCurveTo(-chuteW * 0.18, chuteY - chuteH * 0.3, 0, chuteY - chuteH);
-        ctx.closePath();
-        ctx.fill();
-
-        // Petit chapeau / évent d'aération au sommet du dôme
-        ctx.fillStyle = '#1e293b';
-        ctx.beginPath();
-        ctx.ellipse(0, chuteY - chuteH, 1.8 * s, 0.7 * s, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Coutures symétriques des fuseaux
-        ctx.strokeStyle = 'rgba(15, 23, 42, 0.38)';
-        ctx.lineWidth = Math.max(1, 0.8 * this.dpr);
-        ctx.beginPath();
-        ctx.moveTo(0, chuteY - chuteH);
-        ctx.quadraticCurveTo(chuteW * 0.18, chuteY - chuteH * 0.3, chuteW * 0.33, chuteY);
-        ctx.moveTo(0, chuteY - chuteH);
-        ctx.quadraticCurveTo(-chuteW * 0.18, chuteY - chuteH * 0.3, -chuteW * 0.33, chuteY);
-        ctx.stroke();
-
         this._drawCrate(0, 0.5 * s, s, d.type);
       } else {
-        // Dans l'eau au milieu de la mer (immersion douce)
+        // Fallback procédural dans l'eau
         ctx.translate(cx, cy);
 
-        // Parachute dégonflé flottant sur l'eau
-        ctx.save();
-        ctx.fillStyle = 'rgba(148, 163, 184, 0.4)';
-        ctx.beginPath();
-        ctx.ellipse(-5 * s, 1.2 * s, 5.5 * s, 1.8 * s, -0.08, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-
-        // Ondulations d'eau autour de la caisse
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
         ctx.lineWidth = Math.max(1, 1 * this.dpr);
         ctx.beginPath();
@@ -1302,13 +1434,6 @@ export class Renderer {
         ctx.stroke();
 
         this._drawCrate(0, 0.5 * s, s, d.type);
-
-        // Petites bulles d'eau discrètes
-        ctx.fillStyle = 'rgba(224, 242, 254, 0.8)';
-        ctx.beginPath();
-        ctx.arc(-2 * s, -2.5 * s, 0.8 * s, 0, Math.PI * 2);
-        ctx.arc(2.5 * s, -3.2 * s, 0.6 * s, 0, Math.PI * 2);
-        ctx.fill();
       }
 
       ctx.restore();
@@ -2100,11 +2225,18 @@ export class Renderer {
       ctx.lineWidth = 1.2 * this.dpr;
       ctx.stroke();
 
-      // Émoji géant
-      ctx.font = `${Math.round(20 * this.dpr)}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(b.icon, iconCx, iconCy);
+      // Icône du bonus (Sprite ou Émoji)
+      const spr = this._getBonusSprite(b.type);
+      if (spr && spr.complete && spr.naturalWidth > 0) {
+        const isz = iconCircleR * 1.6;
+        const ih = isz * (spr.naturalHeight / spr.naturalWidth);
+        ctx.drawImage(spr, iconCx - isz / 2, iconCy - ih / 2, isz, ih);
+      } else {
+        ctx.font = `${Math.round(20 * this.dpr)}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(b.icon, iconCx, iconCy);
+      }
 
       // Titre en gros et gras
       const textLeft = iconCx + iconCircleR + 10 * this.dpr;

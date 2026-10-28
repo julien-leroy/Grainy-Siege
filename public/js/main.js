@@ -219,6 +219,21 @@ function initTools() {
   }
 
   updateToolStocks();
+
+  ['toolSpray', 'toolTrowel', 'toolSpoon'].forEach((k) => {
+    const spr = renderer?.sprites?.[k];
+    if (spr && !spr.complete) {
+      spr.addEventListener('load', () => {
+        const toolId = k === 'toolSpray' ? 'spray' : k === 'toolSpoon' ? 'retirer' : 'aplatir';
+        const btn = document.querySelector(`.tool-btn[data-tool="${toolId}"]`);
+        const canvas = btn?.querySelector('canvas');
+        if (canvas) {
+          const tool = manipulationTools.find((t) => t.id === toolId);
+          if (tool) drawToolIcon(canvas, tool);
+        }
+      });
+    }
+  });
 }
 
 let isMouldFlipped = false;
@@ -313,6 +328,17 @@ function drawToolIcon(c, t) {
     return;
   }
   if (t.isSpray) {
+    const s = renderer?.sprites?.toolSpray;
+    if (s && s.complete && s.naturalWidth > 0) {
+      const pad = 2;
+      const maxW = c.width - pad * 2;
+      const maxH = c.height - pad * 2;
+      const ratio = Math.min(maxW / s.naturalWidth, maxH / s.naturalHeight);
+      const dw = s.naturalWidth * ratio;
+      const dh = s.naturalHeight * ratio;
+      g.drawImage(s, (c.width - dw) / 2, (c.height - dh) / 2, dw, dh);
+      return;
+    }
     g.fillStyle = '#0284c7';
     g.fillRect(10, 11, 12, 14);
     g.fillStyle = '#38bdf8';
@@ -326,6 +352,17 @@ function drawToolIcon(c, t) {
   }
   if (t.isFlatten) {
     // Truelle de maçon / Aplatir
+    const s = renderer?.sprites?.toolTrowel;
+    if (s && s.complete && s.naturalWidth > 0) {
+      const pad = 2;
+      const maxW = c.width - pad * 2;
+      const maxH = c.height - pad * 2;
+      const ratio = Math.min(maxW / s.naturalWidth, maxH / s.naturalHeight);
+      const dw = s.naturalWidth * ratio;
+      const dh = s.naturalHeight * ratio;
+      g.drawImage(s, (c.width - dw) / 2, (c.height - dh) / 2, dw, dh);
+      return;
+    }
     g.fillStyle = '#facc15';
     g.fillRect(6, 15, 28, 4);
     g.fillStyle = '#b45309';
@@ -336,6 +373,17 @@ function drawToolIcon(c, t) {
   }
   if (t.isDig) {
     // Pelle / Cuillère pour creuser
+    const s = renderer?.sprites?.toolSpoon;
+    if (s && s.complete && s.naturalWidth > 0) {
+      const pad = 2;
+      const maxW = c.width - pad * 2;
+      const maxH = c.height - pad * 2;
+      const ratio = Math.min(maxW / s.naturalWidth, maxH / s.naturalHeight);
+      const dw = s.naturalWidth * ratio;
+      const dh = s.naturalHeight * ratio;
+      g.drawImage(s, (c.width - dw) / 2, (c.height - dh) / 2, dw, dh);
+      return;
+    }
     g.fillStyle = '#ef4444';
     g.beginPath();
     g.arc(20, 16, 7, 0, Math.PI);
