@@ -477,12 +477,25 @@ export class Room {
     }
     const now = Date.now();
     const shapeStr = String(shape);
-    const requiredCooldown = shapeStr === 'pate' ? PATE_COOLDOWN_MS : PLACE_COOLDOWN_MS;
-    if (now - (p.lastPlace || 0) < requiredCooldown) {
-      console.log(`[PLACE_REJECTED] cooldown (${now - (p.lastPlace || 0)} < ${requiredCooldown})`);
+    const isPate = shapeStr === 'pate';
+    const requiredCooldown = isPate ? PATE_COOLDOWN_MS : PLACE_COOLDOWN_MS;
+
+    // Cooldowns séparés et indépendants :
+    // - Pâté : cooldown de la main (800ms)
+    // - Moules / patrons : remplissage du seau (3000ms)
+    // Poser un patron n'empêche pas de poser immédiatement des pâtés !
+    let lastTime = isPate ? (p.lastPatePlace || 0) : (p.lastMouldPlace || 0);
+    if (p.lastPlace !== undefined && p.lastPlace < lastTime) {
+      lastTime = p.lastPlace;
+      if (isPate) p.lastPatePlace = p.lastPlace;
+      else p.lastMouldPlace = p.lastPlace;
+    }
+
+    if (now - lastTime < requiredCooldown) {
+      console.log(`[PLACE_REJECTED] cooldown (${now - lastTime} < ${requiredCooldown})`);
       return null;
     }
-    if (p.moulds && p.moulds[shapeStr] !== undefined && shapeStr !== 'pate') {
+    if (p.moulds && p.moulds[shapeStr] !== undefined && !isPate) {
       if (p.moulds[shapeStr] <= 0) {
         console.log(`[PLACE_REJECTED] mould stock depleted (${shapeStr}=${p.moulds[shapeStr]})`);
         return null;
@@ -491,9 +504,14 @@ export class Room {
     const pos = p.world.stamp(shapeStr, Number(x), Number(y), true, !!flipped);
     console.log(`[PLACE_RESULT] stamp returned:`, pos);
     if (pos) {
+      if (isPate) {
+        p.lastPatePlace = now;
+      } else {
+        p.lastMouldPlace = now;
+      }
       p.lastPlace = now;
       p.placed++;
-      if (p.moulds && p.moulds[shapeStr] !== undefined && shapeStr !== 'pate') {
+      if (p.moulds && p.moulds[shapeStr] !== undefined && !isPate) {
         p.moulds[shapeStr]--;
       }
       this.dirtyState = true;

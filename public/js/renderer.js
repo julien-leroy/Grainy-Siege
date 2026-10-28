@@ -2352,7 +2352,7 @@ export class Renderer {
     ctx.restore();
   }
 
-  drawGhost(shape, pos, ok, isKing = false, cooldownRatio = 1.0, playerColor = '#e4572e') {
+  drawGhost(shape, pos, ok, isKing = false, cooldownRatio = 1.0, playerColor = '#e4572e', isPate = false) {
     if (!pos) return;
     const { ctx } = this;
     const { s, ox, oy } = this.view;
@@ -2385,8 +2385,8 @@ export class Renderer {
       }
     }
 
-    // Animation du seau qui se remplit au-dessus du motif
-    if (isCooling) {
+    // Animation du seau qui se remplit au-dessus du motif (UNIQUEMENT pour les patrons, jamais pour le pâté !)
+    if (isCooling && !isPate && shape?.id !== 'pate') {
       const bx = ox + (pos.left + w / 2) * s;
       const by = oy + (pos.top - 14) * s;
       const bw = 16 * this.dpr;

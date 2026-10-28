@@ -515,6 +515,11 @@ function resetAllGameData() {
   renderer.drawnKey = null;
   renderer.trail = null;
   renderer.popups = [];
+  lastMouldPlaceAttempt = 0;
+  nextMouldAllowedAt = 0;
+  lastPatePlaceAttempt = 0;
+  nextPateAllowedAt = 0;
+  nextToolAllowedAt = 0;
   lastPlaceAttempt = 0;
   nextPlaceAllowedAt = 0;
   nextSprayAvailableAt = 0;
@@ -861,7 +866,11 @@ socket.on('fx', (e) => {
     if (e.pid !== myId) {
       sfx.place();
       renderer.puff(e.left + 10, e.top + 10, 6, 10);
-      renderer.addPouringBucket(e.left + 10, e.top + 6);
+      if (e.shape === 'pate') {
+        renderer.addHandScoop(e.left + 10, e.top + 6);
+      } else {
+        renderer.addPouringBucket(e.left + 10, e.top + 6);
+      }
     }
   } else if (e.type === 'spray') {
     if (e.pid === activePid || e.pid === myId) {
@@ -1519,6 +1528,11 @@ function trySprayAt(cx, cy) {
   });
 }
 
+let lastMouldPlaceAttempt = 0;
+let nextMouldAllowedAt = 0;
+let lastPatePlaceAttempt = 0;
+let nextPateAllowedAt = 0;
+let nextToolAllowedAt = 0;
 let lastPlaceAttempt = 0;
 let nextPlaceAllowedAt = 0;
 function tryPlaceAtPointer() {
@@ -1536,13 +1550,12 @@ function tryPlaceAtPointer() {
 
   // Outil Truelle / Aplatir
   if (activeTool === 'aplatir') {
-    if (now < nextPlaceAllowedAt) {
-      const rem = ((nextPlaceAllowedAt - now) / 1000).toFixed(1);
+    if (now < nextToolAllowedAt) {
+      const rem = ((nextToolAllowedAt - now) / 1000).toFixed(1);
       renderer.popup(pointer.x, pointer.y - 6, `⏳ Truelle (${rem}s)`, '#94a3b8');
       return;
     }
-    lastPlaceAttempt = now;
-    nextPlaceAllowedAt = now + 400;
+    nextToolAllowedAt = now + 400;
     sfx.flatten();
     renderer.puff(pointer.x, pointer.y, 6, 14, '240,215,160');
     renderer.popup(pointer.x, pointer.y - 6, '🔨 Aplati !', '#60a5fa');
@@ -1558,13 +1571,12 @@ function tryPlaceAtPointer() {
 
   // Outil Pelle / Cuillère (retirer)
   if (activeTool === 'retirer') {
-    if (now < nextPlaceAllowedAt) {
-      const rem = ((nextPlaceAllowedAt - now) / 1000).toFixed(1);
+    if (now < nextToolAllowedAt) {
+      const rem = ((nextToolAllowedAt - now) / 1000).toFixed(1);
       renderer.popup(pointer.x, pointer.y - 6, `⏳ Pelle (${rem}s)`, '#94a3b8');
       return;
     }
-    lastPlaceAttempt = now;
-    nextPlaceAllowedAt = now + 400;
+    nextToolAllowedAt = now + 400;
     sfx.dig();
     renderer.puff(pointer.x, pointer.y, 8, 14, '210,180,140');
     renderer.popup(pointer.x, pointer.y - 6, '🥄 Creusé !', '#ef4444');
@@ -1582,11 +1594,21 @@ function tryPlaceAtPointer() {
   const isPate = toolToUse === 'pate';
   const cooldownMs = isPate ? PATE_COOLDOWN_MS : BUILD_PLACE_COOLDOWN_MS;
 
-  // Vérifier le cooldown de remplissage (0.8s pour le pâté manuel, 3.0s pour les moules)
-  if (now < nextPlaceAllowedAt) {
-    const rem = ((nextPlaceAllowedAt - now) / 1000).toFixed(1);
-    renderer.popup(pointer.x, pointer.y - 6, isPate ? `⏳ Main (${rem}s)` : `⏳ Seau (${rem}s)`, '#94a3b8');
-    return;
+  // Vérifier le cooldown :
+  // Le seau (3.0s) est réservé UNIQUEMENT aux moules/patterns.
+  // Le pâté utilise un cooldown manuel de la main (0.8s) et PEUT ÊTRE POSÉ IMMÉDIATEMENT même si le seau se recharge !
+  if (isPate) {
+    if (now < nextPateAllowedAt) {
+      const rem = ((nextPateAllowedAt - now) / 1000).toFixed(1);
+      renderer.popup(pointer.x, pointer.y - 6, `⏳ Main (${rem}s)`, '#94a3b8');
+      return;
+    }
+  } else {
+    if (now < nextMouldAllowedAt) {
+      const rem = ((nextMouldAllowedAt - now) / 1000).toFixed(1);
+      renderer.popup(pointer.x, pointer.y - 6, `⏳ Seau (${rem}s)`, '#94a3b8');
+      return;
+    }
   }
 
   // Vérifier le stock de moules disponible
@@ -1615,8 +1637,15 @@ function tryPlaceAtPointer() {
   }
 
   // Pose validée !
-  lastPlaceAttempt = now;
-  nextPlaceAllowedAt = now + cooldownMs;
+  if (isPate) {
+    lastPatePlaceAttempt = now;
+    nextPateAllowedAt = now + PATE_COOLDOWN_MS;
+  } else {
+    lastMouldPlaceAttempt = now;
+    nextMouldAllowedAt = now + BUILD_PLACE_COOLDOWN_MS;
+    lastPlaceAttempt = now;
+    nextPlaceAllowedAt = nextMouldAllowedAt;
+  }
 
   sfx.place();
   if (isPate) {
@@ -2371,21 +2400,22 @@ function frame(now) {
     renderer.drawActiveSandBonuses(activeBonuses, now);
   }
 
-  // Ratio de remplissage du seau (3.0s cooldown)
-  const placeElapsed = now - lastPlaceAttempt;
-  const placeCooldownRatio = Math.min(1.0, placeElapsed / BUILD_PLACE_COOLDOWN_MS);
+  // Ratio de remplissage du seau (3.0s cooldown) - calculé UNIQUEMENT pour les patrons/moules !
+  const mouldElapsed = now - lastMouldPlaceAttempt;
+  const mouldCooldownRatio = Math.min(1.0, mouldElapsed / BUILD_PLACE_COOLDOWN_MS);
+  const placeCooldownRatio = mouldCooldownRatio;
 
-  // Seau de plage physique animé sur le sable à gauche
+  // Seau de plage physique animé sur le sable à gauche (se remplit UNIQUEMENT lors d'une pose de patron)
   if (phase === 'build') {
-    renderer.drawBeachBucket(placeCooldownRatio, now);
+    renderer.drawBeachBucket(mouldCooldownRatio, now);
   }
 
   // Mettre à jour l'indicateur de remplissage du seau dans la sidebar
   const bucketFillEl = $('bucket-status-fill');
   const bucketLabelEl = $('bucket-status-label');
   if (bucketFillEl && bucketLabelEl) {
-    if (placeCooldownRatio < 1.0) {
-      const pct = Math.round(placeCooldownRatio * 100);
+    if (mouldCooldownRatio < 1.0) {
+      const pct = Math.round(mouldCooldownRatio * 100);
       bucketFillEl.style.width = `${pct}%`;
       bucketLabelEl.textContent = `Remplissage... ${pct}%`;
     } else {
@@ -2410,7 +2440,11 @@ function frame(now) {
       if (baseShape) {
         const shape = isMouldFlipped ? getFlippedShape(baseShape) : baseShape;
         const pos = spawnPosition(world.cellType, shape, pointer.x, pointer.y, world.king);
-        renderer.drawGhost(shape, pos, pos.valid, false, placeCooldownRatio);
+        const isPate = activeTool === 'pate';
+        const cooldownRatio = isPate
+          ? Math.min(1.0, (now - lastPatePlaceAttempt) / PATE_COOLDOWN_MS)
+          : mouldCooldownRatio;
+        renderer.drawGhost(shape, pos, pos.valid, false, cooldownRatio, activePlayer?.color || '#e4572e', isPate);
       }
     }
   }
