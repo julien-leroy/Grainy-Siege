@@ -79,6 +79,14 @@ export class Renderer {
     window.addEventListener('resize', () => this.resize());
   }
 
+  get width() {
+    return this.canvas.width;
+  }
+
+  get height() {
+    return this.canvas.height;
+  }
+
   makeGroundPattern() {
     const c = document.createElement('canvas');
     c.width = 64;
@@ -1525,7 +1533,7 @@ export class Renderer {
       ctx.save();
       ctx.fillStyle = this.flashColor;
       ctx.globalAlpha = Math.max(0, Math.min(0.55, this.flashLife * 0.55));
-      ctx.fillRect(0, 0, this.width, this.height);
+      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
       ctx.restore();
     }
   }
@@ -1878,10 +1886,12 @@ export class Renderer {
 
   // ---------------------------------------------------------------- Affichage bien visible des bonus récupérés (2s)
   addCollectedBonus(x, y, type, playerName = '', playerColor = '') {
+    const validX = Number.isFinite(x) ? x : 150;
+    const validY = Number.isFinite(y) ? y : 80;
     const info = this.getBonusDisplayInfo(type);
     this.collectedBonuses.push({
-      x,
-      y,
+      x: validX,
+      y: validY,
       type,
       title: info.title,
       icon: info.icon,
@@ -1952,6 +1962,9 @@ export class Renderer {
     if (!this.collectedBonuses || !this.collectedBonuses.length) return;
     const { ctx } = this;
     const { s, ox, oy } = this.view;
+    const cw = this.canvas.width;
+    const ch = this.canvas.height;
+    if (!Number.isFinite(cw) || !Number.isFinite(ch) || cw <= 0 || ch <= 0) return;
 
     let w = 0;
     for (let i = 0; i < this.collectedBonuses.length; i++) {
@@ -1979,23 +1992,29 @@ export class Renderer {
 
       // Dérive très légère vers le haut
       const floatY = progress * 14 * s;
-      const bx = ox + b.x * s;
-      const by = oy + b.y * s - floatY;
+      const validX = Number.isFinite(b.x) ? b.x : 150;
+      const validY = Number.isFinite(b.y) ? b.y : 80;
+      const bx = ox + validX * s;
+      const by = oy + validY * s - floatY;
+
+      if (!Number.isFinite(bx) || !Number.isFinite(by)) continue;
 
       ctx.save();
-      ctx.globalAlpha = alpha;
+      ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
 
       // Anneau lumineux d'impact / choc d'obtention
       if (progress < 0.40) {
         const ringProg = progress / 0.40;
         const ringR = (10 + ringProg * 40) * s;
-        ctx.beginPath();
-        ctx.arc(bx, by, ringR, 0, Math.PI * 2);
-        ctx.strokeStyle = b.color;
-        ctx.lineWidth = Math.max(1.5, 3.5 * (1 - ringProg) * this.dpr);
-        ctx.globalAlpha = alpha * (1 - ringProg) * 0.75;
-        ctx.stroke();
-        ctx.globalAlpha = alpha;
+        if (Number.isFinite(ringR) && ringR > 0) {
+          ctx.beginPath();
+          ctx.arc(bx, by, ringR, 0, Math.PI * 2);
+          ctx.strokeStyle = b.color;
+          ctx.lineWidth = Math.max(1.5, 3.5 * (1 - ringProg) * this.dpr);
+          ctx.globalAlpha = Math.max(0, Math.min(1, alpha * (1 - ringProg) * 0.75));
+          ctx.stroke();
+          ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+        }
       }
 
       // Dimensions du grand badge bien visible
@@ -2004,8 +2023,13 @@ export class Renderer {
       const rad = 14 * this.dpr;
 
       // Positionnement centré au-dessus du point de récupération
-      const left = Math.max(10, Math.min(this.width - badgeW - 10, bx - badgeW / 2));
-      const top = Math.max(10, by - badgeH - 12 * s);
+      const left = Math.max(10, Math.min(cw - badgeW - 10, bx - badgeW / 2));
+      const top = Math.max(10, Math.min(ch - badgeH - 10, by - badgeH - 12 * s));
+
+      if (!Number.isFinite(left) || !Number.isFinite(top) || !Number.isFinite(badgeW) || !Number.isFinite(badgeH)) {
+        ctx.restore();
+        continue;
+      }
 
       ctx.translate(left + badgeW / 2, top + badgeH / 2);
       ctx.scale(scale, scale);
