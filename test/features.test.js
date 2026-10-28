@@ -377,8 +377,8 @@ test('game: cooldown distinct pour le pâté (0.8s) et les moules (3.0s)', () =>
   assert.equal(okMouldTooSoon, null, 'moule bloqué par le cooldown de 3.0s');
 });
 
-test('shapes: les nouveaux patrons (donjon, escalier, porte, colonne, barbacane) sont valides et posables', () => {
-  const newShapes = ['donjon', 'escalier', 'porte', 'colonne', 'barbacane'];
+test('shapes: les nouveaux patrons (donjon, escalier, porte, colonne, barbacane, citadelle, aqueduc, bastion, colosse) sont valides et posables', () => {
+  const newShapes = ['donjon', 'escalier', 'porte', 'colonne', 'barbacane', 'citadelle', 'aqueduc', 'bastion', 'colosse'];
   for (const id of newShapes) {
     const world = new SandWorld(123);
     const s = SHAPE_BY_ID[id];

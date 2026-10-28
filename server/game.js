@@ -186,18 +186,20 @@ export class Room {
     const specialtyPool = [
       'tour', 'mur', 'rampe', 'dalle', 'dome', 'cone', 'cube',
       'donjon', 'escalier', 'porte', 'colonne', 'barbacane',
+      'citadelle', 'aqueduc', 'bastion', 'colosse',
     ];
     for (let i = specialtyPool.length - 1; i > 0; i--) {
       const j = Math.floor(this.rng() * (i + 1));
       [specialtyPool[i], specialtyPool[j]] = [specialtyPool[j], specialtyPool[i]];
     }
-    const numSpecialties = 3 + Math.floor(this.rng() * 2); // 3 à 4 patrons de spécialité
+    const numSpecialties = 5 + Math.floor(this.rng() * 3); // 5 à 7 patrons de spécialité
     const stock = {
       pate: 999, // Pâté de base illimité
       seau: 2,   // Standard
       arche: 2,  // Standard
       tour: 0, mur: 0, rampe: 0, dalle: 0, dome: 0, cone: 0, cube: 0,
       donjon: 0, escalier: 0, porte: 0, colonne: 0, barbacane: 0,
+      citadelle: 0, aqueduc: 0, bastion: 0, colosse: 0,
     };
     for (let k = 0; k < numSpecialties; k++) {
       const shapeId = specialtyPool[k];

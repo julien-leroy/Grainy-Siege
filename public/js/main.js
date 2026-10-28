@@ -149,25 +149,35 @@ function initTools() {
     shape: s,
   }));
 
-  const createBtn = (t, container) => {
+  const createBtn = (t, container, isMould = false) => {
     const btn = document.createElement('button');
-    btn.className = `tool-btn${t.isFlip ? ' flip-tool' : ''}${t.isSpray ? ' spray-tool' : ''}${t.id === activeTool ? ' active' : ''}`;
+    btn.className = `tool-btn${t.isFlip ? ' flip-tool' : ''}${t.isSpray ? ' spray-tool' : ''}${t.id === activeTool ? ' active' : ''}${isMould ? ' mould-slot' : ''}`;
     btn.dataset.tool = t.id;
+    btn.title = `${t.label} : ${t.desc}`;
 
     const icon = document.createElement('canvas');
-    icon.width = 40;
-    icon.height = 28;
-    drawToolIcon(icon, t);
+    if (isMould) {
+      // Pour les patrons de l'inventaire : pas de texte ni de numéro pour grossir au maximum le patron
+      icon.width = 54;
+      icon.height = 40;
+      drawToolIcon(icon, t);
+      btn.appendChild(icon);
+    } else {
+      icon.width = 36;
+      icon.height = 24;
+      drawToolIcon(icon, t);
 
-    const lbl = document.createElement('span');
-    lbl.className = 'tool-label';
-    lbl.textContent = t.label;
+      const lbl = document.createElement('span');
+      lbl.className = 'tool-label';
+      lbl.textContent = t.label;
 
-    const key = document.createElement('span');
-    key.className = 'tool-key';
-    key.textContent = `[${t.key}]`;
+      const key = document.createElement('span');
+      key.className = 'tool-key';
+      key.textContent = `[${t.key}]`;
 
-    btn.append(icon, lbl, key);
+      btn.append(icon, lbl, key);
+    }
+
     btn.addEventListener('click', () => {
       if (btn.classList.contains('depleted')) return;
       if (t.isFlip) {
@@ -180,10 +190,10 @@ function initTools() {
   };
 
   if (toolsRow) {
-    for (const t of manipulationTools) createBtn(t, toolsRow);
+    for (const t of manipulationTools) createBtn(t, toolsRow, false);
   }
   if (mouldsGrid) {
-    for (const t of mouldTools) createBtn(t, mouldsGrid);
+    for (const t of mouldTools) createBtn(t, mouldsGrid, true);
   }
 
   const toggleBtn = $('toggle-atelier-sidebar') || $('toggle-build-sidebar');
@@ -1082,16 +1092,12 @@ function syncUI() {
     const triggerLabelEl = $('trigger-label');
     const triggerBoltEl = document.querySelector('.power-bolt');
     if (triggerLabelEl && triggerBoltEl) {
-      if (me?.hasGrenade) {
+      if (me?.hasGrenade || me?.hasSpikeBall) {
         triggerBoltEl.textContent = '💣';
-        if (!isCharging) triggerLabelEl.textContent = 'MAINTENIR POUR LANCER LA GRENADE (2s)';
-      } else if (me?.hasSpikeBall) {
-        triggerBoltEl.textContent = '💣';
-        if (!isCharging) triggerLabelEl.textContent = 'MAINTENIR POUR TIRER LE BOULET D\'ACIER';
       } else {
         triggerBoltEl.textContent = '⚡';
-        if (!isCharging) triggerLabelEl.textContent = 'MAINTENIR POUR DOSER LA PUISSANCE';
       }
+      if (!isCharging) triggerLabelEl.textContent = 'Tirer !!';
     }
 
     if (!isMyTurn) {
@@ -1805,7 +1811,7 @@ function releaseAndFire() {
   isCharging = false;
   if (chargeRafId) cancelAnimationFrame(chargeRafId);
   if (fireTriggerBtn) fireTriggerBtn.classList.remove('charging');
-  if (triggerLabel) triggerLabel.textContent = 'MAINTENIR POUR DOSER';
+  if (triggerLabel) triggerLabel.textContent = 'Tirer !!';
 
   const elapsed = performance.now() - chargeStartTime;
   // Si le joueur a cliqué brièvement (<160ms), puissance minimale décente de 0.40

@@ -1006,6 +1006,50 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   display: none !important;
 }
 
+/* Boutons des patrons dans la barre d'inventaire : slots agrandis sans texte */
+.sand-inventory-footer .tool-btn {
+  border: 1.5px solid #d4a373;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 12px;
+  padding: 4px;
+  min-width: 62px;
+  width: 66px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  user-select: none;
+  box-shadow: 0 2px 5px rgba(120, 53, 15, 0.12), inset 0 1px 0 #fff;
+  flex-shrink: 0;
+  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+}
+
+.sand-inventory-footer .tool-btn canvas {
+  width: 52px;
+  height: 42px;
+  image-rendering: pixelated;
+  flex-shrink: 0;
+}
+
+.sand-inventory-footer .tool-btn .tool-stock {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 0.65rem;
+  font-weight: 900;
+  background: #2563eb;
+  color: #fff;
+  padding: 0 5px;
+  min-width: 17px;
+  height: 16px;
+  line-height: 16px;
+  text-align: center;
+  border-radius: 999px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+
 .tool-btn {
   border: 1.5px solid #d4a373;
   background: rgba(255, 255, 255, 0.9);
@@ -1171,13 +1215,28 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   flex-direction: row-reverse;
 }
 
-/* 1. Bouton icône pour changer de catapulte (positionné de l'autre côté de l'écran) */
+/* 1. Bouton icône pour changer de catapulte (positionné au centre vertical sur le côté opposé) */
+@keyframes catapultSwitchPulse {
+  0%, 100% {
+    transform: translateY(-50%) scale(1);
+    box-shadow: 0 4px 14px rgba(45, 20, 5, 0.45), 0 0 0 0 rgba(250, 204, 21, 0.4);
+    border-color: #facc15;
+  }
+  50% {
+    transform: translateY(-50%) scale(1.15);
+    box-shadow: 0 8px 24px rgba(45, 20, 5, 0.6), 0 0 18px 4px rgba(250, 204, 21, 0.65);
+    border-color: #fef08a;
+  }
+}
+
 .catapult-icon-switch-btn {
   position: fixed;
-  bottom: 20px;
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
   z-index: 35;
-  width: 58px;
-  height: 58px;
+  width: 62px;
+  height: 62px;
   border-radius: 50%;
   background: linear-gradient(145deg, #78350f, #451a03);
   border: 2.5px solid #facc15;
@@ -1189,17 +1248,18 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   align-items: center;
   justify-content: center;
   line-height: 1;
-  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  animation: catapultSwitchPulse 2.4s ease-in-out infinite;
+  transition: right 0.25s cubic-bezier(0.16, 1, 0.3, 1), left 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s ease, box-shadow 0.18s ease;
   pointer-events: auto;
 }
 
 .catapult-icon-switch-btn.pos-right {
-  right: 28px;
+  right: 24px;
   left: auto;
 }
 
 .catapult-icon-switch-btn.pos-left {
-  left: 28px;
+  left: 24px;
   right: auto;
 }
 
@@ -1208,13 +1268,14 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
 }
 
 .catapult-icon-switch-btn:hover {
-  transform: scale(1.08) translateY(-2px);
+  animation-play-state: paused;
+  transform: translateY(-50%) scale(1.22);
   border-color: #fef08a;
-  box-shadow: 0 6px 18px rgba(250, 204, 21, 0.45);
+  box-shadow: 0 8px 28px rgba(250, 204, 21, 0.75), 0 0 20px rgba(250, 204, 21, 0.5);
 }
 
 .catapult-icon-switch-btn:active {
-  transform: scale(0.95);
+  transform: translateY(-50%) scale(0.96);
 }
 
 .cat-switch-icon {
@@ -1709,6 +1770,18 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
     padding: 4px 6px;
     gap: 4px;
     border-radius: 12px;
+  }
+
+  .sand-inventory-footer .tool-btn {
+    width: 54px;
+    min-width: 48px;
+    height: 52px;
+    padding: 2px;
+  }
+
+  .sand-inventory-footer .tool-btn canvas {
+    width: 46px;
+    height: 34px;
   }
 
   .tool-btn {

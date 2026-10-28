@@ -144,6 +144,86 @@ export const SHAPES = [
     if (y < 3) return crenel(x, y, w, 3, 2, 2);
     return dx * dx + dy * dy <= 72;
   }),
+
+  // 15) Citadelle Royale : Forteresse massive à double tour et porte fortifiée
+  make('citadelle', 'Citadelle', 'Imposante forteresse à double tour et herse', 48, 30, (x, y, w, h) => {
+    // Tours latérales gauche [0..11] et droite [36..47]
+    const isLeftTower = x <= 11;
+    const isRightTower = x >= 36;
+    if (isLeftTower) {
+      if (y < 4) return crenel(x, y, 12, 4, 3, 2);
+      if (y >= 12 && y <= 18 && (x === 5 || x === 6)) return false; // Meurtrière
+      return true;
+    }
+    if (isRightTower) {
+      if (y < 4) return crenel(x - 36, y, 12, 4, 3, 2);
+      if (y >= 12 && y <= 18 && (x === 41 || x === 42)) return false; // Meurtrière
+      return true;
+    }
+    // Courtine centrale [12..35]
+    if (y < 10) return false;
+    if (y < 14) return crenel(x - 12, y - 10, 24, 4, 3, 2); // Créneaux courtine
+    // Porte centrale voutée
+    const cx = (w - 1) / 2;
+    const dx = Math.abs(x - cx);
+    if (dx <= 4 && y >= 20) return false;
+    return true;
+  }),
+
+  // 16) Aqueduc Monumental : Pont à double arcade et tablier supérieur
+  make('aqueduc', 'Aqueduc', 'Double arcade monumentale pour ponts et étages', 52, 22, (x, y, w, h) => {
+    // Tablier supérieur avec créneaux
+    if (y < 3) return crenel(x, y, w, 3, 4, 2);
+    if (y < 7) return true;
+    // 3 piliers porteurs massifs : [0..7], [21..30], [44..51]
+    if (x <= 7 || (x >= 21 && x <= 30) || x >= 44) return true;
+    // Voûtes en arc de cercle
+    const cx1 = 14.0;
+    const cx2 = 37.0;
+    const rx = 6.8;
+    const ry = 14.0;
+    const dy = (y - 21) / ry;
+    if (x > 7 && x < 21) {
+      const dx1 = (x - cx1) / rx;
+      if (dx1 * dx1 + dy * dy < 1) return false;
+      return true;
+    }
+    if (x > 30 && x < 44) {
+      const dx2 = (x - cx2) / rx;
+      if (dx2 * dx2 + dy * dy < 1) return false;
+      return true;
+    }
+    return false;
+  }),
+
+  // 17) Éperon Vauban : Bastion triangulaire déflecteur de tirs
+  make('bastion', 'Éperon', 'Bastion triangulaire blindé déviant les boulets', 36, 24, (x, y, w, h) => {
+    const cx = (w - 1) / 2;
+    const dx = Math.abs(x - cx);
+    // Plateforme supérieure à créneaux
+    if (y < 3) return dx <= 9 && crenel(x - Math.floor(cx - 9), y, 18, 3, 3, 2);
+    if (y < 6) return dx <= 9;
+    // Pente triangulaire évasée vers la base
+    const maxDx = 9 + ((y - 6) / (h - 6)) * 9;
+    return dx <= maxDx;
+  }),
+
+  // 18) Donjon Colosse : Tour royale géante à mâchicoulis
+  make('colosse', 'Colosse', 'Tour titanesque à base renforcée et mâchicoulis', 26, 38, (x, y, w, h) => {
+    const cx = (w - 1) / 2;
+    const dx = Math.abs(x - cx);
+    // Couronne supérieure à mâchicoulis élargie [y < 8]
+    if (y < 4) return dx <= 12 && crenel(x - 1, y, 24, 4, 3, 2);
+    if (y < 8) return dx <= 12;
+    // Fût central [y: 8..29]
+    if (y < 29) {
+      if (y >= 14 && y <= 21 && (dx === 2 || dx === 3)) return false; // Meurtrières doubles
+      return dx <= 8;
+    }
+    // Base élargie renforcée [y: 29..37]
+    const baseExtra = ((y - 29) / 8) * 4;
+    return dx <= (8 + baseExtra);
+  }),
 ];
 
 export const SHAPE_BY_ID = Object.fromEntries(SHAPES.map((s) => [s.id, s]));
