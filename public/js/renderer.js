@@ -49,6 +49,7 @@ export class Renderer {
     this.pouringBuckets = [];
     this.handScoops = [];
     this.redFlashes = [];
+    this.collectedBonuses = [];
     this.shake = 0;
     this.flashLife = 0;
     this.flashColor = '#fff';
@@ -673,23 +674,23 @@ export class Renderer {
 
     // Munition installée dans la cuillère (chargée et prête)
     if (c.loaded) {
-      const bRad = 3.4 * s;
+      const bRad = (ammoType === 'grenade' ? 2.4 : 3.4) * s;
       const ballX = X(tx);
       const ballY = Y(ty - 1.8);
 
       if (ammoType === 'grenade') {
-        // Grenade explosive militaire prête dans le godet
+        // Grenade explosive militaire prête dans le godet (format compact)
         ctx.fillStyle = '#15803d';
         ctx.beginPath();
         ctx.arc(ballX, ballY, bRad, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = '#052e16';
-        ctx.lineWidth = 1.4 * this.dpr;
+        ctx.lineWidth = 1.1 * this.dpr;
         ctx.stroke();
         // Mèche qui crépite
         ctx.fillStyle = Math.sin(performance.now() * 0.03) > 0 ? '#ef4444' : '#facc15';
         ctx.beginPath();
-        ctx.arc(ballX, ballY - bRad - 1.2 * s, 1.2 * s, 0, Math.PI * 2);
+        ctx.arc(ballX, ballY - bRad - 1.0 * s, 1.0 * s, 0, Math.PI * 2);
         ctx.fill();
       } else if (ammoType === 'heavySpikeBall') {
         // Boulet d'acier à pointes acérées
@@ -1038,7 +1039,7 @@ export class Renderer {
 
         // Quadrillage de grenade quadrillée (ananas)
         ctx.strokeStyle = '#4ade80';
-        ctx.lineWidth = 0.8 * this.dpr;
+        ctx.lineWidth = 0.65 * this.dpr;
         ctx.beginPath();
         ctx.moveTo(gx - grR * 0.75, gy);
         ctx.lineTo(gx + grR * 0.75, gy);
@@ -1048,12 +1049,12 @@ export class Renderer {
 
         // Tête détonateur métallique
         ctx.fillStyle = '#94a3b8';
-        ctx.fillRect(gx - 1.2 * s, gy - grR - 2.4 * s, 2.4 * s, 2.4 * s);
+        ctx.fillRect(gx - 0.9 * s, gy - grR - 1.8 * s, 1.8 * s, 1.8 * s);
         // Goupille ronde dorée
         ctx.strokeStyle = '#facc15';
-        ctx.lineWidth = 1 * this.dpr;
+        ctx.lineWidth = 0.85 * this.dpr;
         ctx.beginPath();
-        ctx.arc(gx + 2.2 * s, gy - grR - 1.4 * s, 1.2 * s, 0, Math.PI * 2);
+        ctx.arc(gx + 1.5 * s, gy - grR - 1.0 * s, 0.9 * s, 0, Math.PI * 2);
         ctx.stroke();
 
         // Si la grenade a touché le sol (landed) : mèche qui crépite et décompte animé 2.0s
@@ -1526,6 +1527,7 @@ export class Renderer {
     this.drawPouringBuckets(performance.now());
     this.drawHandScoops(performance.now());
     this.drawRedFlashes(performance.now());
+    this.drawCollectedBonuses(performance.now());
 
     // Effet de flash d'écran (pour les bonus légendaires)
     if (this.flashLife > 0) {
@@ -1882,6 +1884,209 @@ export class Renderer {
       ctx.restore();
     }
     this.redFlashes.length = w;
+  }
+
+  // ---------------------------------------------------------------- Affichage bien visible des bonus récupérés (2s)
+  addCollectedBonus(x, y, type, playerName = '', playerColor = '') {
+    const info = this.getBonusDisplayInfo(type);
+    this.collectedBonuses.push({
+      x,
+      y,
+      type,
+      title: info.title,
+      icon: info.icon,
+      subtitle: playerName ? `Récupéré par ${playerName}` : 'Bonus Récupéré !',
+      color: info.color,
+      bgColor: info.bgColor,
+      playerColor: playerColor || info.color,
+      startTime: performance.now(),
+      duration: 2000,
+    });
+  }
+
+  getBonusDisplayInfo(type) {
+    switch (type) {
+      case 'ammo':
+        return {
+          icon: '☄️',
+          title: '+1 BOULET D\'ATTAQUE',
+          color: '#f97316',
+          bgColor: 'rgba(234, 88, 12, 0.95)',
+        };
+      case 'spray':
+        return {
+          icon: '💦',
+          title: '+1 SPRAY DÉFENSIF',
+          color: '#38bdf8',
+          bgColor: 'rgba(2, 132, 199, 0.95)',
+        };
+      case 'grenade':
+        return {
+          icon: '🧨',
+          title: 'GRENADE (MÈCHE 2s)',
+          color: '#4ade80',
+          bgColor: 'rgba(21, 128, 61, 0.95)',
+        };
+      case 'heavySpikeBall':
+        return {
+          icon: '💣',
+          title: 'BOULET D\'ACIER À POINTES',
+          color: '#e2e8f0',
+          bgColor: 'rgba(51, 65, 85, 0.95)',
+        };
+      case 'wetAll':
+        return {
+          icon: '🌊',
+          title: 'DÉLUGE BÉNI : CHÂTEAU FORTIFIÉ',
+          color: '#67e8f9',
+          bgColor: 'rgba(8, 145, 178, 0.95)',
+        };
+      case 'dryOpponent':
+        return {
+          icon: '☀️',
+          title: 'SÉCHERESSE APOCALYPTIQUE',
+          color: '#facc15',
+          bgColor: 'rgba(202, 138, 4, 0.95)',
+        };
+      default:
+        return {
+          icon: '🎁',
+          title: 'BONUS OBTENU !',
+          color: '#facc15',
+          bgColor: 'rgba(45, 20, 5, 0.95)',
+        };
+    }
+  }
+
+  drawCollectedBonuses(now) {
+    if (!this.collectedBonuses || !this.collectedBonuses.length) return;
+    const { ctx } = this;
+    const { s, ox, oy } = this.view;
+
+    let w = 0;
+    for (let i = 0; i < this.collectedBonuses.length; i++) {
+      const b = this.collectedBonuses[i];
+      const elapsed = now - b.startTime;
+      if (elapsed >= b.duration) continue;
+      this.collectedBonuses[w++] = b;
+
+      const progress = elapsed / b.duration; // 0.0 à 1.0 (durée 2000ms)
+
+      // Animation d'entrée élastique sur les premiers 15% (300ms)
+      let scale = 1.0;
+      if (progress < 0.15) {
+        const tIn = progress / 0.15;
+        scale = Math.sin(tIn * Math.PI * 0.5) * 1.15;
+      }
+
+      // Fondu d'apparition (0..0.08) et de disparition (0.80..1.0)
+      let alpha = 1.0;
+      if (progress < 0.08) {
+        alpha = progress / 0.08;
+      } else if (progress > 0.80) {
+        alpha = Math.max(0, (1 - progress) / 0.20);
+      }
+
+      // Dérive très légère vers le haut
+      const floatY = progress * 14 * s;
+      const bx = ox + b.x * s;
+      const by = oy + b.y * s - floatY;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+
+      // Anneau lumineux d'impact / choc d'obtention
+      if (progress < 0.40) {
+        const ringProg = progress / 0.40;
+        const ringR = (10 + ringProg * 40) * s;
+        ctx.beginPath();
+        ctx.arc(bx, by, ringR, 0, Math.PI * 2);
+        ctx.strokeStyle = b.color;
+        ctx.lineWidth = Math.max(1.5, 3.5 * (1 - ringProg) * this.dpr);
+        ctx.globalAlpha = alpha * (1 - ringProg) * 0.75;
+        ctx.stroke();
+        ctx.globalAlpha = alpha;
+      }
+
+      // Dimensions du grand badge bien visible
+      const badgeW = 230 * this.dpr;
+      const badgeH = 50 * this.dpr;
+      const rad = 14 * this.dpr;
+
+      // Positionnement centré au-dessus du point de récupération
+      const left = Math.max(10, Math.min(this.width - badgeW - 10, bx - badgeW / 2));
+      const top = Math.max(10, by - badgeH - 12 * s);
+
+      ctx.translate(left + badgeW / 2, top + badgeH / 2);
+      ctx.scale(scale, scale);
+      ctx.translate(-(left + badgeW / 2), -(top + badgeH / 2));
+
+      // Ombre portée puissante et lueur colorée
+      ctx.shadowColor = b.color;
+      ctx.shadowBlur = 18 * this.dpr;
+      ctx.shadowOffsetY = 4 * this.dpr;
+
+      // Fond dégradé du badge
+      const grad = ctx.createLinearGradient(left, top, left + badgeW, top + badgeH);
+      grad.addColorStop(0, 'rgba(15, 23, 42, 0.95)');
+      grad.addColorStop(0.35, b.bgColor);
+      grad.addColorStop(1, 'rgba(15, 23, 42, 0.98)');
+      ctx.fillStyle = grad;
+
+      ctx.beginPath();
+      if (ctx.roundRect) {
+        ctx.roundRect(left, top, badgeW, badgeH, rad);
+      } else {
+        ctx.rect(left, top, badgeW, badgeH);
+      }
+      ctx.fill();
+
+      // Bordure stylisée avec couleur du bonus
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+      ctx.strokeStyle = b.color;
+      ctx.lineWidth = 2.8 * this.dpr;
+      ctx.stroke();
+
+      // Pastille circulaire pour l'icône à gauche
+      const iconCircleR = badgeH * 0.38;
+      const iconCx = left + iconCircleR + 8 * this.dpr;
+      const iconCy = top + badgeH / 2;
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+      ctx.beginPath();
+      ctx.arc(iconCx, iconCy, iconCircleR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = 1.2 * this.dpr;
+      ctx.stroke();
+
+      // Émoji géant
+      ctx.font = `${Math.round(20 * this.dpr)}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(b.icon, iconCx, iconCy);
+
+      // Titre en gros et gras
+      const textLeft = iconCx + iconCircleR + 10 * this.dpr;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+
+      ctx.font = `900 ${Math.round(12.5 * this.dpr)}px system-ui, -apple-system, sans-serif`;
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = 'rgba(0,0,0,0.85)';
+      ctx.shadowBlur = 4 * this.dpr;
+      ctx.fillText(b.title, textLeft, top + badgeH * 0.46);
+
+      // Sous-titre ("Récupéré par ..." en jaune d'or)
+      ctx.font = `800 ${Math.round(10.5 * this.dpr)}px system-ui, -apple-system, sans-serif`;
+      ctx.fillStyle = '#fde047';
+      ctx.shadowBlur = 2 * this.dpr;
+      ctx.fillText(b.subtitle, textLeft, top + badgeH * 0.82);
+
+      ctx.restore();
+    }
+    this.collectedBonuses.length = w;
   }
 
   // ---------------------------------------------------------------- seau de plage animé

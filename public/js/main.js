@@ -942,10 +942,10 @@ socket.on('fx', (e) => {
     sfx.grenadeTick(e.fuseLeft);
   } else if (e.type === 'grenadeExplosion') {
     sfx.grenadeExplosion();
-    renderer.shake = Math.min(35, 18 + (e.r || 22) * 0.9);
-    renderer.puff(e.x, e.y, (e.r || 22) * 1.5, 60, '255,100,30');
-    renderer.waterMist(e.x, e.y, e.r || 22);
-    renderer.popup(e.x, e.y - 12, '💥 BOOOOOM ! GRENADE !', '#ef4444');
+    renderer.shake = Math.min(18, 6 + (e.r || 14) * 0.6);
+    renderer.puff(e.x, e.y, (e.r || 14) * 1.2, 35, '255,100,30');
+    renderer.waterMist(e.x, e.y, (e.r || 14) * 0.9);
+    renderer.popup(e.x, e.y - 10, '💥 BOOM ! GRENADE !', '#ef4444');
   } else if (e.type === 'grenadeEquipped') {
     renderer.popup(CATAPULT_X + 15, GROUND_Y - 20, '💣 GRENADE ÉQUIPÉE !', '#4ade80');
   } else if (e.type === 'kingDead') {
@@ -958,37 +958,24 @@ socket.on('fx', (e) => {
     fireVictoryConfetti();
   } else if (e.type === 'bonus') {
     sfx.win();
-    let msg = '🎁 BONUS OBTENU !';
-    let color = '56,189,248';
-    if (e.bonusType === 'ammo') {
-      msg = '☄️ +1 BOULET DE CANON EN RÉSERVE !';
-      color = '255,120,40';
-    } else if (e.bonusType === 'spray') {
-      msg = '💦 +1 DOSE DE SPRAY DÉFENSIF EN RÉSERVE !';
-      color = '56,189,248';
-    } else if (e.bonusType === 'heavySpikeBall') {
-      msg = '💣 BOULET D\'ACIER À PICS ARMÉ POUR LE PROCHAIN TIR !';
-      color = '148,163,184';
-    } else if (e.bonusType === 'grenade') {
-      msg = '🧨 GRENADE EXPLOSIVE ARMÉE (EXPLOSION RETARDÉE 2s) !';
-      color = '74,222,128';
-    } else if (e.bonusType === 'wetAll') {
-      msg = '🌊 DÉLUGE BÉNI : CHÂTEAU FORTIFIÉ !';
-      color = '56,189,248';
-    } else if (e.bonusType === 'dryOpponent') {
-      msg = '☀️ SÉCHERESSE APOCALYPTIQUE SUR LE CHÂTEAU ADVERSE !';
-      color = '245,158,11';
-    }
-    renderer.puff(e.x, e.y, 8, 24, color);
-    renderer.popup(e.x, e.y - 8, msg, '#fef08a');
+    const player = roomState?.players?.find((p) => p.id === e.pid);
+    const pname = e.pname || player?.name || '';
+    const pcolor = e.pcolor || player?.color || '';
+    renderer.addCollectedBonus(e.x, e.y, e.bonusType, pname, pcolor);
+    renderer.puff(e.x, e.y, 10, 32, '255,200,50');
     if (e.pid === myId && typeof window.confetti === 'function') {
       window.confetti({ particleCount: 50, spread: 60, origin: { y: 0.65 } });
     }
   } else if (e.type === 'bonusSpray') {
     sfx.spray();
-    renderer.puff(e.x, e.y, 8, 20, '56,189,248');
-    renderer.waterMist(e.x, e.y, 16);
-    renderer.popup(e.x, e.y - 8, '💦 +1 Spray Défensif en réserve !', '#38bdf8');
+    const player = roomState?.players?.find((p) => p.id === e.pid);
+    const pname = player?.name || '';
+    const pcolor = player?.color || '';
+    const bx = Number.isFinite(e.x) ? e.x : 150;
+    const by = Number.isFinite(e.y) ? e.y : 80;
+    renderer.addCollectedBonus(bx, by, 'spray', pname, pcolor);
+    renderer.puff(bx, by, 8, 20, '56,189,248');
+    renderer.waterMist(bx, by, 16);
   } else if (e.type === 'flatten') {
     if (e.pid === activePid) {
       sfx.flatten();

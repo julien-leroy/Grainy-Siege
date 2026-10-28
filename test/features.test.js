@@ -264,7 +264,7 @@ test('game: grenade a retardement de 2 secondes avec souffle et ejection lateral
   const evs = p2.world.drainEvents();
   const expl = evs.find((e) => e.type === 'grenadeExplosion');
   assert.ok(expl, 'événement grenadeExplosion émis');
-  assert.ok(expl.r >= 20, 'rayon de souffle massif');
+  assert.ok(expl.r >= 12 && expl.r <= 16, 'rayon de souffle réduit et équilibré');
   assert.ok(p2.world.particles.length > 0, 'du sable a été violemment éjecté');
 
   // Vérifier qu'il y a des particules avec une forte vitesse latérale (vx positif et négatif)

@@ -790,6 +790,8 @@ export class Room {
       x: d.x,
       y: d.y,
       pid: p.id,
+      pname: p.name,
+      pcolor: p.color,
     });
     return true;
   }

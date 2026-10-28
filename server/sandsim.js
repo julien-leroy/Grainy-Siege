@@ -474,7 +474,7 @@ export class SandWorld {
       y,
       vx,
       vy,
-      r: BALL_RADIUS * this.ballScale * (spike ? 1.4 : grenade ? 1.15 : 1),
+      r: BALL_RADIUS * this.ballScale * (spike ? 1.4 : grenade ? 0.78 : 1),
       age: 0,
       spike,
       grenade,
@@ -963,8 +963,8 @@ export class SandWorld {
    */
   grenadeExplosion(x, y, ballR) {
     const { type, damage, rng } = this;
-    const R = Math.min(32, 22 * this.ballScale);
-    const R2 = R * 1.55;
+    const R = Math.min(18, 14 * this.ballScale);
+    const R2 = R * 1.35;
     const x0 = Math.max(0, Math.floor(x - R2));
     const x1 = Math.min(W - 1, Math.ceil(x + R2));
     const y0 = Math.max(0, Math.floor(y - R2));
@@ -980,49 +980,49 @@ export class SandWorld {
         const d = Math.hypot(dx, dy);
         if (d > R2) continue;
 
-        // Cratère central et souffle dévastateur
-        if (d <= R * 0.88) {
+        // Cratère central et souffle dévastateur modéré
+        if (d <= R * 0.75) {
           type[i] = EMPTY;
           this.vel[i] = 0;
           damage[i] = 0;
 
-          // Éjection puissante du sable sur les côtés (effet latéral recherché)
+          // Éjection modérée du sable sur les côtés
           const sideSign = dx >= 0 ? 1 : -1;
-          const lateralSpeed = (2.6 + rng() * 4.4) * (1 - d / R2);
-          const verticalSpeed = -0.5 - rng() * 1.8;
+          const lateralSpeed = (1.5 + rng() * 2.5) * (1 - d / R2);
+          const verticalSpeed = -0.3 - rng() * 1.0;
           this.spawnParticle(
             cx + 0.5, cy + 0.5,
-            sideSign * lateralSpeed + (rng() - 0.5) * 0.6,
+            sideSign * lateralSpeed + (rng() - 0.5) * 0.4,
             verticalSpeed,
             rng() < 0.6 ? LOOSE : DRY,
           );
         } else if (isStructural(t)) {
-          // Onde de choc extérieure : transforme le sable structurel en mottes brisées
-          const f = Math.max(0, 1 - (d - R * 0.88) / (R2 - R * 0.88));
-          damage[i] = Math.min(255, damage[i] + f * 195 * (0.8 + rng() * 0.4));
-          if (damage[i] > 120 || rng() < f * 0.75) {
+          // Onde de choc extérieure : endommage le sable structurel
+          const f = Math.max(0, 1 - (d - R * 0.75) / (R2 - R * 0.75));
+          damage[i] = Math.min(255, damage[i] + f * 95 * (0.8 + rng() * 0.4));
+          if (damage[i] > 140 || rng() < f * 0.45) {
             type[i] = LOOSE;
-            this.vel[i] = (dx >= 0 ? 1 : -1) * (1.4 + rng() * 2.2);
+            this.vel[i] = (dx >= 0 ? 1 : -1) * (0.8 + rng() * 1.4);
           }
         }
       }
     }
 
-    // Le Roi est vulnérable au souffle direct de la grenade
+    // Le Roi est vulnérable uniquement si la grenade explose à proximité immédiate
     if (this.king) {
       const kDist = Math.hypot(this.king.x + KING_W / 2 - x, this.king.y + KING_H / 2 - y);
-      if (kDist <= R * 1.25) {
+      if (kDist <= R * 0.85) {
         this.killKing('explosion');
         this.events.push({ type: 'kingHit', x, y });
       }
     }
 
-    // Paquets d'éjectas latéraux supplémentaires projetés violemment à gauche et à droite
-    for (let k = 0; k < 36; k++) {
+    // Paquets d'éjectas latéraux modérés projetés à gauche et à droite
+    for (let k = 0; k < 12; k++) {
       const side = k % 2 === 0 ? -1 : 1;
-      const vx = side * (3.2 + rng() * 4.6);
-      const vy = -0.8 - rng() * 2.2;
-      this.spawnParticle(x + side * (2 + rng() * 3), y - rng() * 4, vx, vy, rng() < 0.5 ? LOOSE : DRY);
+      const vx = side * (1.8 + rng() * 2.2);
+      const vy = -0.5 - rng() * 1.4;
+      this.spawnParticle(x + side * (1.5 + rng() * 2), y - rng() * 3, vx, vy, rng() < 0.5 ? LOOSE : DRY);
     }
 
     this.events.push({ type: 'grenadeExplosion', x, y, r: R });
