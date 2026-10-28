@@ -5,11 +5,11 @@ export const GRID_W = 420;
 export const GRID_H = 170;
 export const GROUND_Y = 150; // première ligne de sol (plage compacte)
 
-// Zone constructible (château centré entre 135 et 285, largeur = 150, centre à 210)
-export const BUILD_MIN_X = 135;
-export const BUILD_MAX_X = 285;
+// Zone constructible élargie (château centré entre 100 et 320, largeur = 220, centre à 210)
+export const BUILD_MIN_X = 100;
+export const BUILD_MAX_X = 320;
 
-// Catapultes strictement symétriques et rapprochées du château (59 cellules de chaque côté)
+// Catapultes strictement symétriques (24 cellules de chaque côté du château agrandi)
 export const CATAPULT_X = 64;
 export const LAUNCH_X = 76;
 export const LAUNCH_Y = GROUND_Y - 30;

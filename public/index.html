@@ -160,15 +160,44 @@
     </div>
   </section>
 
-  <!-- Barre d'inventaire de construction en footer dans le sable -->
-  <nav id="build-dock" class="sand-inventory-footer hidden" aria-label="Inventaire de construction">
-    <!-- 1. Outils de modelage : Pâté, Creuser, Spray, Inverser -->
-    <div class="inventory-tools-row" id="atelier-tools-row"></div>
+  <!-- Atelier de construction tout à gauche : Outils, modelage et vision du seau -->
+  <aside id="atelier-dock" class="atelier-sidebar hidden" aria-label="Atelier de modelage">
+    <div class="sidebar-header">
+      <div class="sidebar-title-group">
+        <span class="sidebar-icon">🏰</span>
+        <div class="sidebar-titles">
+          <span class="sidebar-title">ATELIER</span>
+          <span class="sidebar-badge">Modelage & Seau</span>
+        </div>
+      </div>
+      <button id="toggle-atelier-sidebar" class="sidebar-toggle-btn" type="button" title="Réduire ou déplier l'atelier" aria-label="Réduire">◀</button>
+    </div>
 
-    <!-- Séparateur vertical discret dans le sable -->
-    <div class="inventory-sand-separator"></div>
+    <!-- Alerte Roi -->
+    <div class="sidebar-alerts">
+      <div id="king-warning" class="dock-hint">
+        👑 <strong>Protège ton Roi !</strong> Bâtis des piliers solides autour du trône sans le recouvrir.
+      </div>
+    </div>
 
-    <!-- 2. Patrons et moules disponibles posés dans le sable -->
+    <!-- Outils de modelage tout à gauche : Pâté, Creuser, Spray, Inverser -->
+    <div class="sidebar-section-label">🛠️ OUTILS & MODELAGE</div>
+    <div class="atelier-tools-row" id="atelier-tools-row"></div>
+
+    <!-- Vision du seau tout à gauche -->
+    <div class="sidebar-bucket-status" id="sidebar-bucket-status">
+      <div class="bucket-status-icon">🪣</div>
+      <div class="bucket-status-meta">
+        <span class="bucket-status-label" id="bucket-status-label">Seau plein & prêt</span>
+        <div class="bucket-status-bar">
+          <div class="bucket-status-fill" id="bucket-status-fill" style="width: 100%;"></div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Barre d'inventaire en footer dans le sable : uniquement les patrons -->
+  <nav id="build-dock" class="sand-inventory-footer hidden" aria-label="Inventaire des patrons">
     <div class="inventory-moulds-row" id="tool-list"></div>
   </nav>
 

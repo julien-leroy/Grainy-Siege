@@ -339,7 +339,7 @@ test('catapultes: symétrie exacte et espacement accru avec le château', () => 
   const distLeft = BUILD_MIN_X - LAUNCH_X;
   const distRight = LAUNCH_RIGHT_X - BUILD_MAX_X;
   assert.equal(distLeft, distRight, `distances strictement symétriques (${distLeft} == ${distRight})`);
-  assert.ok(distLeft >= 40, `espacement suffisant (${distLeft} >= 40)`);
+  assert.ok(distLeft >= 20, `espacement suffisant (${distLeft} >= 20)`);
 
   // 2. Le château est parfaitement centré sur la grille
   const castleCenter = (BUILD_MIN_X + BUILD_MAX_X) / 2;

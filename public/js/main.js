@@ -185,24 +185,26 @@ function initTools() {
     for (const t of mouldTools) createBtn(t, mouldsGrid);
   }
 
-  const toggleBtn = $('toggle-build-sidebar');
+  const toggleBtn = $('toggle-atelier-sidebar') || $('toggle-build-sidebar');
   if (toggleBtn && !toggleBtn._init) {
     toggleBtn._init = true;
     toggleBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const dock = $('build-dock');
+      const dock = $('atelier-dock') || $('build-dock');
       dock.classList.toggle('collapsed');
       const isCollapsed = dock.classList.contains('collapsed');
       toggleBtn.textContent = isCollapsed ? '▶' : '◀';
-      toggleBtn.title = isCollapsed ? 'Déplier l\'inventaire' : 'Réduire l\'inventaire';
+      toggleBtn.title = isCollapsed ? "Déplier l'atelier" : "Réduire l'atelier";
     });
   }
 
-  const buildDock = $('build-dock');
-  if (buildDock && !buildDock._initEvents) {
-    buildDock._initEvents = true;
-    buildDock.addEventListener('pointerdown', (e) => e.stopPropagation());
-    buildDock.addEventListener('click', (e) => e.stopPropagation());
+  for (const dockId of ['build-dock', 'atelier-dock']) {
+    const dock = $(dockId);
+    if (dock && !dock._initEvents) {
+      dock._initEvents = true;
+      dock.addEventListener('pointerdown', (e) => e.stopPropagation());
+      dock.addEventListener('click', (e) => e.stopPropagation());
+    }
   }
 
   updateToolStocks();
@@ -1003,8 +1005,9 @@ function syncUI() {
     }
   }
 
-  // Dock de construction
+  // Docks de construction (atelier à gauche et inventaire en bas)
   $('build-dock')?.classList.toggle('hidden', s.phase !== 'build');
+  $('atelier-dock')?.classList.toggle('hidden', s.phase !== 'build');
   if (s.phase === 'build' && me) {
     const kw = $('king-warning');
     if (kw) {
