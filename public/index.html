@@ -170,23 +170,16 @@
           <span class="sidebar-badge">Modelage & Seau</span>
         </div>
       </div>
-      <button id="toggle-atelier-sidebar" class="sidebar-toggle-btn" type="button" title="Réduire ou déplier l'atelier" aria-label="Réduire">◀</button>
-    </div>
-
-    <!-- Alerte Roi -->
-    <div class="sidebar-alerts">
-      <div id="king-warning" class="dock-hint">
-        👑 <strong>Protège ton Roi !</strong> Bâtis des piliers solides autour du trône sans le recouvrir.
-      </div>
+      <button id="toggle-atelier-sidebar" class="sidebar-toggle-btn" type="button" aria-label="Réduire">◀</button>
     </div>
 
     <!-- Outils de modelage tout à gauche : Pâté, Creuser, Spray, Inverser -->
     <div class="sidebar-section-label">🛠️ OUTILS & MODELAGE</div>
     <div class="atelier-tools-row" id="atelier-tools-row"></div>
 
-    <!-- Vision du seau tout à gauche -->
+    <!-- Vision du seau tout à gauche (remplit pendant la construction) -->
     <div class="sidebar-bucket-status" id="sidebar-bucket-status">
-      <div class="bucket-status-icon">🪣</div>
+      <canvas id="atelier-bucket-canvas" width="44" height="44" class="atelier-bucket-canvas"></canvas>
       <div class="bucket-status-meta">
         <span class="bucket-status-label" id="bucket-status-label">Seau plein & prêt</span>
         <div class="bucket-status-bar">

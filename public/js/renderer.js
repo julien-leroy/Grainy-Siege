@@ -75,8 +75,23 @@ export class Renderer {
       x: Math.random(), y: 0.14 + Math.random() * 0.25, v: 0.015 + Math.random() * 0.012, phase: i * 1.7,
     }));
     this.groundPattern = this.makeGroundPattern();
+    this.sprites = {
+      catapultBase: this._loadSprite('/assets/sprites/catapult_base.png'),
+      catapultArm: this._loadSprite('/assets/sprites/catapult_arm.png'),
+      bucketPour: this._loadSprite('/assets/sprites/bucket_pour.png'),
+      bucketLift: this._loadSprite('/assets/sprites/bucket_lift.png'),
+      pateHold: this._loadSprite('/assets/sprites/pate_hold.png'),
+      patePlace: this._loadSprite('/assets/sprites/pate_place.png'),
+    };
     this.resize();
     window.addEventListener('resize', () => this.resize());
+  }
+
+  _loadSprite(src) {
+    if (typeof Image === 'undefined') return null;
+    const img = new Image();
+    img.src = src;
+    return img;
   }
 
   get width() {
@@ -501,142 +516,25 @@ export class Renderer {
     ctx.ellipse(X(CATAPULT_X + 18), Y(GROUND_Y - 0.5), 10 * s, 3.2 * s, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 3. Roues géantes à rayons cerclées de fer forgé (2 avant, 2 arrière)
-    const drawWheel = (wx, wy, r) => {
-      // Pneu en fer sombre
-      ctx.fillStyle = '#1e293b';
-      ctx.beginPath();
-      ctx.arc(X(wx), Y(wy), r, 0, Math.PI * 2);
-      ctx.fill();
-      // Jante en bois massif
-      ctx.fillStyle = '#5c3818';
-      ctx.beginPath();
-      ctx.arc(X(wx), Y(wy), r * 0.82, 0, Math.PI * 2);
-      ctx.fill();
-      // Rayons en bois
-      ctx.strokeStyle = '#3d2410';
-      ctx.lineWidth = 1.4 * this.dpr;
-      for (let i = 0; i < 6; i++) {
-        const a = (i * Math.PI) / 3;
-        ctx.beginPath();
-        ctx.moveTo(X(wx), Y(wy));
-        ctx.lineTo(X(wx) + Math.cos(a) * r * 0.78, Y(wy) + Math.sin(a) * r * 0.78);
-        ctx.stroke();
-      }
-      // Moyeu central en bronze riveté
-      ctx.fillStyle = '#ca8a04';
-      ctx.beginPath();
-      ctx.arc(X(wx), Y(wy), r * 0.35, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#0f172a';
-      ctx.beginPath();
-      ctx.arc(X(wx), Y(wy), r * 0.16, 0, Math.PI * 2);
-      ctx.fill();
-      // Clous de fer sur la jante
-      ctx.fillStyle = '#cbd5e1';
-      for (let i = 0; i < 6; i++) {
-        const a = (i * Math.PI) / 3 + 0.2;
-        ctx.beginPath();
-        ctx.arc(X(wx) + Math.cos(a) * r * 0.9, Y(wy) + Math.sin(a) * r * 0.9, 0.7 * this.dpr, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    };
+    // 3. Dessin des sprites de la catapulte : base fixe + bras articulé
+    const baseImg = this.sprites?.catapultBase;
+    const armImg = this.sprites?.catapultArm;
 
-    drawWheel(CATAPULT_X - 12, GROUND_Y - 4, 4.8 * s);
-    drawWheel(CATAPULT_X + 12, GROUND_Y - 4, 4.8 * s);
-
-    // 4. Châssis en poutres de chêne massif renforcées de fer
-    // Poutre inférieure de roulement
-    ctx.fillStyle = '#452610';
-    ctx.fillRect(Math.min(X(CATAPULT_X - 16), X(CATAPULT_X + 16)), Y(GROUND_Y - 6), 32 * s, 3.5 * s);
-    // Biseau supérieur en bois clair
-    ctx.fillStyle = '#784620';
-    ctx.fillRect(Math.min(X(CATAPULT_X - 15), X(CATAPULT_X + 15)), Y(GROUND_Y - 6), 30 * s, 1.2 * s);
-    // Renforts métalliques d'extrémités
-    ctx.fillStyle = '#334155';
-    ctx.fillRect(Math.min(X(CATAPULT_X - 16), X(CATAPULT_X - 13)), Y(GROUND_Y - 6.5), 3 * s, 4.5 * s);
-    ctx.fillRect(Math.min(X(CATAPULT_X + 13), X(CATAPULT_X + 16)), Y(GROUND_Y - 6.5), 3 * s, 4.5 * s);
-
-    // 5. Treuil arrière à corde de torsion épaisse
-    const winchX = px - 9;
-    const winchY = GROUND_Y - 7;
-    // Tambour en bois
-    ctx.fillStyle = '#3d2410';
-    ctx.fillRect(Math.min(X(winchX - 2.5), X(winchX + 2.5)), Y(winchY - 2.5), 5 * s, 5 * s);
-    // Spires de corde de chanvre
-    ctx.strokeStyle = '#d4a373';
-    ctx.lineWidth = 1.6 * s;
-    ctx.beginPath();
-    ctx.moveTo(X(winchX - 2), Y(winchY));
-    ctx.lineTo(X(winchX + 2), Y(winchY));
-    ctx.stroke();
-    // Roue crantée à rochet
-    ctx.fillStyle = '#64748b';
-    ctx.beginPath();
-    ctx.arc(X(winchX), Y(winchY), 2.8 * s, 0, Math.PI * 2);
-    ctx.fill();
-
-    // 6. Montants verticaux en A (superstructure imposante)
-    // Montant arrière
-    ctx.strokeStyle = '#5a3518';
-    ctx.lineWidth = 3.6 * s;
-    ctx.beginPath();
-    ctx.moveTo(X(px - 7), Y(GROUND_Y - 5));
-    ctx.lineTo(X(px), Y(py));
-    ctx.stroke();
-
-    // Montant avant
-    ctx.strokeStyle = '#6b401e';
-    ctx.lineWidth = 3.6 * s;
-    ctx.beginPath();
-    ctx.moveTo(X(px + 7), Y(GROUND_Y - 5));
-    ctx.lineTo(X(px), Y(py));
-    ctx.stroke();
-
-    // Traverse horizontale de renfort
-    ctx.strokeStyle = '#7c4c24';
-    ctx.lineWidth = 2.4 * s;
-    ctx.beginPath();
-    ctx.moveTo(X(px - 4.5), Y(py + 6));
-    ctx.lineTo(X(px + 4.5), Y(py + 6));
-    ctx.stroke();
-
-    // Goussets métalliques d'angle rivetés
-    ctx.fillStyle = '#1e293b';
-    ctx.beginPath();
-    ctx.moveTo(X(px), Y(py - 1.5));
-    ctx.lineTo(X(px - 3.5), Y(py + 3.5));
-    ctx.lineTo(X(px + 3.5), Y(py + 3.5));
-    ctx.closePath();
-    ctx.fill();
-
-    // Butoir rembourré en cuir / corde à l'avant
-    ctx.strokeStyle = '#854d0e';
-    ctx.lineWidth = 2.8 * s;
-    ctx.beginPath();
-    ctx.moveTo(X(px + 3), Y(py + 2));
-    ctx.lineTo(X(px + 9), Y(py - 9));
-    ctx.stroke();
-    // Coussin d'arrêt
-    ctx.fillStyle = '#b45309';
-    ctx.beginPath();
-    ctx.arc(X(px + 9), Y(py - 9), 2.2 * s, 0, Math.PI * 2);
-    ctx.fill();
-
-    // 7. Bras articulé balistique (Grand mangonneau d'assaut)
     // Déflexion du bras si mise sous tension (isCharging)
     let armAngle = c.angle;
     if (isActive && isCharging && c.loaded) {
-      // Flexion du bras vers l'arrière sous l'effort du treuil (vers 3.1 rad)
       const flex = (chargePower || 0) * 0.22;
       armAngle = Math.min(3.1, c.angle + flex);
     }
 
+    const L = 23;
     const tx = px + Math.cos(armAngle) * L;
     const ty = py - Math.sin(armAngle) * L;
 
     // Câble de tension reliant le treuil au bras lors de la charge
     if (isActive && isCharging) {
+      const winchX = px - 9;
+      const winchY = GROUND_Y - 7;
       const tensionVibe = Math.sin(performance.now() * 0.08) * 0.6 * s;
       ctx.strokeStyle = '#facc15';
       ctx.lineWidth = 1.8 * this.dpr;
@@ -646,48 +544,58 @@ export class Renderer {
       ctx.stroke();
     }
 
-    // Poutre du bras (chêne renforcé)
-    ctx.strokeStyle = '#854e24';
-    ctx.lineWidth = 3.2 * s;
-    ctx.beginPath();
-    ctx.moveTo(X(px - Math.cos(armAngle) * 6), Y(py + Math.sin(armAngle) * 6));
-    ctx.lineTo(X(tx), Y(ty));
-    ctx.stroke();
+    // A. Dessin du bras de propulsion articulé (catapult_arm)
+    if (armImg && armImg.complete && armImg.naturalWidth > 0) {
+      const armScale = 23 / 712.9;
+      const aw = 937 * armScale * s;
+      const ah = 391 * armScale * s;
+      const pivotScreenX = 824 * armScale * s;
+      const pivotScreenY = 316 * armScale * s;
+      const naturalArmAngle = Math.atan2(-179, -690); // ~ -2.8876 rad
 
-    // Contrepoids arrière en pierre cerclée de fer
-    ctx.fillStyle = '#334155';
-    ctx.beginPath();
-    ctx.arc(X(px - Math.cos(armAngle) * 6), Y(py + Math.sin(armAngle) * 6), 3.2 * s, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Cerclages de fer sur le bras
-    ctx.strokeStyle = '#1e293b';
-    ctx.lineWidth = 1.6 * this.dpr;
-    for (let f = 0.3; f <= 0.8; f += 0.25) {
-      const bx = px + Math.cos(armAngle) * L * f;
-      const by = py - Math.sin(armAngle) * L * f;
+      ctx.save();
+      ctx.translate(X(px), Y(py));
+      if (isRight) ctx.scale(-1, 1);
+      ctx.rotate(-armAngle - naturalArmAngle);
+      ctx.drawImage(armImg, -pivotScreenX, -pivotScreenY, aw, ah);
+      ctx.restore();
+    } else {
+      // Fallback si le sprite charge encore
+      ctx.strokeStyle = '#854e24';
+      ctx.lineWidth = 3.2 * s;
       ctx.beginPath();
-      ctx.arc(X(bx), Y(by), 2 * s, 0, Math.PI * 2);
+      ctx.moveTo(X(px - Math.cos(armAngle) * 6), Y(py + Math.sin(armAngle) * 6));
+      ctx.lineTo(X(tx), Y(ty));
       ctx.stroke();
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.arc(X(tx), Y(ty), 4.4 * s, 0, Math.PI * 2);
+      ctx.fill();
     }
 
-    // Cuillère de tir en fer forgé riveté (large et imposante)
-    ctx.fillStyle = '#1e293b';
-    ctx.beginPath();
-    ctx.arc(X(tx), Y(ty), 4.4 * s, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = c.color;
-    ctx.lineWidth = 1.8 * s;
-    ctx.stroke();
+    // B. Dessin du châssis base fixe (catapult_base)
+    if (baseImg && baseImg.complete && baseImg.naturalWidth > 0) {
+      const baseScale = 14 / 356;
+      const bw = 962 * baseScale * s;
+      const bh = 568 * baseScale * s;
+      const gearScreenX = 642 * baseScale * s;
+      const gearScreenY = 208 * baseScale * s;
 
-    // Munition installée dans la cuillère (chargée et prête)
-    if (c.loaded) {
+      ctx.save();
+      ctx.translate(X(px), Y(py));
+      if (isRight) ctx.scale(-1, 1);
+      ctx.drawImage(baseImg, -gearScreenX, -gearScreenY, bw, bh);
+      ctx.restore();
+    }
+
+    // C. Munition spéciale dans le godet (grenade ou boule à piques)
+    // (Le boulet classique en pierre est déjà dessiné dans le godet du sprite de bras !)
+    if (c.loaded && (ammoType === 'grenade' || ammoType === 'heavySpikeBall')) {
       const bRad = (ammoType === 'grenade' ? 2.4 : 3.4) * s;
       const ballX = X(tx);
-      const ballY = Y(ty - 1.8);
+      const ballY = Y(ty - 1.2);
 
       if (ammoType === 'grenade') {
-        // Grenade explosive militaire prête dans le godet (format compact)
         ctx.fillStyle = '#15803d';
         ctx.beginPath();
         ctx.arc(ballX, ballY, bRad, 0, Math.PI * 2);
@@ -701,7 +609,6 @@ export class Renderer {
         ctx.arc(ballX, ballY - bRad - 1.0 * s, 1.0 * s, 0, Math.PI * 2);
         ctx.fill();
       } else if (ammoType === 'heavySpikeBall') {
-        // Boulet d'acier à pointes acérées
         ctx.fillStyle = '#1e293b';
         ctx.beginPath();
         ctx.arc(ballX, ballY, bRad, 0, Math.PI * 2);
@@ -713,31 +620,17 @@ export class Renderer {
           ctx.arc(ballX + Math.cos(sa) * bRad * 1.2, ballY + Math.sin(sa) * bRad * 1.2, 1 * s, 0, Math.PI * 2);
           ctx.fill();
         }
-      } else {
-        // Boulet classique en pierre dorée polie avec reflet éclatant
-        const bGrad = ctx.createRadialGradient(ballX - bRad * 0.35, ballY - bRad * 0.35, bRad * 0.1, ballX, ballY, bRad);
-        bGrad.addColorStop(0, '#fef08a');
-        bGrad.addColorStop(0.5, '#eab308');
-        bGrad.addColorStop(1, '#854d0e');
-        ctx.fillStyle = bGrad;
-        ctx.beginPath();
-        ctx.arc(ballX, ballY, bRad, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
-        ctx.beginPath();
-        ctx.arc(ballX - bRad * 0.3, ballY - bRad * 0.3, bRad * 0.28, 0, Math.PI * 2);
-        ctx.fill();
       }
     }
 
-    // Pivot central d'acier avec bague de serrage et clavette
+    // D. Rivet d'axe central en bronze poli reliant le bras à la base
+    ctx.fillStyle = '#ca8a04';
+    ctx.beginPath();
+    ctx.arc(X(px), Y(py), 2.4 * s, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = '#0f172a';
     ctx.beginPath();
-    ctx.arc(X(px), Y(py), 2.2 * s, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#d4af37';
-    ctx.beginPath();
-    ctx.arc(X(px), Y(py), 1 * s, 0, Math.PI * 2);
+    ctx.arc(X(px), Y(py), 1.1 * s, 0, Math.PI * 2);
     ctx.fill();
 
     // ====================================================================
@@ -1672,6 +1565,9 @@ export class Renderer {
     const { ctx } = this;
     const { s, ox, oy } = this.view;
     let w = 0;
+    const pourImg = this.sprites?.bucketPour;
+    const liftImg = this.sprites?.bucketLift;
+
     for (let i = 0; i < this.pouringBuckets.length; i++) {
       const b = this.pouringBuckets[i];
       const elapsed = now - b.start;
@@ -1682,138 +1578,86 @@ export class Renderer {
       const targetX = ox + b.x * s;
       const targetY = oy + b.y * s;
 
-      let angle = 0;
-      let alpha = 1;
-      let offsetY = -28 * s;
-      let offsetX = -10 * s;
-
-      if (p < 0.28) {
-        const t = p / 0.28;
-        const ease = 1 - Math.pow(1 - t, 3);
-        angle = ease * 1.15; // incline jusqu'à ~66°
-        alpha = Math.min(1, t * 1.5);
-        offsetY = (-38 + ease * 12) * s;
-        offsetX = (-16 + ease * 8) * s;
-      } else if (p < 0.78) {
-        angle = 1.15 + Math.sin((p - 0.28) * 20) * 0.05;
-        offsetY = -26 * s;
-        offsetX = -8 * s;
-      } else {
-        const t = (p - 0.78) / 0.22;
-        angle = 1.15 * (1 - t);
-        alpha = 1 - t;
-        offsetY = (-26 - t * 10) * s;
-        offsetX = -8 * s;
-      }
-
-      const bx = targetX + offsetX;
-      const by = targetY + offsetY;
-
-      ctx.save();
-      ctx.globalAlpha = alpha;
-
-      // 1. Coulée de sable mouillé quand le seau est penché
-      if (p >= 0.20 && p <= 0.82) {
-        const pourStrength = Math.sin(((p - 0.20) / 0.62) * Math.PI);
-        const lipX = bx + Math.cos(angle) * (6 * s) + Math.sin(angle) * (10 * s);
-        const lipY = by + Math.sin(angle) * (6 * s) - Math.cos(angle) * (2 * s);
-
+      if (pourImg && pourImg.complete && pourImg.naturalWidth > 0 && liftImg && liftImg.complete && liftImg.naturalWidth > 0) {
         ctx.save();
-        const grad = ctx.createLinearGradient(lipX, lipY, targetX, targetY);
-        grad.addColorStop(0, '#fef08a');
-        grad.addColorStop(0.35, '#facc15');
-        grad.addColorStop(0.8, '#eab308');
-        grad.addColorStop(1, '#ca8a04');
+        if (p < 0.48) {
+          // Phase 1 : Verse le sable depuis le seau (bucket_pour)
+          const t = p / 0.48;
+          const alpha = Math.min(1, t * 3.5);
+          const bob = Math.sin(t * Math.PI * 5) * 1.8 * s;
+          const spriteW = 32 * s;
+          const spriteH = (819 / 786) * spriteW;
+          const drawX = targetX - spriteW * 0.72;
+          const drawY = targetY - spriteH * 0.94 + bob;
 
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        const beamW = (3.5 + pourStrength * 3.5) * s;
-        ctx.moveTo(lipX - 2 * s, lipY);
-        ctx.lineTo(lipX + 3 * s, lipY + 1 * s);
-        ctx.lineTo(targetX + beamW, targetY);
-        ctx.lineTo(targetX - beamW, targetY);
-        ctx.closePath();
-        ctx.fill();
+          ctx.globalAlpha = alpha;
+          ctx.drawImage(pourImg, drawX, drawY, spriteW, spriteH);
 
-        // Grains de sable animés qui chutent le long de la coulée
-        ctx.fillStyle = '#fef08a';
-        for (let g = 0; g < 5; g++) {
-          const gt = ((now * 0.006 + g * 0.24) % 1);
-          const gx = lipX + (targetX - lipX) * gt + (Math.sin(g * 5 + now * 0.01) * 3 * s);
-          const gy = lipY + (targetY - lipY) * gt;
-          ctx.beginPath();
-          ctx.arc(gx, gy, (1.2 + g % 2) * s, 0, Math.PI * 2);
-          ctx.fill();
+          // Particules de sable animées qui s'écoulent
+          ctx.fillStyle = '#fde047';
+          for (let g = 0; g < 4; g++) {
+            const gt = ((now * 0.008 + g * 0.25) % 1);
+            const gx = targetX + (Math.sin(g * 3 + now * 0.01) * 3.5 * s);
+            const gy = targetY - 4 * s + gt * 7 * s;
+            ctx.beginPath();
+            ctx.arc(gx, gy, (1.2 + (g % 2) * 0.6) * s, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        } else {
+          // Phase 2 : Démoule et soulève le seau vers le haut (bucket_lift)
+          const t = (p - 0.48) / 0.52;
+          const alpha = t > 0.8 ? (1 - t) / 0.2 : 1.0;
+          const liftY = Math.pow(t, 1.2) * -22 * s;
+          const spriteW = 32 * s;
+          const spriteH = (842 / 783) * spriteW;
+          const drawX = targetX - spriteW * 0.46;
+          const drawY = targetY - spriteH * 0.92 + liftY;
+
+          ctx.globalAlpha = Math.max(0, alpha);
+          ctx.drawImage(liftImg, drawX, drawY, spriteW, spriteH);
         }
         ctx.restore();
-      }
+      } else {
+        // Fallback procedural si chargement
+        let angle = 0;
+        let alpha = 1;
+        let offsetY = -28 * s;
+        let offsetX = -10 * s;
 
-      // 2. Bras & Mains tenant le seau
-      ctx.save();
-      ctx.translate(bx, by);
-      ctx.rotate(angle);
+        if (p < 0.28) {
+          const t = p / 0.28;
+          const ease = 1 - Math.pow(1 - t, 3);
+          angle = ease * 1.15;
+          alpha = Math.min(1, t * 1.5);
+          offsetY = (-38 + ease * 12) * s;
+          offsetX = (-16 + ease * 8) * s;
+        } else if (p < 0.78) {
+          angle = 1.15 + Math.sin((p - 0.28) * 20) * 0.05;
+          offsetY = -26 * s;
+          offsetX = -8 * s;
+        } else {
+          const t = (p - 0.78) / 0.22;
+          angle = 1.15 * (1 - t);
+          alpha = 1 - t;
+          offsetY = (-26 - t * 10) * s;
+          offsetX = -8 * s;
+        }
 
-      // Bras gauche (manche / anse)
-      ctx.fillStyle = '#f4cbb0';
-      ctx.beginPath();
-      ctx.ellipse(-14 * s, -6 * s, 5 * s, 3.2 * s, 0.4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = b.color;
-      ctx.beginPath();
-      ctx.ellipse(-19 * s, -9 * s, 4.5 * s, 3.8 * s, 0.4, 0, Math.PI * 2);
-      ctx.fill();
+        const bx = targetX + offsetX;
+        const by = targetY + offsetY;
 
-      // Bras droit (soutient le fond du seau penché)
-      ctx.fillStyle = '#f4cbb0';
-      ctx.beginPath();
-      ctx.ellipse(9 * s, 10 * s, 4.5 * s, 3 * s, -0.3, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = b.color;
-      ctx.beginPath();
-      ctx.ellipse(14 * s, 14 * s, 4.2 * s, 3.5 * s, -0.3, 0, Math.PI * 2);
-      ctx.fill();
-
-      // 3. Corps du seau
-      ctx.strokeStyle = '#cbd5e1';
-      ctx.lineWidth = 2 * s;
-      ctx.beginPath();
-      ctx.arc(0, -6 * s, 9 * s, Math.PI * 0.85, Math.PI * 2.15);
-      ctx.stroke();
-
-      const bGrad = ctx.createLinearGradient(-8 * s, -6 * s, 8 * s, 10 * s);
-      bGrad.addColorStop(0, '#38bdf8');
-      bGrad.addColorStop(0.55, '#0284c7');
-      bGrad.addColorStop(1, '#0369a1');
-
-      ctx.fillStyle = bGrad;
-      ctx.strokeStyle = '#082f49';
-      ctx.lineWidth = 1.5 * s;
-      ctx.beginPath();
-      ctx.moveTo(-9 * s, -4 * s);
-      ctx.lineTo(9 * s, -4 * s);
-      ctx.lineTo(6.5 * s, 11 * s);
-      ctx.lineTo(-6.5 * s, 11 * s);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-
-      // Rebord supérieur extérieur
-      ctx.fillStyle = '#38bdf8';
-      ctx.beginPath();
-      ctx.ellipse(0, -4 * s, 9.5 * s, 2.8 * s, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-
-      // Intérieur du seau avec sable qui se vide
-      if (p < 0.6) {
-        ctx.fillStyle = '#fde047';
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.save();
+        ctx.translate(bx, by);
+        ctx.rotate(angle);
+        ctx.fillStyle = '#0284c7';
         ctx.beginPath();
-        ctx.ellipse(0, -4 * s, 7.5 * s, 2 * s, 0, 0, Math.PI * 2);
+        ctx.arc(0, 0, 9 * s, 0, Math.PI * 2);
         ctx.fill();
+        ctx.restore();
+        ctx.restore();
       }
-
-      ctx.restore();
-      ctx.restore();
     }
     this.pouringBuckets.length = w;
   }
@@ -1833,6 +1677,9 @@ export class Renderer {
     const { ctx } = this;
     const { s, ox, oy } = this.view;
     let w = 0;
+    const holdImg = this.sprites?.pateHold;
+    const placeImg = this.sprites?.patePlace;
+
     for (let i = 0; i < this.handScoops.length; i++) {
       const h = this.handScoops[i];
       const elapsed = now - h.start;
@@ -1843,65 +1690,172 @@ export class Renderer {
       const targetX = ox + h.x * s;
       const targetY = oy + h.y * s;
 
-      let lift = 0;
-      let alpha = 1;
-      let tap = 0;
+      if (holdImg && holdImg.complete && holdImg.naturalWidth > 0 && placeImg && placeImg.complete && placeImg.naturalWidth > 0) {
+        ctx.save();
+        if (p < 0.45) {
+          // Phase 1 : Descend avec la poignée de sable (pate_hold)
+          const t = p / 0.45;
+          const alpha = Math.min(1, t * 3.5);
+          const dropY = (1 - t) * -14 * s;
+          const spriteW = 26 * s;
+          const spriteH = (423 / 566) * spriteW;
+          const drawX = targetX - spriteW * 0.52;
+          const drawY = targetY - spriteH * 0.85 + dropY;
 
-      if (p < 0.3) {
-        const t = p / 0.3;
-        lift = (1 - t) * 18 * s;
-        alpha = Math.min(1, t * 2);
-      } else if (p < 0.7) {
-        const t = (p - 0.3) / 0.4;
-        tap = Math.sin(t * Math.PI * 4) * 3.5 * s;
-      } else {
-        const t = (p - 0.7) / 0.3;
-        lift = t * 24 * s;
-        alpha = 1 - t;
-      }
+          ctx.globalAlpha = alpha;
+          ctx.drawImage(holdImg, drawX, drawY, spriteW, spriteH);
 
-      ctx.save();
-      ctx.globalAlpha = alpha;
+          // Grains de sable qui tombent de la main
+          ctx.fillStyle = '#facc15';
+          for (let g = 0; g < 3; g++) {
+            const gy = targetY - 2 * s + ((now * 0.01 + g * 0.3) % 1) * 5 * s;
+            const gx = targetX + (g - 1) * 2.5 * s;
+            ctx.beginPath();
+            ctx.arc(gx, gy, 1.1 * s, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        } else {
+          // Phase 2 : Tapote et façonne le pâté (pate_place)
+          const t = (p - 0.45) / 0.55;
+          const tap = Math.sin(t * Math.PI * 4) * 2.2 * s;
+          const alpha = t > 0.75 ? (1 - t) / 0.25 : 1.0;
+          const spriteW = 27 * s;
+          const spriteH = (290 / 529) * spriteW;
+          const drawX = targetX - spriteW * 0.55;
+          const drawY = targetY - spriteH * 0.65 + tap;
 
-      const hx = targetX + 4 * s;
-      const hy = targetY - 6 * s - lift + tap;
-
-      ctx.fillStyle = h.color;
-      ctx.beginPath();
-      ctx.ellipse(hx + 14 * s, hy - 14 * s, 6 * s, 4 * s, -0.6, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = '#f4cbb0';
-      ctx.beginPath();
-      ctx.ellipse(hx + 9 * s, hy - 9 * s, 5 * s, 3.5 * s, -0.6, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = '#e8be9e';
-      ctx.beginPath();
-      ctx.ellipse(hx, hy, 5.5 * s, 4 * s, -0.2, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = '#dbb090';
-      for (let f = 0; f < 4; f++) {
-        ctx.beginPath();
-        ctx.arc(hx - 3 * s + f * 2.2 * s, hy + 2.5 * s, 1.8 * s, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      if (p >= 0.3 && p <= 0.7 && Math.abs(tap) > 1.8 * s) {
-        ctx.fillStyle = '#fde047';
-        for (let g = 0; g < 4; g++) {
-          const gx = targetX + (Math.sin(g * 2.3 + now * 0.05) * 5 * s);
-          const gy = targetY - (g * 1.2 * s);
-          ctx.beginPath();
-          ctx.arc(gx, gy, 0.9 * s, 0, Math.PI * 2);
-          ctx.fill();
+          ctx.globalAlpha = Math.max(0, alpha);
+          ctx.drawImage(placeImg, drawX, drawY, spriteW, spriteH);
         }
-      }
+        ctx.restore();
+      } else {
+        // Fallback procedural si chargement
+        let lift = 0;
+        let alpha = 1;
+        let tap = 0;
 
-      ctx.restore();
+        if (p < 0.3) {
+          const t = p / 0.3;
+          lift = (1 - t) * 18 * s;
+          alpha = Math.min(1, t * 2);
+        } else if (p < 0.7) {
+          const t = (p - 0.3) / 0.4;
+          tap = Math.sin(t * Math.PI * 4) * 3.5 * s;
+        } else {
+          const t = (p - 0.7) / 0.3;
+          lift = t * 24 * s;
+          alpha = 1 - t;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        const hx = targetX + 4 * s;
+        const hy = targetY - 6 * s - lift + tap;
+        ctx.fillStyle = '#f4cbb0';
+        ctx.beginPath();
+        ctx.ellipse(hx, hy, 5.5 * s, 4 * s, -0.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
     }
     this.handScoops.length = w;
+  }
+
+  // ---------------------------------------------------------------- seau animé dans l'atelier
+  drawAtelierBucket(canvasEl, fillRatio, now) {
+    if (!canvasEl) return;
+    const ctx = canvasEl.getContext('2d');
+    if (!ctx) return;
+
+    const w = canvasEl.width;
+    const h = canvasEl.height;
+    ctx.clearRect(0, 0, w, h);
+
+    const isReady = fillRatio >= 1.0;
+    const cx = w / 2;
+    const cy = h * 0.84;
+    const s = w / 32;
+
+    ctx.save();
+
+    // 1. Ombre portée douce
+    ctx.fillStyle = 'rgba(78, 48, 16, 0.24)';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 9.5 * s, 3 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. Anse du seau
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 1.6 * s;
+    ctx.beginPath();
+    ctx.arc(cx, cy - 8 * s, 8 * s, Math.PI * 0.9, Math.PI * 2.1);
+    ctx.stroke();
+
+    // 3. Corps du seau (bleu marin dégradé)
+    const bucketGrad = ctx.createLinearGradient(cx - 8 * s, cy - 14 * s, cx + 8 * s, cy);
+    bucketGrad.addColorStop(0, '#38bdf8');
+    bucketGrad.addColorStop(0.5, '#0284c7');
+    bucketGrad.addColorStop(1, '#075985');
+
+    ctx.fillStyle = bucketGrad;
+    ctx.strokeStyle = '#0c4a6e';
+    ctx.lineWidth = 1.4 * s;
+    ctx.beginPath();
+    ctx.moveTo(cx - 8 * s, cy - 14 * s);
+    ctx.lineTo(cx + 8 * s, cy - 14 * s);
+    ctx.lineTo(cx + 6 * s, cy - 1 * s);
+    ctx.lineTo(cx - 6 * s, cy - 1 * s);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // 4. Sable qui monte à l'intérieur
+    const sandHeight = Math.min(1.0, Math.max(0.08, fillRatio)) * 11 * s;
+    const sandTopY = cy - 2.5 * s - sandHeight;
+
+    const sandGrad = ctx.createLinearGradient(cx, sandTopY, cx, cy);
+    sandGrad.addColorStop(0, '#fef08a');
+    sandGrad.addColorStop(0.5, '#eab308');
+    sandGrad.addColorStop(1, '#ca8a04');
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(cx - 7.5 * s, cy - 13.5 * s);
+    ctx.lineTo(cx + 7.5 * s, cy - 13.5 * s);
+    ctx.lineTo(cx + 5.8 * s, cy - 1.5 * s);
+    ctx.lineTo(cx - 5.8 * s, cy - 1.5 * s);
+    ctx.closePath();
+    ctx.clip();
+
+    ctx.fillStyle = sandGrad;
+    ctx.fillRect(cx - 9 * s, sandTopY, 18 * s, cy - sandTopY + 2 * s);
+    ctx.restore();
+
+    // 5. Rebord supérieur du seau
+    ctx.fillStyle = '#0284c7';
+    ctx.strokeStyle = '#0c4a6e';
+    ctx.lineWidth = 1.3 * s;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy - 14 * s, 8.2 * s, 2.4 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // 6. Grains ou éclat si prêt
+    if (!isReady) {
+      ctx.fillStyle = '#fde047';
+      const gt = (now * 0.005) % 1;
+      ctx.beginPath();
+      ctx.arc(cx + Math.sin(now * 0.01) * 2 * s, cy - 18 * s + gt * 5.5 * s, 1.2 * s, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      const pulse = Math.sin(now * 0.006) * 0.25 + 0.75;
+      ctx.fillStyle = `rgba(254, 240, 138, ${pulse})`;
+      ctx.beginPath();
+      ctx.arc(cx + 4.5 * s, cy - 14 * s, 2 * s, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
   }
 
   // ---------------------------------------------------------------- retour visuel rouge (pose invalide)

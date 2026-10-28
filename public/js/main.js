@@ -154,7 +154,7 @@ function initTools() {
     const btn = document.createElement('button');
     btn.className = `tool-btn${t.isFlip ? ' flip-tool' : ''}${t.isSpray ? ' spray-tool' : ''}${t.id === activeTool ? ' active' : ''}${isMould ? ' mould-slot' : ''}`;
     btn.dataset.tool = t.id;
-    btn.title = `${t.label} : ${t.desc}`;
+    // Pas de tooltip dans l'atelier
 
     const icon = document.createElement('canvas');
     if (isMould) {
@@ -206,7 +206,6 @@ function initTools() {
       dock.classList.toggle('collapsed');
       const isCollapsed = dock.classList.contains('collapsed');
       toggleBtn.textContent = isCollapsed ? '▶' : '◀';
-      toggleBtn.title = isCollapsed ? "Déplier l'atelier" : "Réduire l'atelier";
     });
   }
 
@@ -2405,9 +2404,12 @@ function frame(now) {
   const mouldCooldownRatio = Math.min(1.0, mouldElapsed / BUILD_PLACE_COOLDOWN_MS);
   const placeCooldownRatio = mouldCooldownRatio;
 
-  // Seau de plage physique animé sur le sable à gauche (se remplit UNIQUEMENT lors d'une pose de patron)
+  // Seau animé affiché dans l'atelier pendant la construction (plus sur la plage près de la catapulte)
   if (phase === 'build') {
-    renderer.drawBeachBucket(mouldCooldownRatio, now);
+    const atelierBucketCanvas = $('atelier-bucket-canvas');
+    if (atelierBucketCanvas) {
+      renderer.drawAtelierBucket(atelierBucketCanvas, mouldCooldownRatio, now);
+    }
   }
 
   // Mettre à jour l'indicateur de remplissage du seau dans la sidebar
