@@ -160,37 +160,16 @@
     </div>
   </section>
 
-  <!-- Barre d'outils de construction (Sidebar gauche en Phase Build) -->
-  <nav id="build-dock" class="dock build-sidebar hidden" aria-label="Atelier de construction">
-    <div class="sidebar-header">
-      <div class="sidebar-title-group">
-        <span class="sidebar-icon">🏰</span>
-        <div class="sidebar-titles">
-          <span class="sidebar-title">ATELIER</span>
-          <span class="sidebar-badge">Phase Chantier</span>
-        </div>
-      </div>
-      <button id="toggle-build-sidebar" class="sidebar-toggle-btn" type="button" title="Réduire ou déplier l'inventaire" aria-label="Réduire">◀</button>
-    </div>
+  <!-- Barre d'inventaire de construction en footer dans le sable -->
+  <nav id="build-dock" class="sand-inventory-footer hidden" aria-label="Inventaire de construction">
+    <!-- 1. Outils de modelage : Pâté, Creuser, Spray, Inverser -->
+    <div class="inventory-tools-row" id="atelier-tools-row"></div>
 
-    <!-- 1. Outils de modelage au-dessus des patrons de sable -->
-    <div class="sidebar-section-label">🛠️ OUTILS & MODELAGE</div>
-    <div class="atelier-tools-row" id="atelier-tools-row"></div>
+    <!-- Séparateur vertical discret dans le sable -->
+    <div class="inventory-sand-separator"></div>
 
-    <!-- 2. Statut compact du seau -->
-    <div class="sidebar-bucket-status" id="sidebar-bucket-status">
-      <div class="bucket-status-icon">🪣</div>
-      <div class="bucket-status-meta">
-        <span class="bucket-status-label" id="bucket-status-label">Seau plein & prêt</span>
-        <div class="bucket-status-bar">
-          <div class="bucket-status-fill" id="bucket-status-fill" style="width: 100%;"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 3. Patrons disponibles (Uniquement les moules avec stock > 0) -->
-    <div class="sidebar-section-label" id="moulds-section-label">🧱 PATRONS DISPONIBLES</div>
-    <div class="tool-list atelier-moulds-grid" id="tool-list"></div>
+    <!-- 2. Patrons et moules disponibles posés dans le sable -->
+    <div class="inventory-moulds-row" id="tool-list"></div>
   </nav>
 
   <!-- Bouton icône pour changer de catapulte (positionné de l'autre côté de l'écran) -->

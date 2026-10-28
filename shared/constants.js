@@ -9,12 +9,12 @@ export const GROUND_Y = 150; // première ligne de sol (plage compacte)
 export const BUILD_MIN_X = 135;
 export const BUILD_MAX_X = 285;
 
-// Catapultes strictement symétriques et nettement plus espacées du château (119 cellules de chaque côté)
-export const CATAPULT_X = 16;
-export const LAUNCH_X = 28;
+// Catapultes strictement symétriques et rapprochées du château (59 cellules de chaque côté)
+export const CATAPULT_X = 64;
+export const LAUNCH_X = 76;
 export const LAUNCH_Y = GROUND_Y - 30;
-export const CATAPULT_RIGHT_X = GRID_W - CATAPULT_X; // 404
-export const LAUNCH_RIGHT_X = GRID_W - LAUNCH_X;     // 392
+export const CATAPULT_RIGHT_X = GRID_W - CATAPULT_X; // 356
+export const LAUNCH_RIGHT_X = GRID_W - LAUNCH_X;     // 344
 
 // Le roi
 export const KING_W = 5;

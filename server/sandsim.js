@@ -806,7 +806,7 @@ export class SandWorld {
           this.killKing('touché');
           this.events.push({ type: 'kingHit', x: b.x, y: b.y });
         }
-        this.impact(b.x, b.y, b.vx, b.vy, b.r);
+        this.impact(b.x, b.y, b.vx, b.vy, b.r, Boolean(b.spike));
         this.ball = null;
         return;
       }
@@ -840,17 +840,27 @@ export class SandWorld {
     return found;
   }
 
-  impact(x, y, vx, vy, ballR) {
+  impact(x, y, vx, vy, ballR, isSpike = false) {
     const { type, damage, rng } = this;
     const speed = Math.hypot(vx, vy);
-    const R = Math.min(CONFIG.craterMax, CONFIG.craterBase + speed * CONFIG.craterPerSpeed) * this.ballScale;
-    const R2 = R * CONFIG.shockFactor;
+    const spikeRMult = isSpike ? 1.65 : 1.0;
+    const R = Math.min(CONFIG.craterMax * 1.5, (CONFIG.craterBase + speed * CONFIG.craterPerSpeed) * spikeRMult) * this.ballScale;
+    const R2 = R * (isSpike ? CONFIG.shockFactor * 1.25 : CONFIG.shockFactor);
     const x0 = Math.max(0, Math.floor(x - R2));
     const x1 = Math.min(W - 1, Math.ceil(x + R2));
     const y0 = Math.max(0, Math.floor(y - R2));
     const y1 = Math.min(H - 1, Math.ceil(y + R2));
     const nx = vx / (speed || 1);
     const ny = vy / (speed || 1);
+
+    if (isSpike && this.king) {
+      const kDist = Math.hypot(this.king.x + KING_W / 2 - x, this.king.y + KING_H / 2 - y);
+      if (kDist <= R * 1.35) {
+        this.killKing('touché');
+        this.events.push({ type: 'kingHit', x, y });
+      }
+    }
+
     for (let cy = y0; cy <= y1; cy++) {
       for (let cx = x0; cx <= x1; cx++) {
         const i = cy * W + cx;
@@ -860,15 +870,17 @@ export class SandWorld {
         const dy = cy + 0.5 - y;
         const d = Math.hypot(dx, dy);
         if (d > R2) continue;
-        // Le sable durci au spray (HARD) résiste mieux au cratère direct
-        const craterRadius = t === HARD ? R * 0.62 : R;
+        // Le boulet à pointes pénètre même le sable durci (HARD)
+        const craterRadius = isSpike
+          ? (t === HARD ? R * 0.95 : R * 1.15)
+          : (t === HARD ? R * 0.62 : R);
         if (d <= craterRadius * (0.85 + rng() * 0.3)) {
           type[i] = EMPTY;
           this.vel[i] = 0;
           damage[i] = 0;
-          if (rng() < CONFIG.ejectaRatio) {
+          if (rng() < (isSpike ? 0.92 : CONFIG.ejectaRatio)) {
             const inv = 1 / (d || 1);
-            const kick = (0.6 + rng() * 1.6) * (0.5 + speed * 0.35);
+            const kick = (0.6 + rng() * 1.6) * (0.5 + speed * 0.35) * (isSpike ? 1.4 : 1.0);
             this.spawnParticle(
               cx + 0.5, cy + 0.5,
               dx * inv * kick + nx * speed * 0.3 + (rng() - 0.5) * 0.6,
@@ -878,15 +890,17 @@ export class SandWorld {
           }
         } else if (isStructural(t)) {
           const f = Math.max(0, 1 - (d - craterRadius) / (R2 - craterRadius));
-          const resist = t === HARD ? 0.48 : 1;
+          const resist = isSpike ? 0.85 : (t === HARD ? 0.48 : 1);
           const isDry = this.moist[i] < 60; // Sable structuré asséché
           const dryMult = isDry ? 2.6 : 1.0;
-          damage[i] = Math.min(255, damage[i] + f * CONFIG.shockDamage * resist * dryMult * (0.6 + rng() * 0.8));
-          if (t === HARD && damage[i] > 175) {
-            // Le sable très endommagé perd son glaçage durci et redevient mouillé fissuré
+          const spikeDmgMult = isSpike ? 2.4 : 1.0;
+          damage[i] = Math.min(255, damage[i] + f * CONFIG.shockDamage * resist * dryMult * spikeDmgMult * (0.6 + rng() * 0.8));
+          if (t === HARD && (damage[i] > 175 || (isSpike && rng() < 0.6))) {
             type[i] = WET;
           }
-          const looseChance = isDry ? Math.min(0.96, f * 0.96) : (f * CONFIG.shockLooseChance * resist);
+          const looseChance = isSpike
+            ? Math.min(0.98, f * 1.6)
+            : (isDry ? Math.min(0.96, f * 0.96) : (f * CONFIG.shockLooseChance * resist));
           if (rng() < looseChance) {
             type[i] = isDry && rng() < 0.55 ? DRY : LOOSE;
             this.vel[i] = 0;
@@ -937,7 +951,7 @@ export class SandWorld {
         rng() < 0.5 ? LOOSE : DRY,
       );
     }
-    this.events.push({ type: 'impact', x, y, r: R, speed });
+    this.events.push({ type: 'impact', x, y, r: R, speed, isSpike });
     this.structDirty = true;
     this.quietTicks = 0;
   }

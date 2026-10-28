@@ -800,10 +800,14 @@ socket.on('fx', (e) => {
       }, 900);
     }
   } else if (e.type === 'impact') {
-    sfx.impact(Math.min(1.5, (e.speed || 2) / 3));
-    sfx.sandSlide(Math.min(1.5, (e.r || 5) / 5));
-    renderer.shake = Math.min(18, 5 + (e.r || 5) * 1.3);
-    renderer.puff(e.x, e.y, e.r || 6, 24);
+    const isSpike = Boolean(e.isSpike);
+    sfx.impact(Math.min(2.0, ((e.speed || 2) / 2.5) * (isSpike ? 1.5 : 1)));
+    sfx.sandSlide(Math.min(2.0, ((e.r || 5) / 4.5) * (isSpike ? 1.4 : 1)));
+    renderer.shake = Math.min(26, (5 + (e.r || 5) * 1.3) * (isSpike ? 1.4 : 1));
+    renderer.puff(e.x, e.y, e.r || 6, isSpike ? 42 : 24, isSpike ? '200, 150, 90' : '235, 215, 170');
+    if (isSpike) {
+      renderer.popup(e.x, e.y - 12, '💥 BOULET À POINTES : IMPACT MASSIF !', '#f87171');
+    }
   } else if (e.type === 'miss') {
     sfx.miss();
   } else if (e.type === 'grenadeLand') {
