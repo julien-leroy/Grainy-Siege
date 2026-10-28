@@ -1346,20 +1346,30 @@ export class SandWorld {
           damage[idx] = 0;
         }
       } else {
-        // Chute libre en corps rigide dans les airs
-        compCells.sort((a, b) => b - a);
-        for (let c = 0; c < compCells.length; c++) {
-          const idx = compCells[c];
-          const dest = idx + W;
-          type[dest] = type[idx];
-          vel[dest] = 0;
-          damage[dest] = damage[idx];
-          moist[dest] = moist[idx];
+        if (!isBuilding) {
+          // Pendant le combat : un bloc de construction non maintenu par du sable au sol tombe avec la physique du sable !
+          for (let c = 0; c < compCells.length; c++) {
+            const idx = compCells[c];
+            type[idx] = (this.moist[idx] < 60) ? DRY : LOOSE;
+            vel[idx] = 0.6 + this.rng() * 0.9;
+            damage[idx] = 0;
+          }
+        } else {
+          // À la construction : chute libre d'un seul bloc (atterrissage intact)
+          compCells.sort((a, b) => b - a);
+          for (let c = 0; c < compCells.length; c++) {
+            const idx = compCells[c];
+            const dest = idx + W;
+            type[dest] = type[idx];
+            vel[dest] = 0;
+            damage[dest] = damage[idx];
+            moist[dest] = moist[idx];
 
-          type[idx] = EMPTY;
-          vel[idx] = 0;
-          damage[idx] = 0;
-          moist[idx] = 0;
+            type[idx] = EMPTY;
+            vel[idx] = 0;
+            damage[idx] = 0;
+            moist[idx] = 0;
+          }
         }
         this.structDirty = true;
         this.version++;
@@ -1376,7 +1386,8 @@ export class SandWorld {
     }
     const failed = fails.length + crush.length;
     this.stats.failedCells += failed;
-    if (failed > 18) {
+    // En construction, la simple translation d'un bloc en l'air ne déclenche pas d'éboulement bruyant
+    if (failed > 18 && !isBuilding) {
       this.events.push({ type: 'collapse', count: failed });
     }
     this.structDirty = failed > 0 || this.particles.length > 0;

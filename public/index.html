@@ -193,15 +193,15 @@
     <div class="tool-list atelier-moulds-grid" id="tool-list"></div>
   </nav>
 
-  <!-- Actions de tir directement dans le sable (sans footer, sans contour, sans input d'angle) -->
-  <div id="catapult-hud" class="sand-catapult-hud hidden" aria-label="Commandes de tir dans le sable">
-    <!-- 1. Bouton icône pour changer de catapulte du côté de la catapulte -->
-    <button id="catapult-switch-btn" class="catapult-icon-switch-btn" type="button" title="Changer de catapulte [Touche C ou D]" aria-label="Changer de catapulte">
-      <span class="cat-switch-icon">☄️</span>
-      <span class="cat-switch-tag" id="hud-cat-name">⇄</span>
-    </button>
+  <!-- Bouton icône pour changer de catapulte (positionné de l'autre côté de l'écran) -->
+  <button id="catapult-switch-btn" class="catapult-icon-switch-btn hidden pos-right" type="button" title="Changer de catapulte" aria-label="Changer de catapulte">
+    <span class="cat-switch-icon">☄️</span>
+    <span class="cat-switch-tag" id="hud-cat-name">⇄</span>
+  </button>
 
-    <!-- 2. Râtelier des boulets disponibles (max 3) -->
+  <!-- Actions de tir directement dans le sable (près de la catapulte active) -->
+  <div id="catapult-hud" class="sand-catapult-hud hidden" aria-label="Commandes de tir dans le sable">
+    <!-- 1. Râtelier des boulets disponibles (max 3) -->
     <div class="sand-ammo-rack" id="sand-ammo-rack" title="Boulets disponibles pour cette manche (max 3)">
       <div class="shots-balls" id="shots-balls">
         <span class="shot-ball available" id="shot-1">☄️</span>
@@ -209,7 +209,7 @@
       </div>
     </div>
 
-    <!-- 3. Grand bouton de puissance et tir étiré dans la longueur directement dans le sable -->
+    <!-- 2. Grand bouton de puissance et tir étiré dans la longueur directement dans le sable -->
     <button id="fire-trigger-btn" class="sand-power-trigger-btn" type="button" title="Maintiens pour doser la puissance, relâche pour tirer !">
       <div class="hud-power-progress-fill" id="power-gauge-bar"></div>
       <div class="sand-power-inner">

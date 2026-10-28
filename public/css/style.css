@@ -1095,10 +1095,13 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   flex-direction: row-reverse;
 }
 
-/* 1. Bouton icône pour changer de catapulte du côté de la catapulte */
+/* 1. Bouton icône pour changer de catapulte (positionné de l'autre côté de l'écran) */
 .catapult-icon-switch-btn {
-  width: 52px;
-  height: 52px;
+  position: fixed;
+  bottom: 20px;
+  z-index: 15;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   background: linear-gradient(145deg, #78350f, #451a03);
   border: 2.5px solid #facc15;
@@ -1110,7 +1113,22 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   align-items: center;
   justify-content: center;
   line-height: 1;
-  transition: all 0.18s ease;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  pointer-events: auto;
+}
+
+.catapult-icon-switch-btn.pos-right {
+  right: 28px;
+  left: auto;
+}
+
+.catapult-icon-switch-btn.pos-left {
+  left: 28px;
+  right: auto;
+}
+
+.catapult-icon-switch-btn.hidden {
+  display: none !important;
 }
 
 .catapult-icon-switch-btn:hover {

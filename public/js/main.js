@@ -49,16 +49,31 @@ function updateCatapultSwitchButton() {
   const isShooter = inBattle && roomState?.turn?.shooterId === myId && roomState.turn.state === 'aim';
   switchBtn.classList.toggle('hidden', !inBattle || !isShooter);
 
+  // Le bouton pour changer de catapulte est placé de l'autre côté de l'écran
+  const isLeft = myCatapultSide === 'left';
+  switchBtn.classList.toggle('pos-right', isLeft);
+  switchBtn.classList.toggle('pos-left', !isLeft);
+  switchBtn.title = isLeft ? 'Passer à la Catapulte Droite [Touche D]' : 'Passer à la Catapulte Gauche [Touche Q ou A]';
+
   const nameEl = $('hud-cat-name');
   if (nameEl) {
-    nameEl.textContent = myCatapultSide === 'left' ? '⇄ DROITE' : '⇄ GAUCHE';
+    nameEl.textContent = isLeft ? '⇄ DROITE' : '⇄ GAUCHE';
+  }
+
+  if (!switchBtn._init) {
+    switchBtn._init = true;
+    switchBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      unlock();
+      setCatapultSide(myCatapultSide === 'left' ? 'right' : 'left');
+    });
   }
 
   const hud = $('catapult-hud');
   if (hud) {
     hud.classList.toggle('hidden', !inBattle || !isShooter);
-    hud.classList.toggle('cat-left', myCatapultSide === 'left');
-    hud.classList.toggle('cat-right', myCatapultSide === 'right');
+    hud.classList.toggle('cat-left', isLeft);
+    hud.classList.toggle('cat-right', !isLeft);
   }
 
   if (typeof updateDialSectorAndNeedle === 'function') {
@@ -735,8 +750,14 @@ socket.on('fx', (e) => {
     }
   } else if (e.type === 'collapse') {
     if (e.pid === activePid) {
-      sfx.sandCrumble();
-      renderer.shake = Math.min(10, 3 + e.count * 0.05);
+      const isBuild = roomState?.phase === 'build';
+      if (!isBuild) {
+        sfx.sandCrumble();
+        renderer.shake = Math.min(10, 3 + e.count * 0.05);
+      } else {
+        // En construction : secousse très douce et feutrée (pas de tremblement violent)
+        renderer.shake = Math.min(1.5, 0.3 + e.count * 0.004);
+      }
     }
   } else if (e.type === 'kingDanger') {
     if (e.pid === activePid || e.pid === myId) {
@@ -980,18 +1001,20 @@ function syncUI() {
   }
 
   // Dock de construction
-  $('build-dock').classList.toggle('hidden', s.phase !== 'build');
+  $('build-dock')?.classList.toggle('hidden', s.phase !== 'build');
   if (s.phase === 'build' && me) {
     const kw = $('king-warning');
-    if (!me.alive) {
-      kw.className = 'dock-hint danger';
-      kw.innerHTML = '💀 <strong>Ton Roi a été enseveli sous un effondrement !</strong>';
-    } else if (me.kingHits > 0) {
-      kw.className = 'dock-hint danger';
-      kw.innerHTML = `⚠️ <strong>Attention !</strong> Ton Roi commence à être enseveli (${me.kingHits}/8 grains) ! Dégage-le à la cuillère [X] !`;
-    } else {
-      kw.className = 'dock-hint placed';
-      kw.innerHTML = '👑 <strong>Ton Roi est sur la plage !</strong> Pose une Arche ou un Bunker par-dessus sans l\'écraser.';
+    if (kw) {
+      if (!me.alive) {
+        kw.className = 'dock-hint danger';
+        kw.innerHTML = '💀 <strong>Ton Roi a été enseveli sous un effondrement !</strong>';
+      } else if (me.kingHits > 0) {
+        kw.className = 'dock-hint danger';
+        kw.innerHTML = `⚠️ <strong>Attention !</strong> Ton Roi commence à être enseveli (${me.kingHits}/8 grains) ! Dégage-le à la cuillère [X] !`;
+      } else {
+        kw.className = 'dock-hint placed';
+        kw.innerHTML = '👑 <strong>Ton Roi est sur la plage !</strong> Pose une Arche ou un Bunker par-dessus sans l\'écraser.';
+      }
     }
   }
 

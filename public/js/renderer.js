@@ -3,7 +3,7 @@
 // gouttelettes de spray et textes flottants.
 import {
   GRID_W, GRID_H, GROUND_Y, T, TYPE_MASK, DMG_SHIFT, MOIST_SHIFT, KING_W, KING_H, CATAPULT_X, LAUNCH_X, LAUNCH_Y,
-  BUILD_MIN_X, BALL_GRAVITY, SPRAY_RADIUS, launchVelocity, CATAPULT_RIGHT_X, LAUNCH_RIGHT_X,
+  BUILD_MIN_X, BUILD_MAX_X, BALL_GRAVITY, SPRAY_RADIUS, launchVelocity, CATAPULT_RIGHT_X, LAUNCH_RIGHT_X,
 } from '/shared/constants.js';
 import { SAFE_ZONE_PAD_X, SAFE_ZONE_PAD_Y } from '/shared/shapes.js';
 
@@ -1482,6 +1482,7 @@ export class Renderer {
       const px = ox + p.x * s;
       const py = oy + p.y * s;
       const pr = p.r * s;
+      if (!Number.isFinite(px) || !Number.isFinite(py) || !Number.isFinite(pr) || pr <= 0) continue;
       if (p.isMist) {
         const g = ctx.createRadialGradient(px, py, 0, px, py, pr);
         g.addColorStop(0, `rgba(${p.color},${p.life * 0.42})`);

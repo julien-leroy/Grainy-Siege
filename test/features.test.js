@@ -553,5 +553,21 @@ test('game: quand un joueur quitte en combat, la partie continue sil reste > 1 j
   assert.equal(room.winnerId, lastPlayer.id, 'le dernier joueur restant est déclaré vainqueur');
 });
 
+test('sandsim: pendant le combat un bloc non maintenu par du sable au sol tombe avec de la physique', () => {
+  const w = new SandWorld(99);
+  // Poser un cube en l'air au-dessus du sol
+  w.stamp('cube', 180, 80, true);
+  const wetBefore = w.countTypes().wet;
+  assert.ok(wetBefore > 0, 'cube créé');
+
+  // En phase de combat (drying = true)
+  w.drying = true;
+  for (let t = 0; t < 10; t++) w.step();
+
+  // Le cube n'est plus en l'air comme un bloc figé : il est devenu du sable physique granulaire (LOOSE/DRY) avec vélocité !
+  const counts = w.countTypes();
+  assert.ok(counts.loose + counts.dry > 0, 'le bloc non soutenu s\'effondre en sable physique');
+});
+
 
 
