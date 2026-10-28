@@ -163,6 +163,7 @@ export class SandWorld {
     this.buckets = [];
     this.bodyTag = 1;
     this.support = new Uint8Array(N);
+    this.isBridge = new Uint8Array(N);
     this.queue = new Int32Array(N);
     this.bodies = [];
     this.nextBodyId = 1;
@@ -1086,6 +1087,7 @@ export class SandWorld {
   analyzeStructure() {
     const { type, vel, dist, damage, run } = this;
     const c = CONFIG;
+    const isBuilding = !this.drying;
     const strength = Math.max(1, c.strength | 0);
     const INF = 65535;
     dist.fill(INF);
@@ -1107,13 +1109,72 @@ export class SandWorld {
         }
       }
     }
-    // propagation (Dial) : le sable HARD coûte ~2× moins cher en porte-à-faux !
-    const costUp = c.costUp, costDU = c.costDiagUp, costS = c.costSide, costDD = c.costDiagDown, costD = c.costDown;
+    // Détection des portées horizontales formant un pont (supportées aux deux extrémités avec un vide sous le milieu)
+    const isBridge = this.isBridge;
+    isBridge.fill(0);
+    for (let y = 0; y < GROUND_Y - 1; y++) {
+      let x = 0;
+      while (x < W) {
+        const i = y * W + x;
+        if (!isStructural(type[i])) { x++; continue; }
+        let e = x;
+        while (e < W && isStructural(type[y * W + e])) e++;
+        const spanLen = e - x;
+        if (spanLen >= 8) {
+          let supL = false;
+          let supR = false;
+          const checkW = Math.min(4, Math.floor(spanLen / 3));
+          for (let k = 0; k < checkW; k++) {
+            if (isStructural(type[(y + 1) * W + (x + k)])) supL = true;
+            if (isStructural(type[(y + 1) * W + (e - 1 - k)])) supR = true;
+          }
+          if (supL && supR) {
+            let hasGap = false;
+            for (let k = x + checkW; k < e - checkW; k++) {
+              if (!isStructural(type[(y + 1) * W + k])) {
+                hasGap = true;
+                break;
+              }
+            }
+            if (hasGap) {
+              for (let k = x; k < e; k++) isBridge[y * W + k] = 1;
+            }
+          }
+        }
+        x = e;
+      }
+    }
+    // Propager isBridge verticalement sur l'épaisseur du tablier du pont
+    for (let y = GROUND_Y - 2; y >= 1; y--) {
+      for (let x = 0; x < W; x++) {
+        const i = y * W + x;
+        if (isBridge[i] && isStructural(type[i - W])) {
+          isBridge[i - W] = 1;
+        }
+      }
+    }
+
+    // propagation (Dial) :
+    // Les ponts supportés aux deux extrémités bénéficient d'un coût latéral réduit.
+    // Les porte-à-faux non supportés dans le vide se détachent normalement.
+    const costUp = c.costUp;
+    const costDU = c.costDiagUp;
+    const costS = c.costSide;
+    const costDD = c.costDiagDown;
+    const costD = c.costDown;
+
     const relax = (j, baseCost, prevDist) => {
       const tj = type[j];
       if (!isStructural(tj)) return;
-      const stepCost = tj === HARD ? Math.max(1, Math.round(baseCost * 0.52)) : baseCost;
-      const dryPenalty = (this.moist[j] < 50) ? Math.round((50 - this.moist[j]) * 0.20) : 0;
+      let effectiveBaseCost = baseCost;
+      if (baseCost === costS) {
+        effectiveBaseCost = isBridge[j] ? (isBuilding ? 1 : 3) : (isBuilding ? Math.min(baseCost, 8) : baseCost);
+      } else if (baseCost === costDU || baseCost === costDD) {
+        effectiveBaseCost = isBridge[j] ? 2 : baseCost;
+      }
+      const stepCost = tj === HARD ? Math.max(1, Math.round(effectiveBaseCost * 0.52)) : effectiveBaseCost;
+      // En bataille, le sable qui sèche (moist < 50) subit une forte pénalité et devient cassant
+      const dryPenalty = this.drying && (this.moist[j] < 50) ? Math.round((50 - this.moist[j]) * 0.85) : 0;
       const nd = prevDist + stepCost + (damage[j] >> 1) + dryPenalty;
       if (nd <= strength && nd < dist[j]) {
         dist[j] = nd;
@@ -1178,7 +1239,9 @@ export class SandWorld {
         }
         const mult = t === HARD ? 1.75 : 1.0;
         const dryFactor = this.moist[i] < 60 ? (0.42 + (this.moist[i] / 60) * 0.58) : 1.0;
-        const cap = c.loadPerWidth * mult * Math.min(run[i], c.loadWidthCap) * (1 - damage[i] / 420) * dryFactor;
+        // Les ponts supportés aux deux bouts ne s'effondrent pas sous leur propre poids en construction
+        const bridgeCapMult = isBridge[i] ? (isBuilding ? 10.0 : 1.8) : (isBuilding ? 3.0 : 1.0);
+        const cap = c.loadPerWidth * mult * Math.min(run[i], c.loadWidthCap) * (1 - damage[i] / 420) * dryFactor * bridgeCapMult;
         if (load > cap) crush.push(i);
       }
     }

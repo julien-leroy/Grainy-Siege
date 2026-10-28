@@ -116,16 +116,17 @@ function initTools() {
   if (toolsRow) toolsRow.innerHTML = '';
   if (mouldsGrid) mouldsGrid.innerHTML = '';
 
-  // 1. Outils de modelage au-dessus des patrons de sable
+  // 1. Outils de modelage au-dessus des patrons de sable (Le Pâté de base est ici !)
   const manipulationTools = [
+    { id: 'pate', label: 'Pâté ✋', desc: 'Modelage manuel de sable mouillé [A ou 1]', key: 'A', isPate: true, shape: SHAPE_BY_ID.pate },
     { id: 'retirer', label: 'Creuser 🥄', desc: 'Retire du sable sur une petite surface [X]', key: 'X', isDig: true },
     { id: 'aplatir', label: 'Aplatir 🔨', desc: 'Nivèle et tasse le sable pour faire une surface plane [F]', key: 'F', isFlatten: true },
     { id: 'spray', label: 'Spray 💦', desc: 'Arrose et durcit le sable (cooldown 3s) [E]', key: 'E', isSpray: true },
     { id: 'flip', label: 'Inverser 🔄', desc: 'Retourne le patron horizontalement [R]', key: 'R', isFlip: true },
   ];
 
-  // 2. Patrons et moules de construction
-  const mouldTools = SHAPES.map((s, idx) => ({
+  // 2. Patrons et moules de construction (sans le pâté)
+  const mouldTools = SHAPES.filter((s) => s.id !== 'pate').map((s, idx) => ({
     id: s.id,
     label: s.label,
     desc: s.desc,
@@ -250,6 +251,21 @@ function updateToolStocks() {
 function drawToolIcon(c, t) {
   const g = c.getContext('2d');
   g.clearRect(0, 0, c.width, c.height);
+  if (t.isPate) {
+    g.fillStyle = '#d97706';
+    g.beginPath();
+    g.ellipse(20, 19, 13, 7, 0, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#f59e0b';
+    g.beginPath();
+    g.ellipse(20, 15, 9, 6, 0, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#fef3c7';
+    g.beginPath();
+    g.arc(18, 13, 2.5, 0, Math.PI * 2);
+    g.fill();
+    return;
+  }
   if (t.isFlip) {
     g.fillStyle = '#a855f7';
     g.fillRect(8, 12, 11, 4);
@@ -562,7 +578,10 @@ socket.on('room', (state) => {
         worlds.set(p.id, new ClientWorld(p.id));
       }
       viewedPid = myId;
+      isMouldFlipped = false;
+      initTools();
       selectTool('pate');
+      updateToolStocks();
       playIntroSequence('build');
       music.startBuild();
     } else if (state.phase === 'battle') {
@@ -1474,6 +1493,11 @@ function tryPlaceAtPointer() {
 
   // Envoi officiel du bon moule sélectionné (toolToUse) avec l'état de miroir (flipped) au serveur !
   socket.emit('place', { shape: toolToUse, x: pointer.x, y: pointer.y, flipped: isMouldFlipped });
+
+  // Retourne TOUJOURS au pâté après chaque action de construction
+  if (!isPate) {
+    selectTool('pate');
+  }
 }
 
 // ------------------------------------------------------------------ Cadran 90° & Catapulte Immersive
@@ -1871,15 +1895,27 @@ if (sideRightBtn) {
 window.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT') return;
   if (e.key >= '1' && e.key <= '9') {
-    const s = SHAPES[Number(e.key) - 1];
-    if (s) selectTool(s.id);
+    if (e.key === '1') {
+      selectTool('pate');
+    } else {
+      const mouldsOnly = SHAPES.filter((s) => s.id !== 'pate');
+      const s = mouldsOnly[Number(e.key) - 2];
+      if (s) selectTool(s.id);
+    }
+  } else if (e.key.toLowerCase() === 'a') {
+    if (roomState?.phase === 'battle') setCatapultSide('left');
+    else selectTool('pate');
+  } else if (e.key.toLowerCase() === 'f') {
+    selectTool('aplatir');
+  } else if (e.key.toLowerCase() === 'x') {
+    selectTool('retirer');
   } else if (e.key.toLowerCase() === 'e') {
     selectTool('spray');
   } else if (e.key.toLowerCase() === 'r') {
     toggleMouldFlip();
   } else if (e.key.toLowerCase() === 'c') {
     if (roomState?.phase === 'battle') setCatapultSide(myCatapultSide === 'left' ? 'right' : 'left');
-  } else if (e.key.toLowerCase() === 'q' || e.key.toLowerCase() === 'a') {
+  } else if (e.key.toLowerCase() === 'q') {
     if (roomState?.phase === 'battle') setCatapultSide('left');
   } else if (e.key.toLowerCase() === 'd') {
     if (roomState?.phase === 'battle') setCatapultSide('right');

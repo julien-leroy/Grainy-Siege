@@ -1,34 +1,52 @@
 // ==============================================================================
-// TUTORIEL ANIMÉ "GIF" — 3 RÈGLES D'OR DU JEU
-// 1) Protéger le Roi (Abri & voûte sans ensevelir)
-// 2) Séchage du sable au soleil & Spray d'eau durcisseur
-// 3) Impact balistique du boulet & résistance des remparts
+// TUTORIEL ANIMÉ "GIF" — 5 ÉTAPES ESSENTIELLES DU JEU
+// 1) Construction & Abri (Ponts solides en sable mouillé)
+// 2) Séchage au soleil & Risque d'éboulement sous le poids
+// 3) Spray d'eau défensif qui durcit et stoppe l'éboulement
+// 4) Catapulte : Cadran d'angle et jauge de puissance
+// 5) Bonus parachutés en mer (+1 Boulet / +1 Spray)
 // ==============================================================================
 
 const STEPS = [
   {
-    id: 'protect',
-    badge: '👑 RÈGLE 1',
-    tab: '👑 Protéger le Roi',
-    title: '👑 1. Construis un abri solide sans écraser le Roi',
-    desc: 'Pose des piliers solides de chaque côté, puis une arche ou un toit par-dessus. Le Roi peut bouger librement dessous : tant qu\'aucun sable effondré ne lui tombe sur la tête, il reste en vie !',
-    duration: 5200,
+    id: 'construct',
+    badge: '🏰 RÈGLE 1',
+    tab: '🏰 1. Bâtir l\'Abri',
+    title: '🏰 1. Construis un abri solide sans écraser le Roi',
+    desc: 'Bâtis deux tours et pose un pont ou une arche par-dessus ! Tant que le sable mouillé est relié à du sable mouillé, les ponts restent durs et solides sans casser pendant toute la construction.',
+    duration: 5400,
   },
   {
     id: 'drying',
     badge: '☀️ RÈGLE 2',
-    tab: '☀️ Séchage & Spray',
-    title: '☀️ 2. Le sable sèche au soleil : utilise le Spray d\'eau !',
-    desc: 'Au contact de l\'air, le sable mouillé s\'assèche de l\'extérieur vers l\'intérieur et devient friable. En défense, arrose avec ton Spray 💦 pour le détremper et le durcir (sable HARD résistant aux chocs) !',
+    tab: '☀️ 2. Séchage',
+    title: '☀️ 2. En bataille, le sable sèche au soleil et peut s\'effondrer',
+    desc: 'Dès que le combat débute, le soleil assèche progressivement le sable de l\'extérieur vers l\'intérieur. Devenu sec et friable, un pont ou une structure trop lourde risque de céder sous son poids en éboulis !',
     duration: 5400,
   },
   {
-    id: 'cannon',
-    badge: '☄️ RÈGLE 3',
-    tab: '☄️ Boulets & Châteaux',
-    title: '☄️ 3. Les boulets pulvérisent le sable par onde de choc',
-    desc: 'Un tir de catapulte creuse un cratère et projette le sable sec à l\'impact. Un mur épais ou durci au spray amortit l\'onde de choc et empêche le boulet d\'atteindre ton Roi !',
-    duration: 5200,
+    id: 'spray',
+    badge: '💦 RÈGLE 3',
+    tab: '💦 3. Spray',
+    title: '💦 3. Le Spray d\'eau stoppe net l\'éboulement en durcissant le sable',
+    desc: 'En défense, vise une zone fragilisée ou fissurée avec ton Spray [E ou Clic droit] ! L\'eau imprègne le sable sec et le transforme instantanément en roche (sable HARD), stoppant net l\'effondrement !',
+    duration: 5400,
+  },
+  {
+    id: 'catapult',
+    badge: '☄️ RÈGLE 4',
+    tab: '☄️ 4. Catapulte',
+    title: '☄️ 4. Règle l\'angle au cadran et dose la puissance à la jauge',
+    desc: 'Fais pivoter le cadran pour régler l\'angle de tir. Maintiens le bouton TIRER ou la barre d\'espace pour bander la catapulte avec la jauge oscillante, puis relâche au moment idéal pour faire feu !',
+    duration: 5400,
+  },
+  {
+    id: 'bonus',
+    badge: '🎁 RÈGLE 5',
+    tab: '🎁 5. Bonus',
+    title: '🎁 5. Pulvérise les caisses parachutées dans la mer pour des bonus',
+    desc: 'Des colis de ravitaillement flottent régulièrement dans l\'eau de mer ! Ajuste ton tir pour détruire une caisse au boulet et gagner des munitions (+1 Boulet ☄️) ou du spray défensif (+1 Spray 💦) !',
+    duration: 5600,
   },
 ];
 
@@ -142,7 +160,7 @@ export class TutorialGIF {
       if (this.shake < 0.2) this.shake = 0;
     }
 
-    // 1) Ciel & Soleil d'ambiance
+    // 1) Ciel & Mer d'ambiance
     const sky = ctx.createLinearGradient(0, 0, 0, h * 0.75);
     sky.addColorStop(0, '#38bdf8');
     sky.addColorStop(0.65, '#bae6fd');
@@ -151,10 +169,11 @@ export class TutorialGIF {
     ctx.fillRect(0, 0, w, h);
 
     // Mer à l'horizon
+    const seaY = h * 0.70;
     ctx.fillStyle = '#0284c7';
-    ctx.fillRect(0, h * 0.70, w, 6);
+    ctx.fillRect(0, seaY, w, 6);
     ctx.fillStyle = '#38bdf8';
-    ctx.fillRect(0, h * 0.70 + 3, w, 2);
+    ctx.fillRect(0, seaY + 3, w, 2);
 
     // 2) Plage de sable compacte
     const groundY = h * 0.74;
@@ -178,8 +197,12 @@ export class TutorialGIF {
       this.drawStepProtect(elapsed, w, groundY);
     } else if (this.stepIndex === 1) {
       this.drawStepDrying(elapsed, w, groundY, now);
+    } else if (this.stepIndex === 2) {
+      this.drawStepSpray(elapsed, w, groundY, now);
+    } else if (this.stepIndex === 3) {
+      this.drawStepCatapult(elapsed, w, groundY, now);
     } else {
-      this.drawStepCannon(elapsed, w, groundY, now);
+      this.drawStepBonus(elapsed, w, groundY, now);
     }
 
     // Particules volantes
@@ -188,73 +211,66 @@ export class TutorialGIF {
     ctx.restore();
   }
 
-  // ---------------------------------------------------------------- Étape 1 : Protéger le Roi
+  // ---------------------------------------------------------------- Étape 1 : Construction & Abri (Pont solide)
   drawStepProtect(elapsed, w, groundY) {
     const { ctx } = this;
     const kx = w * 0.5;
     const ky = groundY - 18;
 
-    // Phase 1 (0..1.2s) : Le Roi est seul sur la plage
-    // Phase 2 (1.2..2.5s) : Deux piliers latéraux s'érigent
-    // Phase 3 (2.5..4.0s) : Une arche protectrice relie les piliers en toit
-    // Phase 4 (4.0..5.2s) : Victoire & coche verte
+    const tPillars = Math.max(0, Math.min(1, (elapsed - 800) / 800));
+    const tBridge = Math.max(0, Math.min(1, (elapsed - 2200) / 800));
+    const isSolid = elapsed > 3400;
 
-    const tPillars = Math.max(0, Math.min(1, (elapsed - 1200) / 700));
-    const tRoof = Math.max(0, Math.min(1, (elapsed - 2500) / 700));
-    const isSuccess = elapsed > 3800;
-
-    // Piliers latéraux
+    // Deux tours
     if (tPillars > 0) {
-      const pilH = 34 * tPillars;
-      // Pilier Gauche
-      this.drawSandBlock(kx - 42, groundY - pilH, 18, pilH, 'wet');
-      // Pilier Droit
-      this.drawSandBlock(kx + 24, groundY - pilH, 18, pilH, 'wet');
+      const pilH = 42 * tPillars;
+      this.drawSandBlock(kx - 48, groundY - pilH, 20, pilH, 'wet');
+      this.drawSandBlock(kx + 28, groundY - pilH, 20, pilH, 'wet');
 
       if (tPillars < 1 && Math.random() < 0.3) {
-        this.addPuff(kx - 33, groundY - pilH, '#fde047');
-        this.addPuff(kx + 33, groundY - pilH, '#fde047');
+        this.addPuff(kx - 38, groundY - pilH, '#fde047');
+        this.addPuff(kx + 38, groundY - pilH, '#fde047');
       }
     }
 
-    // Arche / Toit
-    if (tRoof > 0) {
-      const roofY = groundY - 34 - 14 * tRoof;
-      const roofAlpha = tRoof;
+    // Pont reliant les deux tours
+    if (tBridge > 0) {
+      const bridgeW = 96;
+      const bridgeH = 14;
+      const bx = kx - 48;
+      const by = groundY - 42 - 8 * (1 - tBridge);
       ctx.save();
-      ctx.globalAlpha = roofAlpha;
-      this.drawArchRoof(kx, groundY - 34, 84, 18);
+      ctx.globalAlpha = tBridge;
+      this.drawSandBlock(bx, by, bridgeW, bridgeH, 'wet');
       ctx.restore();
 
-      if (tRoof >= 0.95 && elapsed < 3300 && Math.random() < 0.2) {
-        this.addPuff(kx, groundY - 48, '#fde047');
+      if (tBridge >= 0.95 && elapsed < 3200 && Math.random() < 0.25) {
+        this.addPuff(kx, by, '#fde047');
       }
     }
 
-    // Le Roi sous son abri
-    const kingBob = isSuccess ? Math.sin(elapsed * 0.012) * 3 : 0;
+    // Le Roi sous le pont
+    const kingBob = isSolid ? Math.sin(elapsed * 0.012) * 3 : 0;
     this.drawKingSprite(kx - 6, ky - kingBob, '#e4572e');
 
     // Infobulles animées
     if (elapsed < 1200) {
-      this.drawSpeechBubble(kx, ky - 18, '👑 Place mon abri !', '#1e293b');
-    } else if (elapsed >= 1200 && elapsed < 2500) {
-      this.drawArrowDown(kx - 33, groundY - 45, 'Pilier');
-      this.drawArrowDown(kx + 33, groundY - 45, 'Pilier');
-    } else if (elapsed >= 2500 && elapsed < 3800) {
-      this.drawSpeechBubble(kx, groundY - 60, 'Voûte sans m\'écraser !', '#0369a1');
+      this.drawSpeechBubble(kx, ky - 18, '👑 Protège-moi sous un pont !', '#1e293b');
+    } else if (elapsed >= 1200 && elapsed < 2400) {
+      this.drawArrowDown(kx - 38, groundY - 50, 'Tour 1');
+      this.drawArrowDown(kx + 38, groundY - 50, 'Tour 2');
+    } else if (elapsed >= 2400 && elapsed < 3600) {
+      this.drawSpeechBubble(kx, groundY - 62, '🌉 Le pont tient sans casser !', '#0369a1');
     } else {
-      // Succès
       ctx.fillStyle = '#16a34a';
       ctx.font = '800 13px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('✔ ROI EN SÉCURITÉ ! 👑', kx, groundY - 62);
+      ctx.fillText('✔ PONT ROBUSTE EN SABLE MOUILLÉ ! 🏰', kx, groundY - 64);
 
-      // Particules dorées qui scintillent
       if (Math.random() < 0.35) {
         this.particles.push({
-          x: kx + (Math.random() - 0.5) * 60,
-          y: groundY - 20 - Math.random() * 40,
+          x: kx + (Math.random() - 0.5) * 80,
+          y: groundY - 20 - Math.random() * 45,
           vx: (Math.random() - 0.5) * 0.8,
           vy: -Math.random() * 1.2,
           color: '#facc15',
@@ -265,24 +281,19 @@ export class TutorialGIF {
     }
   }
 
-  // ---------------------------------------------------------------- Étape 2 : Séchage & Spray
+  // ---------------------------------------------------------------- Étape 2 : Séchage & Éboulement
   drawStepDrying(elapsed, w, groundY, now) {
     const { ctx } = this;
-    const cx = w * 0.5;
-    const cy = groundY - 50;
-
-    // 0..2.2s : Le soleil sèche la muraille de l'extérieur vers l'intérieur
-    // 2.2..3.8s : Le Spray arrose et durcit en HARD
-    // 3.8..5.4s : La forteresse est impénétrable
+    const kx = w * 0.5;
+    const ky = groundY - 18;
 
     const dryRatio = Math.min(1, elapsed / 2200);
-    const sprayRatio = Math.max(0, Math.min(1, (elapsed - 2200) / 1000));
-    const isHard = elapsed >= 3200;
+    const collapseTime = elapsed >= 2400;
 
-    // Soleil brillant en haut à droite
+    // Soleil brûlant
     const sunX = w * 0.82;
     const sunY = 32;
-    const sunPulse = 16 + Math.sin(now * 0.006) * 3;
+    const sunPulse = 18 + Math.sin(now * 0.007) * 3;
     const sunGrad = ctx.createRadialGradient(sunX, sunY, 4, sunX, sunY, sunPulse * 1.8);
     sunGrad.addColorStop(0, '#fef08a');
     sunGrad.addColorStop(0.5, '#f59e0b');
@@ -292,55 +303,104 @@ export class TutorialGIF {
     ctx.arc(sunX, sunY, sunPulse * 1.8, 0, Math.PI * 2);
     ctx.fill();
 
-    // Rayons de soleil chauds vers le château
-    if (elapsed < 2400) {
-      ctx.strokeStyle = 'rgba(250, 204, 21, 0.45)';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([4, 6]);
-      ctx.beginPath();
-      ctx.moveTo(sunX - 10, sunY + 12);
-      ctx.lineTo(cx + 25, cy - 10);
-      ctx.moveTo(sunX - 25, sunY + 8);
-      ctx.lineTo(cx - 15, cy - 20);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
+    // Rayons chauds
+    ctx.strokeStyle = 'rgba(250, 204, 21, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 6]);
+    ctx.beginPath();
+    ctx.moveTo(sunX - 10, sunY + 12);
+    ctx.lineTo(kx + 20, groundY - 45);
+    ctx.stroke();
+    ctx.setLineDash([]);
 
-    // Dessin du Donjon
-    const towerW = 68;
-    const towerH = 50;
-    const tx = cx - towerW / 2;
-    const ty = groundY - towerH;
+    // Deux piliers
+    this.drawSandBlock(kx - 48, groundY - 42, 20, 42, 'wet');
+    this.drawSandBlock(kx + 28, groundY - 42, 20, 42, 'wet');
 
-    // Cœur mouillé
-    ctx.fillStyle = isHard ? '#78350f' : '#b45309';
-    ctx.fillRect(tx, ty, towerW, towerH);
+    // Pont qui sèche
+    const bridgeW = 96;
+    const bridgeH = 14;
+    const bx = kx - 48;
+    const by = groundY - 42;
 
-    // Créneaux
-    for (let c = 0; c < 4; c++) {
-      ctx.fillRect(tx + c * 18, ty - 8, 12, 8);
-    }
-
-    // Couche de séchage externe (sable clair qui s'épaissit vers l'intérieur)
-    if (!isHard && dryRatio > 0.1) {
-      const borderThick = Math.round(dryRatio * 14);
-      ctx.fillStyle = 'rgba(254, 240, 138, 0.92)'; // jaune sable sec
-      // Bords gauche et droit secs
-      ctx.fillRect(tx, ty, borderThick, towerH);
-      ctx.fillRect(tx + towerW - borderThick, ty, borderThick, towerH);
-      // Toit sec
-      ctx.fillRect(tx, ty, towerW, borderThick);
-      for (let c = 0; c < 4; c++) {
-        ctx.fillRect(tx + c * 18, ty - 8, 12, 8);
+    if (!collapseTime) {
+      // Cœur mouillé
+      this.drawSandBlock(bx, by, bridgeW, bridgeH, 'wet');
+      // Couche de sable sec en surface
+      const borderThick = Math.round(dryRatio * 6);
+      ctx.fillStyle = 'rgba(254, 240, 138, 0.9)';
+      ctx.fillRect(bx, by, bridgeW, borderThick);
+      // Fissure qui apparaît au milieu du pont
+      if (dryRatio > 0.6) {
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.moveTo(kx - 3, by);
+        ctx.lineTo(kx + 2, by + bridgeH);
+        ctx.stroke();
       }
+    } else {
+      // Éboulement au milieu du pont !
+      this.drawSandBlock(bx, by, 28, bridgeH, 'wet');
+      this.drawSandBlock(bx + bridgeW - 28, by, 28, bridgeH, 'wet');
+
+      // Grains et mottes qui tombent au sol
+      if (Math.random() < 0.6) {
+        this.particles.push({
+          x: kx + (Math.random() - 0.5) * 24,
+          y: by + Math.random() * bridgeH,
+          vx: (Math.random() - 0.5) * 1.8,
+          vy: 1.5 + Math.random() * 2.5,
+          color: Math.random() < 0.6 ? '#fde047' : '#d97706',
+          life: 0.8,
+          size: 2.2 + Math.random() * 2,
+        });
+      }
+      this.shake = 1.2;
     }
 
-    // Action du Spray
-    if (sprayRatio > 0 && elapsed < 3600) {
-      const sprayX = cx - 45 + sprayRatio * 20;
-      const sprayY = ty - 25;
+    // Le Roi inquiet sous la fissure
+    this.drawKingSprite(kx - 6, ky, '#e4572e');
 
-      // Dessin de la fiole de spray
+    if (elapsed < 2400) {
+      ctx.fillStyle = '#d97706';
+      ctx.font = '700 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('☀️ Le soleil assèche le sable ➔ Craquelures !', kx, by - 16);
+    } else {
+      ctx.fillStyle = '#dc2626';
+      ctx.font = '800 13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('⚠️ ÉBOULIS ! LE SABLE SEC CÈDE SOUS LE POIDS !', kx, by - 16);
+    }
+  }
+
+  // ---------------------------------------------------------------- Étape 3 : Spray d'eau qui stoppe l'éboulement
+  drawStepSpray(elapsed, w, groundY, now) {
+    const { ctx } = this;
+    const kx = w * 0.5;
+    const ky = groundY - 18;
+
+    const by = groundY - 42;
+    const bridgeW = 96;
+    const bridgeH = 14;
+    const bx = kx - 48;
+
+    const sprayActive = elapsed >= 1200 && elapsed < 3200;
+    const isHardened = elapsed >= 3000;
+
+    // Deux piliers
+    this.drawSandBlock(kx - 48, groundY - 42, 20, 42, isHardened ? 'hard' : 'wet');
+    this.drawSandBlock(kx + 28, groundY - 42, 20, 42, isHardened ? 'hard' : 'wet');
+
+    // Pont stabilisé ou en cours de consolidation
+    this.drawSandBlock(bx, by, bridgeW, bridgeH, isHardened ? 'hard' : 'wet');
+
+    if (sprayActive) {
+      const sprayX = kx - 55;
+      const sprayY = by - 30;
+
+      // Fiole de spray
       ctx.fillStyle = '#0284c7';
       ctx.fillRect(sprayX, sprayY, 14, 20);
       ctx.fillStyle = '#38bdf8';
@@ -348,154 +408,266 @@ export class TutorialGIF {
       ctx.fillStyle = '#e2e8f0';
       ctx.fillRect(sprayX + 8, sprayY - 10, 10, 4);
 
-      // Jet de gouttes d'eau
+      // Jet d'eau bleu pulvérisé sur le pont
       ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 2;
-      for (let g = 0; g < 8; g++) {
-        const gx = sprayX + 16 + Math.random() * 45;
-        const gy = sprayY - 8 + Math.random() * 38;
+      ctx.lineWidth = 1.8;
+      for (let g = 0; g < 10; g++) {
+        const gx = sprayX + 16 + Math.random() * 55;
+        const gy = sprayY - 6 + Math.random() * 34;
         ctx.beginPath();
         ctx.arc(gx, gy, 2, 0, Math.PI * 2);
         ctx.stroke();
       }
-      this.shake = 1;
+      this.shake = 0.8;
     }
 
-    // Texte pédagogique
-    if (elapsed < 2200) {
-      ctx.fillStyle = '#d97706';
-      ctx.font = '700 11.5px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('☀️ Séchage extérieur ➔ Devient friable !', cx, ty - 16);
-    } else if (elapsed >= 2200 && elapsed < 3500) {
-      ctx.fillStyle = '#0284c7';
-      ctx.font = '800 12.5px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('💦 JET DE SPRAY DURCISSEUR !', cx, ty - 28);
-    } else {
-      ctx.fillStyle = '#1e3a8a';
-      ctx.font = '800 12px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('🛡️ SABLE "HARD" : RÉSISTE AUX CHOCS !', cx, ty - 16);
+    // Le Roi rassuré
+    this.drawKingSprite(kx - 6, ky, '#e4572e');
 
-      // Éclats bleus brillants
+    if (elapsed < 1200) {
+      ctx.fillStyle = '#ea580c';
+      ctx.font = '700 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('⚠️ Fissure active ➔ Utilise ton Spray [E] !', kx, by - 16);
+    } else if (elapsed >= 1200 && elapsed < 3000) {
+      ctx.fillStyle = '#0284c7';
+      ctx.font = '800 13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('💦 LE SPRAY RÉHYDRATE LE SABLE !', kx, by - 24);
+    } else {
+      ctx.fillStyle = '#15803d';
+      ctx.font = '800 13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🛡️ SABLE "HARD" : ÉBOULEMENT STOPPÉ NET !', kx, by - 16);
+
       if (Math.random() < 0.35) {
         this.particles.push({
-          x: tx + Math.random() * towerW,
-          y: ty + Math.random() * towerH,
-          vx: (Math.random() - 0.5) * 0.5,
-          vy: -Math.random() * 0.8,
+          x: bx + Math.random() * bridgeW,
+          y: by + Math.random() * bridgeH,
+          vx: (Math.random() - 0.5) * 0.6,
+          vy: -Math.random() * 0.9,
           color: '#38bdf8',
           life: 0.9,
-          size: 2.2,
+          size: 2.4,
         });
       }
     }
   }
 
-  // ---------------------------------------------------------------- Étape 3 : Choc des Boulets
-  drawStepCannon(elapsed, w, groundY, now) {
+  // ---------------------------------------------------------------- Étape 4 : Catapulte (Cadran & Puissance)
+  drawStepCatapult(elapsed, w, groundY, now) {
     const { ctx } = this;
-    const targetX = w * 0.65;
-    const targetY = groundY - 40;
-    const catX = 35;
+    const catX = 40;
     const catY = groundY - 18;
 
-    // 0..1.4s : Visée & catapultage
-    // 1.4..2.4s : Boulet en vol parabolique
-    // 2.4..5.2s : Impact, cratère, secousse & particules
+    const aimTime = elapsed < 2600;
+    const fireTime = elapsed >= 2600;
 
-    // Catapulte à gauche
-    this.drawCatapultSprite(catX, catY, elapsed > 1300);
+    // Catapulte
+    this.drawCatapultSprite(catX, catY, fireTime);
 
-    // Forteresse cible avec Roi derrière
-    const wallW = 32;
-    const wallH = 55;
-    const wallX = targetX;
-    const wallY = groundY - wallH;
+    // Cadran d'angle interactif (à côté de la catapulte)
+    const dialX = catX + 68;
+    const dialY = catY - 24;
+    const dialR = 26;
 
-    // Roi abrité derrière la muraille
-    const kingX = wallX + wallW + 12;
-    const kingY = groundY - 18;
-    this.drawKingSprite(kingX, kingY, '#e4572e');
+    ctx.save();
+    // Fond du cadran
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(dialX, dialY, dialR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
 
-    // Muraille de protection
-    const hasImpacted = elapsed >= 2400;
-    ctx.fillStyle = '#92400e';
-    ctx.fillRect(wallX, wallY, wallW, wallH);
+    // Aiguille d'angle
+    const angleOsc = (45 + Math.sin(now * 0.004) * 20) * (Math.PI / 180);
+    const needleLen = dialR - 5;
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(dialX, dialY);
+    ctx.lineTo(dialX + Math.cos(angleOsc) * needleLen, dialY - Math.sin(angleOsc) * needleLen);
+    ctx.stroke();
 
-    // Cratère d'impact après le choc
-    if (hasImpacted) {
-      ctx.fillStyle = '#1e293b';
-      ctx.beginPath();
-      ctx.arc(wallX + 4, targetY, 9, -Math.PI / 2, Math.PI / 2);
-      ctx.fill();
-    }
+    ctx.fillStyle = '#fde047';
+    ctx.font = '800 8.5px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${Math.round((angleOsc * 180) / Math.PI)}°`, dialX, dialY + dialR + 10);
+    ctx.restore();
 
-    // Trajectoire et boulet de canon
-    if (elapsed >= 1400 && elapsed < 2400) {
-      const t = (elapsed - 1400) / 1000;
-      const bx = catX + 18 + t * (wallX - catX - 18);
-      const arcH = Math.sin(t * Math.PI) * 75;
-      const by = catY - 20 - arcH + t * (targetY - (catY - 20));
+    // Jauge de puissance sous le cadran
+    const powerBarW = 95;
+    const powerBarH = 12;
+    const px = dialX + 40;
+    const py = dialY - 6;
 
-      // Traînée
-      ctx.strokeStyle = 'rgba(245, 158, 11, 0.4)';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(bx, by, 4, 0, Math.PI * 2);
-      ctx.stroke();
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    ctx.fillRect(px, py, powerBarW, powerBarH);
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 1.2;
+    ctx.strokeRect(px, py, powerBarW, powerBarH);
 
-      // Boulet de fer
+    // Oscillation de puissance
+    const powRatio = 0.2 + (Math.sin(now * 0.005) * 0.5 + 0.5) * 0.8;
+    const fillGrad = ctx.createLinearGradient(px, 0, px + powerBarW, 0);
+    fillGrad.addColorStop(0, '#38bdf8');
+    fillGrad.addColorStop(0.5, '#facc15');
+    fillGrad.addColorStop(1, '#ef4444');
+    ctx.fillStyle = fillGrad;
+    ctx.fillRect(px + 1, py + 1, (powerBarW - 2) * powRatio, powerBarH - 2);
+
+    ctx.fillStyle = '#fff';
+    ctx.font = '800 8.5px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`⚡ PUISSANCE ${Math.round(powRatio * 100)}%`, px, py - 4);
+
+    // Trajectoire balistique lors du tir
+    if (fireTime) {
+      const t = Math.min(1, (elapsed - 2600) / 1400);
+      const bx = catX + 24 + t * (w - catX - 45);
+      const by = catY - 20 - Math.sin(t * Math.PI) * 75 + t * 25;
+
+      // Boulet
       ctx.fillStyle = '#0f172a';
       ctx.beginPath();
       ctx.arc(bx, by, 5, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#94a3b8';
+
+      // Traînée
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.5)';
+      ctx.lineWidth = 2.5;
       ctx.beginPath();
-      ctx.arc(bx - 1.5, by - 1.5, 1.8, 0, Math.PI * 2);
+      ctx.arc(bx, by, 4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    if (aimTime) {
+      ctx.fillStyle = '#b45309';
+      ctx.font = '800 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('📐 Tourne le cadran & maintiens pour bander la catapulte !', w * 0.55, 24);
+    } else {
+      ctx.fillStyle = '#ea580c';
+      ctx.font = '800 13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('☄️ RELÂCHE POUR TIRER ! LE BOULET EST PROPULSÉ !', w * 0.52, 24);
+    }
+  }
+
+  // ---------------------------------------------------------------- Étape 5 : Bonus Parachutés en Mer
+  drawStepBonus(elapsed, w, groundY, now) {
+    const { ctx } = this;
+    const seaY = groundY - 8;
+
+    // Vagues d'eau
+    ctx.fillStyle = '#0284c7';
+    ctx.fillRect(0, seaY, w * 0.65, groundY - seaY + 30);
+
+    for (let vx = 0; vx < w * 0.65; vx += 24) {
+      const vy = seaY + Math.sin(now * 0.005 + vx * 0.1) * 2;
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(vx, vy, 14, 2);
+    }
+
+    // Catapulte à droite qui vise vers la mer
+    const catX = w - 45;
+    const catY = groundY - 18;
+    const fired = elapsed >= 1600;
+    this.drawCatapultSprite(catX - 20, catY, fired);
+
+    // Caisse parachutée
+    const crateX = w * 0.28;
+    const fallT = Math.min(1, elapsed / 1400);
+    const crateY = 30 + fallT * (seaY - 42) + Math.sin(now * 0.004) * 2;
+    const hasHit = elapsed >= 2700;
+
+    if (!hasHit) {
+      // Parachute
+      ctx.fillStyle = '#f8fafc';
+      ctx.beginPath();
+      ctx.arc(crateX + 11, crateY - 10, 16, Math.PI, 0, false);
+      ctx.fill();
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Cordes du parachute
+      ctx.strokeStyle = '#94a3b8';
+      ctx.beginPath();
+      ctx.moveTo(crateX - 5, crateY - 10);
+      ctx.lineTo(crateX + 4, crateY + 2);
+      ctx.moveTo(crateX + 27, crateY - 10);
+      ctx.lineTo(crateX + 18, crateY + 2);
+      ctx.stroke();
+
+      // Caisse en bois
+      ctx.fillStyle = '#b45309';
+      ctx.fillRect(crateX, crateY, 22, 20);
+      ctx.fillStyle = '#78350f';
+      ctx.strokeRect(crateX, crateY, 22, 20);
+      // Ruban jaune
+      ctx.fillStyle = '#fde047';
+      ctx.fillRect(crateX + 8, crateY, 6, 20);
+      ctx.fillRect(crateX, crateY + 7, 22, 6);
+
+      // Icône cadeau
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🎁', crateX + 11, crateY + 15);
+    } else {
+      // Éclaboussure et explosion de la caisse
+      if (elapsed < 2800) {
+        this.shake = 4;
+        for (let k = 0; k < 18; k++) {
+          this.particles.push({
+            x: crateX + 11,
+            y: seaY,
+            vx: (Math.random() - 0.5) * 4,
+            vy: -2 - Math.random() * 3.5,
+            color: Math.random() < 0.6 ? '#38bdf8' : '#fde047',
+            life: 0.9,
+            size: 2.4 + Math.random() * 2,
+          });
+        }
+      }
+
+      // Badge bonus qui s'envole vers le ciel
+      const bonusRise = Math.min(30, (elapsed - 2700) * 0.035);
+      ctx.fillStyle = '#facc15';
+      ctx.font = '800 12.5px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🎁 +1 BOULET (AMMO) OBTENU !', crateX + 11, seaY - 15 - bonusRise);
+    }
+
+    // Tir du boulet vers la caisse
+    if (fired && !hasHit) {
+      const t = (elapsed - 1600) / 1100;
+      const bx = (catX - 20) + t * (crateX + 11 - (catX - 20));
+      const by = (catY - 20) - Math.sin(t * Math.PI) * 60 + t * (seaY - (catY - 20));
+
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(bx, by, 5, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // Déclenchement de l'impact à 2.4s
-    if (elapsed >= 2400 && elapsed < 2460) {
-      this.shake = 9;
-      // Projections de sable
-      for (let k = 0; k < 22; k++) {
-        const angle = Math.PI + (Math.random() - 0.5) * 1.6;
-        const sp = 2 + Math.random() * 4.5;
-        this.particles.push({
-          x: wallX + 4,
-          y: targetY,
-          vx: Math.cos(angle) * sp,
-          vy: Math.sin(angle) * sp,
-          color: Math.random() < 0.5 ? '#f59e0b' : '#78350f',
-          life: 1.2,
-          size: 2.2 + Math.random() * 2,
-        });
-      }
-    }
-
-    // Messages pédagogiques
-    if (elapsed < 1400) {
-      ctx.fillStyle = '#b45309';
-      ctx.font = '700 11.5px sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText('☄️ Ajustement de l\'angle & puissance...', catX + 5, catY - 35);
-    } else if (elapsed >= 1400 && elapsed < 2400) {
+    if (elapsed < 1600) {
+      ctx.fillStyle = '#0284c7';
+      ctx.font = '800 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🎁 Une caisse de ravitaillement flotte dans la mer !', w * 0.5, 24);
+    } else if (elapsed >= 1600 && elapsed < 2700) {
       ctx.fillStyle = '#ea580c';
       ctx.font = '800 12px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('☄️ TIR EN VOL !', w * 0.42, 28);
+      ctx.fillText('☄️ TIR DE PRÉCISION VERS LA MER !', w * 0.5, 24);
     } else {
-      ctx.fillStyle = '#15803d';
-      ctx.font = '800 12px sans-serif';
+      ctx.fillStyle = '#16a34a';
+      ctx.font = '800 13px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('💥 LE REMPART ABSORBE L\'ONDE DE CHOC !', w * 0.5, 24);
-
-      ctx.fillStyle = '#047857';
-      ctx.font = '700 11px sans-serif';
-      ctx.fillText('Le Roi derrière est 100% protégé ✔', kingX + 5, kingY - 14);
+      ctx.fillText('✔ BONUS RÉCUPÉRÉ ! +1 AMMO ☄️ OU +1 SPRAY 💦', w * 0.5, 24);
     }
   }
 
@@ -512,31 +684,9 @@ export class TutorialGIF {
     ctx.fillRect(x, y + h - 2, w, 2);
   }
 
-  drawArchRoof(cx, cy, w, h) {
-    const { ctx } = this;
-    ctx.fillStyle = '#b45309';
-    ctx.beginPath();
-    ctx.roundRect(cx - w / 2, cy - h, w, h, [8, 8, 0, 0]);
-    ctx.fill();
-
-    // Voûte creusée dessous
-    ctx.fillStyle = '#bae6fd';
-    ctx.beginPath();
-    ctx.arc(cx, cy, w * 0.28, Math.PI, 0, false);
-    ctx.fill();
-
-    // Bordure brique
-    ctx.strokeStyle = '#78350f';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(cx, cy, w * 0.28, Math.PI, 0, false);
-    ctx.stroke();
-  }
-
   drawKingSprite(x, y, color = '#e4572e') {
     const { ctx } = this;
     const s = 2.2;
-    // Sprite pixel art du roi
     const P = {
       Y: '#ffd13b', // couronne
       S: '#f4cbb0', // visage
@@ -612,7 +762,7 @@ export class TutorialGIF {
     ctx.fill();
     ctx.stroke();
 
-    // Petite pointe vers le bas
+    // Pointe vers le bas
     ctx.fillStyle = '#fff';
     ctx.beginPath();
     ctx.moveTo(x - 4, by + bh);
