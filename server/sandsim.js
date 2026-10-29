@@ -226,34 +226,36 @@ export class SandWorld {
       this.moist[i] = MOIST_BUILD;
     };
 
-    // 1) Plage aléatoire avec dunes douces sur toute la zone de construction (BUILD_MIN_X à BUILD_MAX_X)
+    // 1) Plage de base riche en sable avec dunes douces sur toute la zone de construction (BUILD_MIN_X à BUILD_MAX_X)
     const zoneW = BUILD_MAX_X - BUILD_MIN_X; // 220
     const phase1 = this.rng() * Math.PI * 2;
     const phase2 = this.rng() * Math.PI * 2;
-    const freq1 = 2.4 + this.rng() * 1.2;
-    const freq2 = 5.2 + this.rng() * 1.8;
+    const freq1 = 2.2 + this.rng() * 1.0;
+    const freq2 = 4.8 + this.rng() * 1.6;
 
     for (let x = BUILD_MIN_X; x <= BUILD_MAX_X; x++) {
       const u = (x - BUILD_MIN_X) / zoneW; // 0..1
-      const env = Math.sin(u * Math.PI); // Raccord doux aux bords
+      const env = Math.sin(u * Math.PI); // Raccord doux aux extrémités
+      const baseH = Math.max(1, Math.round(env * 3.5)); // Couche de base de sable généreuse
       const wave1 = Math.sin(u * Math.PI * 2 * freq1 + phase1);
       const wave2 = Math.sin(u * Math.PI * 2 * freq2 + phase2) * 0.45;
-      const duneH = Math.max(0, Math.round(env * (2.2 + wave1 * 1.5 + wave2 * 0.8)));
-      for (let dy = 0; dy < duneH; dy++) {
+      const duneH = Math.max(0, Math.round(env * (3.0 + wave1 * 2.2 + wave2 * 1.2)));
+      const totalBeachH = baseH + duneH;
+      for (let dy = 0; dy < totalBeachH; dy++) {
         setCell(x, GROUND_Y - 1 - dy);
       }
     }
 
-    // 2) Petits talus naturels supplémentaires disséminés sur la plage
+    // 2) Talus et monticules naturels surélevés et plus larges sur la plage
     const mounds = [
-      { x: Math.round(BUILD_MIN_X + zoneW * 0.22 + (this.rng() - 0.5) * 20), w: 6 + Math.round(this.rng() * 3), h: 3 + Math.round(this.rng() * 2) },
-      { x: Math.round(cx + (this.rng() - 0.5) * 16), w: 8 + Math.round(this.rng() * 3), h: 4 + Math.round(this.rng() * 2) },
-      { x: Math.round(BUILD_MIN_X + zoneW * 0.78 + (this.rng() - 0.5) * 20), w: 6 + Math.round(this.rng() * 3), h: 3 + Math.round(this.rng() * 2) },
+      { x: Math.round(BUILD_MIN_X + zoneW * 0.22 + (this.rng() - 0.5) * 18), w: 12 + Math.round(this.rng() * 4), h: 5 + Math.round(this.rng() * 2) },
+      { x: Math.round(cx + (this.rng() - 0.5) * 12), w: 17 + Math.round(this.rng() * 5), h: 7 + Math.round(this.rng() * 3) },
+      { x: Math.round(BUILD_MIN_X + zoneW * 0.78 + (this.rng() - 0.5) * 18), w: 12 + Math.round(this.rng() * 4), h: 5 + Math.round(this.rng() * 2) },
     ];
 
     for (const m of mounds) {
       for (let dy = 0; dy < m.h; dy++) {
-        const mw = Math.round(m.w * (1 - dy / (m.h + 0.5)));
+        const mw = Math.round(m.w * (1 - (dy / (m.h + 0.8)) * 0.75));
         for (let x = m.x - mw; x <= m.x + mw; x++) {
           let topY = GROUND_Y - 1;
           while (topY > 0 && this.type[topY * W + x] === WET) topY--;
@@ -264,15 +266,15 @@ export class SandWorld {
 
     // 3) Placement du Roi sur la dune / promontoire central stable
     let kingTargetX = Math.round(cx - KING_W / 2);
-    kingTargetX = Math.max(BUILD_MIN_X + 6, Math.min(BUILD_MAX_X - KING_W - 6, kingTargetX));
+    kingTargetX = Math.max(BUILD_MIN_X + 8, Math.min(BUILD_MAX_X - KING_W - 8, kingTargetX));
     let highestSandY = GROUND_Y;
     for (let kx = kingTargetX; kx < kingTargetX + KING_W; kx++) {
       let y = GROUND_Y - 1;
       while (y > 0 && this.type[y * W + kx] === WET) y--;
       if (y + 1 < highestSandY) highestSandY = y + 1;
     }
-    // Palier d'assise sous les pieds du Roi
-    for (let kx = kingTargetX - 1; kx <= kingTargetX + KING_W; kx++) {
+    // Palier d'assise large et stable sous les pieds du Roi
+    for (let kx = kingTargetX - 2; kx <= kingTargetX + KING_W + 1; kx++) {
       for (let y = highestSandY; y < GROUND_Y; y++) {
         setCell(kx, y);
       }
@@ -1218,36 +1220,6 @@ export class SandWorld {
         this.events.push({ type: 'kingLand', fall });
       }
 
-      // Déplacement autonome d'idle dans sa salle de sable si libre et solide sous ses pieds
-      if (!k.dead && !this.drying) {
-        k.idleTimer = (k.idleTimer || 0) + 1;
-        if (k.idleTimer >= 200) {
-          k.idleTimer = Math.floor(this.rng() * 60);
-          const dir = this.rng() < 0.5 ? -1 : 1;
-          const targetX = k.x + dir;
-          if (targetX >= BUILD_MIN_X && targetX + KING_W <= BUILD_MAX_X) {
-            let freeCol = true;
-            const checkX = dir > 0 ? k.x + KING_W : k.x - 1;
-            for (let y = 0; y < KING_H; y++) {
-              const t = this.type[(k.y + y) * W + checkX];
-              if (t !== EMPTY) { freeCol = false; break; }
-            }
-            let solidBelow = false;
-            for (let x = 0; x < KING_W; x++) {
-              const t = this.type[(k.y + KING_H) * W + targetX + x];
-              if (t !== EMPTY) { solidBelow = true; break; }
-            }
-            if (freeCol && solidBelow) {
-              this.clearKingCells();
-              k.x = targetX;
-              this.writeKingCells();
-              this.structDirty = true;
-              this.quietTicks = 0;
-              return 1;
-            }
-          }
-        }
-      }
       return 0;
     }
     if (k.fallStart < 0) k.fallStart = k.y;

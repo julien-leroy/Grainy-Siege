@@ -302,6 +302,31 @@ export function spawnPosition(cellType, shape, cx, cy, king = null) {
       if (t === 0) free++;
     }
   }
+  if (free === 0) {
+    // Si l'empreinte est entièrement enfouie dans le sable existant,
+    // on remonte progressivement pour faire émerger la forme sur le sol/dune
+    while (top > 0 && free === 0) {
+      top--;
+      free = 0;
+      let hitNearKing = false;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          if (!mask[y * w + x]) continue;
+          const gx = left + x;
+          const gy = top + y;
+          if (king && typeof king === 'object' && isNearKing(gx, gy, king)) {
+            hitNearKing = true;
+            break;
+          }
+          if (cellType(gx, gy) === 0) free++;
+        }
+        if (hitNearKing) break;
+      }
+      if (hitNearKing) {
+        return { left, top, valid: false, nearKing: true, free: 0 };
+      }
+    }
+  }
   return { left, top, valid: free > 0, free };
 }
 

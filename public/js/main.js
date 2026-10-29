@@ -41,10 +41,6 @@ const aim = {
 let remoteAim = null;
 let lastSecondTick = -1;
 let myCatapultSide = 'left';
-let draggingKing = false;
-let kingDragCandidate = false;
-let kingDragStartX = 0;
-let kingDragStartY = 0;
 
 function updateCatapultSwitchButton() {
   const switchBtn = $('catapult-switch-btn');
@@ -1389,12 +1385,7 @@ canvas.addEventListener('pointermove', (e) => {
   pointer.inside = true;
 
   if (roomState?.phase === 'build') {
-    const myW = worlds.get(myId);
-    if (myW?.king && !myW.king.dead) {
-      const k = myW.king;
-      const nearKing = Math.hypot(cell.x - (k.x + KING_W / 2), cell.y - (k.y + KING_H / 2)) <= 10;
-      canvas.style.cursor = draggingKing ? 'grabbing' : (nearKing ? 'grab' : 'crosshair');
-    }
+    canvas.style.cursor = 'crosshair';
   }
 
   if (aim.draggingCatapult) {
@@ -1406,22 +1397,13 @@ canvas.addEventListener('pointermove', (e) => {
     aim.pullX = cell.x;
     aim.pullY = cell.y;
     updateSlingshot(cell.x, cell.y);
-  } else if (pointer.down && kingDragCandidate && !draggingKing && roomState?.phase === 'build') {
-    const moveDist = Math.hypot(cell.x - kingDragStartX, cell.y - kingDragStartY);
-    if (moveDist >= 2.5) {
-      draggingKing = true;
-      sfx.pop();
-    }
-  } else if (pointer.down && !draggingKing && !kingDragCandidate && roomState?.phase === 'build' && activeTool !== 'spray') {
+  } else if (pointer.down && roomState?.phase === 'build' && activeTool !== 'spray') {
     tryPlaceAtPointer();
   }
 });
 
 canvas.addEventListener('pointerleave', () => {
   pointer.inside = false;
-  if (kingDragCandidate && !draggingKing) {
-    kingDragCandidate = false;
-  }
 });
 
 function openTargetChoiceModal(dropId, opponents) {
@@ -1495,23 +1477,6 @@ canvas.addEventListener('pointerdown', (e) => {
 
   if (roomState?.phase === 'build') {
     viewedPid = myId;
-    // Vérifier si le joueur clique sur son Roi pour le déplacer en drag-and-drop
-    const myW = worlds.get(myId);
-    if (myW?.king && !myW.king.dead) {
-      const k = myW.king;
-      const kDist = Math.hypot(cell.x - (k.x + KING_W / 2), cell.y - (k.y + KING_H / 2));
-      if (kDist <= 7.5) {
-        // Début potentiel de drag-and-drop : si l'utilisateur bouge la souris, il déplace le Roi.
-        // S'il relâche sans bouger (simple clic), il pose sa construction !
-        kingDragCandidate = true;
-        kingDragStartX = cell.x;
-        kingDragStartY = cell.y;
-        draggingKing = false;
-        return;
-      }
-    }
-    kingDragCandidate = false;
-    draggingKing = false;
     tryPlaceAtPointer();
   } else if (roomState?.phase === 'battle') {
     // Si on est le tireur en phase de visée : interaction directe sur la catapulte active (gauche ou droite)
@@ -1547,30 +1512,6 @@ window.addEventListener('pointerup', () => {
   pointer.down = false;
   if (aim.draggingCatapult) {
     aim.draggingCatapult = false;
-  }
-  if (draggingKing) {
-    draggingKing = false;
-    kingDragCandidate = false;
-    if (roomState?.phase === 'build') {
-      const myW = worlds.get(myId);
-      if (myW) {
-        const targetX = Math.round(pointer.x);
-        const targetY = Math.round(pointer.y);
-        socket.emit('placeKing', { x: targetX, y: targetY }, (res) => {
-          if (res) {
-            sfx.king();
-            renderer.puff(targetX, targetY, 6, 16, '255,230,140');
-            renderer.popup(targetX, targetY - 6, '👑 Roi replacé !', '#fde047');
-          }
-        });
-      }
-    }
-  } else if (kingDragCandidate) {
-    // Simple clic sur le Roi : on pose la construction à cet endroit !
-    kingDragCandidate = false;
-    if (roomState?.phase === 'build' && activeTool !== 'spray') {
-      tryPlaceAtPointer();
-    }
   }
 });
 
@@ -2442,6 +2383,7 @@ function frame(now) {
         ? 'heavySpikeBall'
         : (activeAmmoPlayer?.hasIronBall ? 'iron' : 'sand')));
 
+  const isAimingShooter = isShooter && roomState?.turn?.state === 'aim';
   renderer.drawCatapult(
     dt,
     phase === 'build' ? 0.35 : 1,
@@ -2521,12 +2463,9 @@ function frame(now) {
     }
   }
 
-  // Fantôme du moule, déplacement du Roi, ou curseur Spray en phase de construction
+  // Fantôme du moule ou curseur Spray en phase de construction
   if (phase === 'build' && pointer.inside && activePid === myId) {
-    if (draggingKing) {
-      const pos = kingDropPosition(world.isSolid, KING_W, KING_H, pointer.x, pointer.y);
-      renderer.drawKing({ x: pos.left, y: pos.top }, activePlayer?.color || '#e4572e', now, true);
-    } else if (activeTool === 'spray') {
+    if (activeTool === 'spray') {
       renderer.drawSprayCursor(pointer.x, pointer.y, sprayReadyFraction);
     } else if (activeTool === 'aplatir') {
       renderer.drawFlattenCursor(pointer.x, pointer.y);

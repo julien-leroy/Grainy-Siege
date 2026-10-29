@@ -379,7 +379,7 @@ test('game: cooldown distinct pour le pâté (0.8s) et les moules (3.0s)', () =>
 
   // Mais un pâté peut être posé immédiatement sans attendre la fin du remplissage du seau !
   p1.lastPatePlace = Date.now() - (PATE_COOLDOWN_MS + 10);
-  const okPateWhileBucketRefilling = room.place(p1.id, { shape: 'pate', x: 180, y: GROUND_Y - 5 });
+  const okPateWhileBucketRefilling = room.place(p1.id, { shape: 'pate', x: 186, y: GROUND_Y - 5 });
   assert.ok(okPateWhileBucketRefilling, 'pâté posable immédiatement pendant que le seau se recharge');
 });
 
