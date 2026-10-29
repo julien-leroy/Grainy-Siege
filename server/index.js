@@ -104,11 +104,13 @@ io.on('connection', (socket) => {
 
   socket.on('leave', guard((_, cb) => {
     if (room && me) {
-      room.removePlayer(me.id);
-      socket.leave(room.channel);
-      socket.leave(room.code);
+      const r = room;
+      const pid = me.id;
+      socket.leave(r.channel);
+      socket.leave(r.code);
       room = null;
       me = null;
+      r.removePlayer(pid);
     }
     cb?.({ ok: true });
   }));

@@ -895,7 +895,7 @@ export class Room {
       x,
       y: 6,
       vy: 0.11,
-      r: 3.5, // Plus petit et discret
+      r: 5.0, // Proportionnel au parachute agrandi
       inWater: false,
       waterTouchAt: 0,
       sunk: false,

@@ -504,22 +504,36 @@ $('back-lobby-btn').addEventListener('click', () => {
   socket.emit('lobby', {});
 });
 
+function leaveRoom() {
+  music.stopAll();
+  resetAllGameData();
+  sessionStorage.removeItem('sc-pid');
+  sessionStorage.removeItem('sc-code');
+  myId = null;
+  myCode = null;
+  roomState = null;
+  socket.emit('leave', {});
+  stopGameLoop();
+
+  // Cacher tous les éléments de jeu et revenir au lobby / accueil propre
+  $('room-view').classList.add('hidden');
+  $('scene').classList.add('hidden');
+  $('hud').classList.add('hidden');
+  $('catapult-hud')?.classList.add('hidden');
+  $('battle-timeline')?.classList.add('hidden');
+  $('defender-controls')?.classList.add('hidden');
+  $('over-modal')?.classList.add('hidden');
+  $('intro-overlay')?.classList.add('hidden');
+  $('lobby-modal')?.classList.add('hidden');
+  $('duel-intro-overlay')?.classList.add('hidden');
+  $('welcome-view').classList.remove('hidden');
+}
+
 const leaveBtn = $('leave-room-btn');
 if (leaveBtn) {
   leaveBtn.addEventListener('click', () => {
     unlock();
-    resetAllGameData();
-    sessionStorage.removeItem('sc-pid');
-    sessionStorage.removeItem('sc-code');
-    myId = null;
-    myCode = null;
-    roomState = null;
-    socket.emit('leave', {});
-    $('room-view').classList.add('hidden');
-    $('welcome-view').classList.remove('hidden');
-    $('lobby-modal').classList.remove('hidden');
-    $('hud').classList.add('hidden');
-    stopGameLoop();
+    leaveRoom();
   });
 }
 
@@ -631,6 +645,7 @@ socket.on('connect', () => {
 
 // ------------------------------------------------------------------ Réception réseau
 socket.on('world', (msg) => {
+  if (!myId) return;
   let w = worlds.get(msg.pid);
   if (!w) {
     w = new ClientWorld(msg.pid);
@@ -641,6 +656,7 @@ socket.on('world', (msg) => {
 });
 
 socket.on('room', (state) => {
+  if (!myId || !state?.players?.some((p) => p.id === myId)) return;
   const prevPhase = roomState?.phase;
   roomState = state;
   for (const p of state.players) {
@@ -901,6 +917,7 @@ socket.on('chat', (entry) => {
 });
 
 socket.on('fx', (e) => {
+  if (!myId) return;
   const activePid = viewedPid || myId;
   if (e.type === 'catapultSide') {
     if (roomState?.turn) roomState.turn.catapultSide = e.side;
@@ -2061,25 +2078,7 @@ if (quitGameBtn) {
     e.preventDefault();
     unlock();
     if (confirm('❌ Quitter la partie et retourner au menu ?\n(La partie continuera pour les autres joueurs)')) {
-      music.stopAll();
-      resetAllGameData();
-      sessionStorage.removeItem('sc-pid');
-      sessionStorage.removeItem('sc-code');
-      myId = null;
-      myCode = null;
-      roomState = null;
-      socket.emit('leave', {});
-      $('room-view').classList.add('hidden');
-      $('welcome-view').classList.remove('hidden');
-      $('lobby-modal').classList.remove('hidden');
-      $('hud').classList.add('hidden');
-      $('scene').classList.add('hidden');
-      $('catapult-hud')?.classList.add('hidden');
-      $('battle-timeline')?.classList.add('hidden');
-      $('defender-controls')?.classList.add('hidden');
-      $('over-modal')?.classList.add('hidden');
-      $('intro-overlay')?.classList.add('hidden');
-      stopGameLoop();
+      leaveRoom();
     }
   });
 }

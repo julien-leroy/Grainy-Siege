@@ -1394,12 +1394,12 @@ export class Renderer {
       const bonusSpr = this._getBonusSprite(d.type);
 
       if (pBagSpr && pBagSpr.complete && pBagSpr.naturalWidth > 0) {
-        const pw = 15.5 * s;
+        const pw = 22.0 * s;
         const ph = pw * (pBagSpr.naturalHeight / pBagSpr.naturalWidth);
-        const iconSize = 5.2 * s;
+        const iconSize = 7.5 * s;
 
         // Positionnement Y du centre de la panse du sac
-        const bagCenterY = 1.95 * s;
+        const bagCenterY = 2.75 * s;
 
         if (!inWater) {
           // En vol : balancement très doux et naturel avec le vent
@@ -1421,7 +1421,7 @@ export class Renderer {
             ctx.restore();
           } else {
             const icon = d.type === 'grenade' ? '💣' : d.type === 'heavySpikeBall' ? '💣' : d.type === 'dryOpponent' ? '☀️' : d.type === 'wetAll' ? '💦' : '☄️';
-            ctx.font = `bold ${Math.max(8, Math.round(5 * s))}px sans-serif`;
+            ctx.font = `bold ${Math.max(8, Math.round(6 * s))}px sans-serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(icon, 0, bagCenterY);
@@ -1434,7 +1434,7 @@ export class Renderer {
           ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
           ctx.lineWidth = Math.max(1, 1.2 * this.dpr);
           ctx.beginPath();
-          ctx.ellipse(0, bagCenterY, 6.5 * s, 2 * s, 0, 0, Math.PI * 2);
+          ctx.ellipse(0, bagCenterY, 9 * s, 2.8 * s, 0, 0, Math.PI * 2);
           ctx.stroke();
 
           ctx.save();
@@ -1454,8 +1454,8 @@ export class Renderer {
           // Petites bulles d'eau
           ctx.fillStyle = 'rgba(224, 242, 254, 0.8)';
           ctx.beginPath();
-          ctx.arc(-2 * s, -1.5 * s, 0.8 * s, 0, Math.PI * 2);
-          ctx.arc(2.5 * s, -2.2 * s, 0.6 * s, 0, Math.PI * 2);
+          ctx.arc(-2.8 * s, -1.8 * s, 1.0 * s, 0, Math.PI * 2);
+          ctx.arc(3.2 * s, -2.8 * s, 0.8 * s, 0, Math.PI * 2);
           ctx.fill();
         }
       } else if (!inWater) {
@@ -1464,10 +1464,10 @@ export class Renderer {
         ctx.translate(cx, cy);
         ctx.rotate(sway);
 
-        const chuteW = 8.5 * s;
-        const chuteH = 5.5 * s;
-        const chuteY = -9.5 * s;
-        const ringY = -1.8 * s;
+        const chuteW = 12.0 * s;
+        const chuteH = 7.8 * s;
+        const chuteY = -13.0 * s;
+        const ringY = -2.5 * s;
 
         // 1) Suspentes fines en soie
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
