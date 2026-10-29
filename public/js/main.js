@@ -515,8 +515,7 @@ function leaveRoom() {
   socket.emit('leave', {});
   stopGameLoop();
 
-  // Cacher tous les éléments de jeu et revenir au lobby / accueil propre
-  $('room-view').classList.add('hidden');
+  // Cacher tous les éléments de jeu
   $('scene').classList.add('hidden');
   $('hud').classList.add('hidden');
   $('catapult-hud')?.classList.add('hidden');
@@ -524,9 +523,12 @@ function leaveRoom() {
   $('defender-controls')?.classList.add('hidden');
   $('over-modal')?.classList.add('hidden');
   $('intro-overlay')?.classList.add('hidden');
-  $('lobby-modal')?.classList.add('hidden');
   $('duel-intro-overlay')?.classList.add('hidden');
+
+  // Réafficher le lobby d'accueil (welcome-view dans lobby-modal)
+  $('room-view').classList.add('hidden');
   $('welcome-view').classList.remove('hidden');
+  $('lobby-modal')?.classList.remove('hidden');
 }
 
 const leaveBtn = $('leave-room-btn');
