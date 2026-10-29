@@ -997,12 +997,27 @@ export class Renderer {
 
     this.drawKing(world.king, color, t, highlightKing);
 
-    // éjectas
+    // éjectas et grains de sable (normaux et grains verts d'acide corrosif)
     const p = world.parts;
     if (p.length) {
-      ctx.fillStyle = '#e6c88e';
       for (let k = 0; k < p.length; k += 2) {
-        ctx.fillRect(ox + (p[k] / 8) * s, oy + (p[k + 1] / 8) * s, s, s);
+        const rawY = p[k + 1];
+        const isAcid = rawY < 0;
+        const py = isAcid ? (-rawY - 1) / 8 : rawY / 8;
+        const px = p[k] / 8;
+        if (isAcid) {
+          // Grains d'acide vert corrosif avec éclat toxique et micro-vapeur d'évaporation
+          const flicker = (k + Math.floor(t * 0.025)) % 3;
+          ctx.fillStyle = flicker === 0 ? '#4ade80' : flicker === 1 ? '#22c55e' : '#16a34a';
+          ctx.fillRect(ox + px * s - 0.2 * s, oy + py * s - 0.2 * s, s * 1.4, s * 1.4);
+          if (k % 4 === 0) {
+            ctx.fillStyle = 'rgba(74, 222, 128, 0.35)';
+            ctx.fillRect(ox + (px - 0.5) * s, oy + (py - 0.5) * s, s * 2.0, s * 2.0);
+          }
+        } else {
+          ctx.fillStyle = '#e6c88e';
+          ctx.fillRect(ox + px * s, oy + py * s, s, s);
+        }
       }
     }
     // boulet

@@ -574,5 +574,41 @@ test('sandsim: pendant le combat un bloc non maintenu par du sable au sol tombe 
   assert.ok(counts.loose + counts.dry > 0, 'le bloc non soutenu s\'effondre en sable physique');
 });
 
+test('sandsim: la boule de poison libère des grains de sable verts qui creusent le sable puis s évaporent', () => {
+  const w = new SandWorld(42);
+  w.stamp('cube', 180, GROUND_Y - 12, true);
+  const sandCountBefore = w.countTypes().wet;
+  assert.ok(sandCountBefore > 0, 'cube de sable présent');
+
+  // Lancer une boule de poison (acide) sur le cube
+  w.launch(180, GROUND_Y - 30, 0, 1.5, false, false, false, true);
+  assert.ok(w.ball && w.ball.acid, 'boule acide en vol');
+
+  // Laisser la boule impacter
+  for (let t = 0; t < 15; t++) w.step();
+
+  // Des grains verts d'acide sont créés et encodés
+  assert.ok(w.particles.length > 0, 'particules d acide générées');
+  assert.ok(w.particles.some((p) => p.isAcid), 'particules identifiées comme acide');
+
+  // Vérifier l'encodage binaire des particules avec Y négatif
+  const enc = w.encodeParticles();
+  const arr = new Int16Array(enc.buffer, enc.byteOffset, enc.byteLength / 2);
+  let hasAcidEncoded = false;
+  for (let k = 1; k < arr.length; k += 2) {
+    if (arr[k] < 0) hasAcidEncoded = true;
+  }
+  assert.ok(hasAcidEncoded, 'grains d acide encodés avec coordonnée Y négative pour le rendu vert');
+
+  // Simuler l'avancement : les grains rongent le sable et creusent
+  for (let t = 0; t < 60; t++) w.step();
+  const sandCountAfter = w.countTypes().wet;
+  assert.ok(sandCountAfter < sandCountBefore, 'les grains verts ont creusé et rongé du sable');
+
+  // Continuer la simulation : tous les grains finissent par s'évaporer
+  for (let t = 0; t < 150; t++) w.step();
+  assert.equal(w.particles.filter((p) => p.isAcid).length, 0, 'les grains d acide se sont tous évaporés');
+});
+
 
 

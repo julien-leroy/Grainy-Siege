@@ -793,6 +793,14 @@ export class SandWorld {
     let w = 0;
     for (let r = 0; r < ps.length; r++) {
       const p = ps[r];
+      // Pour les grains d'acide vert : durée de vie qui décroît jusqu'à évaporation
+      if (p.isAcid) {
+        p.life = (p.life || 100) - 1;
+        if (p.life <= 0) {
+          // Le grain d'acide s'évapore dans les airs !
+          continue;
+        }
+      }
       p.vy += g;
       p.vx *= 0.99;
       p.vx += this.wind * 4;
@@ -814,41 +822,44 @@ export class SandWorld {
             if (p.isAcid) {
               if (ct === KING) {
                 this.kingHit(2.0);
+                alive = false;
+                break;
               } else if (isSand(ct)) {
+                // Ronge et dissout le grain de sable touché
                 const j = cy * W + cx;
                 type[j] = EMPTY;
                 this.vel[j] = 0;
                 this.damage[j] = 0;
-                // Ronge également un grain de sable adjacent
-                const adjs = [[0, 1], [1, 0], [-1, 0], [0, -1]];
-                for (const [adx, ady] of adjs) {
-                  const ax = cx + adx;
-                  const ay = cy + ady;
-                  if (ax >= 0 && ax < W && ay >= 0 && ay < H && isSand(type[ay * W + ax])) {
-                    const aj = ay * W + ax;
-                    type[aj] = EMPTY;
-                    this.vel[aj] = 0;
-                    this.damage[aj] = 0;
-                    break;
-                  }
+                p.digs = (p.digs || 0) + 1;
+                // Ralentit en creusant la matière mais continue de couler pour creuser un peu plus profond
+                p.vx *= 0.45;
+                p.vy = Math.min(0.8, Math.max(0.18, p.vy * 0.45));
+                if (p.digs >= (p.maxDigs || 4)) {
+                  // A fini de creuser sa dose de sable : s'évapore et se consume !
+                  alive = false;
+                  break;
                 }
+              } else if (ct === GROUND) {
+                // Sol rocheux/plage dure : rebondit légèrement puis s'évapore plus vite
+                p.vy = -Math.abs(p.vy) * 0.2;
+                p.vx *= 0.6;
+                p.life -= 3;
               }
+            } else {
+              if (ct === KING) {
+                this.kingHit(Math.hypot(p.vx, p.vy));
+                alive = false;
+                break;
+              }
+              if (isStructural(ct) && sp > 2.5) {
+                const j = cy * W + cx;
+                const factor = ct === HARD ? 0.45 : 1;
+                this.damage[j] = Math.min(255, this.damage[j] + sp * 6 * factor);
+              }
+              this.settleParticle(p.x, p.y, p.kind, Math.max(0, p.vy));
               alive = false;
               break;
             }
-            if (ct === KING) {
-              this.kingHit(Math.hypot(p.vx, p.vy));
-              alive = false;
-              break;
-            }
-            if (isStructural(ct) && sp > 2.5) {
-              const j = cy * W + cx;
-              const factor = ct === HARD ? 0.45 : 1;
-              this.damage[j] = Math.min(255, this.damage[j] + sp * 6 * factor);
-            }
-            this.settleParticle(p.x, p.y, p.kind, Math.max(0, p.vy));
-            alive = false;
-            break;
           }
         }
         p.x = nx;
@@ -858,7 +869,7 @@ export class SandWorld {
     }
     ps.length = w;
     this.structDirty = true;
-    return ps.length + 1;
+    return ps.length;
   }
 
   stepBall() {
@@ -913,17 +924,22 @@ export class SandWorld {
         }
 
         if (b.acid) {
-          // Fiole d'acide corrosif : ne fait pas de dégâts aux murs, mais libère des pixels d'acide qui rongent le sable !
-          for (let k = 0; k < 50; k++) {
-            const ang = (this.rng() - 0.5) * 1.8 - Math.PI / 2;
-            const spd = 0.8 + this.rng() * 2.8;
+          // Boule de poison / Fiole d'acide :
+          // Répand des grains de sable verts qui creusent un peu le sable avant de s'évaporer !
+          const count = 75;
+          for (let k = 0; k < count; k++) {
+            const ang = (this.rng() - 0.5) * 2.5 - Math.PI / 2;
+            const spd = 0.5 + this.rng() * 3.4;
             this.particles.push({
-              x: b.x + (this.rng() - 0.5) * 2,
-              y: b.y + (this.rng() - 0.5) * 2,
-              vx: Math.cos(ang) * spd + b.vx * 0.15,
-              vy: Math.sin(ang) * spd,
+              x: b.x + (this.rng() - 0.5) * 2.5,
+              y: b.y + (this.rng() - 0.5) * 2.5,
+              vx: Math.cos(ang) * spd + b.vx * 0.2,
+              vy: Math.sin(ang) * spd + b.vy * 0.1,
               kind: 'acid',
               isAcid: true,
+              life: 80 + Math.floor(this.rng() * 60), // ~1.5s à 2.5s d'existence
+              digs: 0,
+              maxDigs: 3 + Math.floor(this.rng() * 4), // Creuse 3 à 6 grains de sable
             });
           }
           if (hit === KING) {
@@ -1585,8 +1601,10 @@ export class SandWorld {
     const ps = this.particles;
     const arr = new Int16Array(ps.length * 2);
     for (let k = 0; k < ps.length; k++) {
-      arr[k * 2] = Math.round(ps[k].x * 8);
-      arr[k * 2 + 1] = Math.round(ps[k].y * 8);
+      const p = ps[k];
+      arr[k * 2] = Math.round(p.x * 8);
+      const rawY = Math.round(p.y * 8);
+      arr[k * 2 + 1] = p.isAcid ? (-rawY - 1) : rawY;
     }
     return Buffer.from(arr.buffer.slice(0, arr.byteLength));
   }
