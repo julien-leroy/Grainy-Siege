@@ -371,16 +371,21 @@ test('game: cooldown distinct pour le pâté (0.8s) et les moules (3.0s)', () =>
   const okMould = room.place(p1.id, { shape: 'seau', x: 170, y: GROUND_Y - 15 });
   assert.ok(okMould, 'moule posé');
 
+  // Tout de suite après (0ms) : un pâté est bloqué par le cooldown de 500ms après patron
+  const okPateImmediate = room.place(p1.id, { shape: 'pate', x: 186, y: GROUND_Y - 5 });
+  assert.equal(okPateImmediate, null, 'pâté bloqué par le cooldown de 500ms après un patron');
+
   // 1000ms plus tard : le moule n'est PAS encore prêt (cooldown 3.0s toujours actif)
   p1.lastMouldPlace = Date.now() - 1000;
   p1.lastPlace = Date.now() - 1000;
   const okMouldTooSoon = room.place(p1.id, { shape: 'seau', x: 170, y: GROUND_Y - 25 });
   assert.equal(okMouldTooSoon, null, 'moule bloqué par le cooldown de 3.0s');
 
-  // Mais un pâté peut être posé immédiatement sans attendre la fin du remplissage du seau !
+  // Mais après ses 500ms, le pâté peut être posé sans attendre la fin du remplissage du seau (3.0s) !
+  p1.pateCooldownUntil = Date.now() - 50;
   p1.lastPatePlace = Date.now() - (PATE_COOLDOWN_MS + 10);
   const okPateWhileBucketRefilling = room.place(p1.id, { shape: 'pate', x: 186, y: GROUND_Y - 5 });
-  assert.ok(okPateWhileBucketRefilling, 'pâté posable immédiatement pendant que le seau se recharge');
+  assert.ok(okPateWhileBucketRefilling, 'pâté posable après 500ms pendant que le seau se recharge');
 });
 
 test('shapes: les nouveaux patrons (donjon, escalier, porte, colonne, barbacane, citadelle, aqueduc, bastion, colosse) sont valides et posables', () => {

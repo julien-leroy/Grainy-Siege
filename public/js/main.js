@@ -4,7 +4,7 @@
 import { SHAPES, SHAPE_BY_ID, dropPosition, kingDropPosition, spawnPosition, getFlippedShape } from '/shared/shapes.js';
 import {
   T, TYPE_MASK, GRID_W, GRID_H, KING_W, KING_H, LAUNCH_X, LAUNCH_Y, CATAPULT_X, GROUND_Y,
-  BUILD_MIN_X, BUILD_MAX_X, SPRAY_COOLDOWN_MS, SHOTS_PER_TURN, BUILD_PLACE_COOLDOWN_MS, PATE_COOLDOWN_MS, DEFENSE_SPRAY_MAX,
+  BUILD_MIN_X, BUILD_MAX_X, SPRAY_COOLDOWN_MS, SHOTS_PER_TURN, BUILD_PLACE_COOLDOWN_MS, PATE_COOLDOWN_MS, PATTERN_PATE_COOLDOWN_MS, DEFENSE_SPRAY_MAX,
 } from '/shared/constants.js';
 import { ClientWorld } from './world.js';
 import { Renderer, drawThumb } from './renderer.js';
@@ -1637,11 +1637,11 @@ function tryPlaceAtPointer() {
 
   // Vérifier le cooldown :
   // Le seau (3.0s) est réservé UNIQUEMENT aux moules/patterns.
-  // Le pâté utilise un cooldown manuel de la main (0.8s) et PEUT ÊTRE POSÉ IMMÉDIATEMENT même si le seau se recharge !
+  // Le pâté utilise un cooldown manuel de la main (0.8s) et un cooldown de sécurité (0.5s) après chaque patron posé
   if (isPate) {
     if (now < nextPateAllowedAt) {
       const rem = ((nextPateAllowedAt - now) / 1000).toFixed(1);
-      renderer.popup(pointer.x, pointer.y - 6, `⏳ Main (${rem}s)`, '#94a3b8');
+      renderer.popup(pointer.x, pointer.y - 6, `⏳ Pâté (${rem}s)`, '#94a3b8');
       return;
     }
   } else {
@@ -1686,6 +1686,10 @@ function tryPlaceAtPointer() {
     nextMouldAllowedAt = now + BUILD_PLACE_COOLDOWN_MS;
     lastPlaceAttempt = now;
     nextPlaceAllowedAt = nextMouldAllowedAt;
+    // Petit cooldown de 0.5s sur le pâté pour éviter qu'il s'enchaîne instantanément
+    lastPatePlaceAttempt = now;
+    nextPateAllowedAt = Math.max(nextPateAllowedAt, now + PATTERN_PATE_COOLDOWN_MS);
+    pointer.down = false; // Réinitialise pointer.down pour empêcher un enchaînement immédiat sur le même clic
   }
 
   sfx.place();
@@ -2478,8 +2482,9 @@ function frame(now) {
         const shape = isMouldFlipped ? getFlippedShape(baseShape) : baseShape;
         const pos = spawnPosition(world.cellType, shape, pointer.x, pointer.y, world.king);
         const isPate = activeTool === 'pate';
+        const pateCooldownDuration = Math.max(1, nextPateAllowedAt - lastPatePlaceAttempt);
         const cooldownRatio = isPate
-          ? Math.min(1.0, (now - lastPatePlaceAttempt) / PATE_COOLDOWN_MS)
+          ? (now < nextPateAllowedAt ? Math.min(1.0, (now - lastPatePlaceAttempt) / pateCooldownDuration) : 1.0)
           : mouldCooldownRatio;
         renderer.drawGhost(shape, pos, pos.valid, false, cooldownRatio, activePlayer?.color || '#e4572e', isPate);
       }

@@ -4,7 +4,7 @@ import { CONFIG } from './config.js';
 import { makeBuildPlan, botShot, botName } from './bot.js';
 import {
   BUILD_SECONDS, AIM_SECONDS, PLAYER_COLORS, LAUNCH_X, LAUNCH_Y, GROUND_Y, BUILD_MIN_X, BUILD_MAX_X,
-  SPRAY_COOLDOWN_MS, launchVelocity, BUILD_PLACE_COOLDOWN_MS, PATE_COOLDOWN_MS, SHOTS_PER_TURN, DEFENSE_SPRAY_MAX,
+  SPRAY_COOLDOWN_MS, launchVelocity, BUILD_PLACE_COOLDOWN_MS, PATE_COOLDOWN_MS, PATTERN_PATE_COOLDOWN_MS, SHOTS_PER_TURN, DEFENSE_SPRAY_MAX,
   MAX_AMMO_RESERVE, MAX_DEFENSE_SPRAYS, GRID_W, KING_W, KING_H,
 } from '../shared/constants.js';
 
@@ -487,8 +487,13 @@ export class Room {
 
     // Cooldowns séparés et indépendants :
     // - Pâté : cooldown de la main (800ms)
+    // - Cooldown de 500ms sur le pâté juste après la pose d'un patron pour éviter l'enchaînement involontaire
     // - Moules / patrons : remplissage du seau (3000ms)
-    // Poser un patron n'empêche pas de poser immédiatement des pâtés !
+    if (isPate && p.pateCooldownUntil && now < p.pateCooldownUntil) {
+      console.log(`[PLACE_REJECTED] pate pattern cooldown (${now} < ${p.pateCooldownUntil})`);
+      return null;
+    }
+
     let lastTime = isPate ? (p.lastPatePlace || 0) : (p.lastMouldPlace || 0);
     if (p.lastPlace !== undefined && p.lastPlace < lastTime) {
       lastTime = p.lastPlace;
@@ -513,6 +518,7 @@ export class Room {
         p.lastPatePlace = now;
       } else {
         p.lastMouldPlace = now;
+        p.pateCooldownUntil = now + PATTERN_PATE_COOLDOWN_MS;
       }
       p.lastPlace = now;
       p.placed++;
