@@ -42,6 +42,9 @@ let remoteAim = null;
 let lastSecondTick = -1;
 let myCatapultSide = 'left';
 let draggingKing = false;
+let kingDragCandidate = false;
+let kingDragStartX = 0;
+let kingDragStartY = 0;
 
 function updateCatapultSwitchButton() {
   const switchBtn = $('catapult-switch-btn');
@@ -1005,6 +1008,15 @@ socket.on('fx', (e) => {
     renderer.popup(e.x, e.y - 10, '💥 BOOM ! GRENADE !', '#ef4444');
   } else if (e.type === 'grenadeEquipped') {
     renderer.popup(CATAPULT_X + 15, GROUND_Y - 20, '💣 GRENADE ÉQUIPÉE !', '#4ade80');
+  } else if (e.type === 'ironBallEquipped') {
+    renderer.popup(CATAPULT_X + 15, GROUND_Y - 20, '⚔️ BOULET EN FER ÉQUIPÉ !', '#94a3b8');
+  } else if (e.type === 'acidEquipped') {
+    renderer.popup(CATAPULT_X + 15, GROUND_Y - 20, '🧪 FIOLE D\'ACIDE ÉQUIPÉE !', '#4ade80');
+  } else if (e.type === 'acidSplash') {
+    sfx.spray();
+    renderer.waterMist(e.x, e.y, 10);
+    renderer.puff(e.x, e.y, 12, 28, '34, 197, 94');
+    renderer.popup(e.x, e.y - 10, '🧪 SPLASH D\'ACIDE CORROSIF !', '#22c55e');
   } else if (e.type === 'kingDead') {
     sfx.kingDead();
     renderer.shake = 18;
@@ -1394,13 +1406,22 @@ canvas.addEventListener('pointermove', (e) => {
     aim.pullX = cell.x;
     aim.pullY = cell.y;
     updateSlingshot(cell.x, cell.y);
-  } else if (pointer.down && !draggingKing && roomState?.phase === 'build' && activeTool !== 'spray') {
+  } else if (pointer.down && kingDragCandidate && !draggingKing && roomState?.phase === 'build') {
+    const moveDist = Math.hypot(cell.x - kingDragStartX, cell.y - kingDragStartY);
+    if (moveDist >= 2.5) {
+      draggingKing = true;
+      sfx.pop();
+    }
+  } else if (pointer.down && !draggingKing && !kingDragCandidate && roomState?.phase === 'build' && activeTool !== 'spray') {
     tryPlaceAtPointer();
   }
 });
 
 canvas.addEventListener('pointerleave', () => {
   pointer.inside = false;
+  if (kingDragCandidate && !draggingKing) {
+    kingDragCandidate = false;
+  }
 });
 
 function openTargetChoiceModal(dropId, opponents) {
@@ -1479,12 +1500,18 @@ canvas.addEventListener('pointerdown', (e) => {
     if (myW?.king && !myW.king.dead) {
       const k = myW.king;
       const kDist = Math.hypot(cell.x - (k.x + KING_W / 2), cell.y - (k.y + KING_H / 2));
-      if (kDist <= 10) {
-        draggingKing = true;
-        sfx.pop();
+      if (kDist <= 7.5) {
+        // Début potentiel de drag-and-drop : si l'utilisateur bouge la souris, il déplace le Roi.
+        // S'il relâche sans bouger (simple clic), il pose sa construction !
+        kingDragCandidate = true;
+        kingDragStartX = cell.x;
+        kingDragStartY = cell.y;
+        draggingKing = false;
         return;
       }
     }
+    kingDragCandidate = false;
+    draggingKing = false;
     tryPlaceAtPointer();
   } else if (roomState?.phase === 'battle') {
     // Si on est le tireur en phase de visée : interaction directe sur la catapulte active (gauche ou droite)
@@ -1523,6 +1550,7 @@ window.addEventListener('pointerup', () => {
   }
   if (draggingKing) {
     draggingKing = false;
+    kingDragCandidate = false;
     if (roomState?.phase === 'build') {
       const myW = worlds.get(myId);
       if (myW) {
@@ -1536,6 +1564,12 @@ window.addEventListener('pointerup', () => {
           }
         });
       }
+    }
+  } else if (kingDragCandidate) {
+    // Simple clic sur le Roi : on pose la construction à cet endroit !
+    kingDragCandidate = false;
+    if (roomState?.phase === 'build' && activeTool !== 'spray') {
+      tryPlaceAtPointer();
     }
   }
 });
@@ -2398,8 +2432,15 @@ function frame(now) {
   }
 
   const slingPull = null;
-  const isAimingShooter = isShooter && roomState?.turn?.state === 'aim';
-  const ammoType = mePlayer?.hasGrenade ? 'grenade' : (mePlayer?.hasSpikeBall ? 'heavySpikeBall' : 'normal');
+  const shooterPlayer = roomState?.players?.find((p) => p.id === (roomState?.turn?.shooterId || myId));
+  const activeAmmoPlayer = isShooter ? mePlayer : shooterPlayer;
+  const ammoType = activeAmmoPlayer?.hasAcidBall
+    ? 'acid'
+    : (activeAmmoPlayer?.hasGrenade
+      ? 'grenade'
+      : (activeAmmoPlayer?.hasSpikeBall
+        ? 'heavySpikeBall'
+        : (activeAmmoPlayer?.hasIronBall ? 'iron' : 'sand')));
 
   renderer.drawCatapult(
     dt,
@@ -2423,11 +2464,17 @@ function frame(now) {
   // Inscriptions et runes des bonus actifs gravées directement dans le sable de plage sous le château
   const activeBonuses = [];
   if (phase === 'battle' && activePlayer) {
+    if (activePlayer.hasAcidBall) {
+      activeBonuses.push({ icon: '🧪', label: "FIOLE D'ACIDE CORROSIF ARMÉE", color: '#4ade80' });
+    }
     if (activePlayer.hasGrenade) {
       activeBonuses.push({ icon: '💣', label: "GRENADE EXPLOSIVE ARMÉE (2s)", color: '#4ade80' });
     }
     if (activePlayer.hasSpikeBall) {
       activeBonuses.push({ icon: '💣', label: "BOULET D'ACIER À POINTES ARMÉ", color: '#f87171' });
+    }
+    if (activePlayer.hasIronBall) {
+      activeBonuses.push({ icon: '⚔️', label: "BOULET EN FER MASSIF ARMÉ", color: '#cbd5e1' });
     }
     const reserveShots = roomState.turn?.shooterId === activePid
       ? (roomState.turn.shotsLeft - 1)

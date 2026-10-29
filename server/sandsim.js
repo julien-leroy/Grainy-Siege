@@ -545,17 +545,22 @@ export class SandWorld {
     this.quietTicks = 0;
   }
 
-  // ------------------------------------------------------------------ catapulte
-  launch(x, y, vx, vy, spike = false, grenade = false) {
+  launch(x, y, vx, vy, spike = false, grenade = false, iron = false, acid = false) {
+    const isSand = !spike && !grenade && !iron && !acid;
+    const ballType = acid ? 'acid' : grenade ? 'grenade' : spike ? 'spike' : iron ? 'iron' : 'sand';
     this.ball = {
       x,
       y,
       vx,
       vy,
-      r: BALL_RADIUS * this.ballScale * (spike ? 1.4 : grenade ? 0.78 : 1),
+      r: BALL_RADIUS * this.ballScale * (spike ? 1.4 : grenade ? 0.78 : acid ? 0.95 : 1),
       age: 0,
       spike,
       grenade,
+      iron,
+      acid,
+      sand: isSand,
+      type: ballType,
       landed: false,
       fuseTicks: 0,
     };
@@ -804,6 +809,31 @@ export class SandWorld {
         if (cy >= 0) {
           const ct = type[cy * W + cx];
           if (ct !== EMPTY) {
+            if (p.isAcid) {
+              if (ct === KING) {
+                this.kingHit(2.0);
+              } else if (isSand(ct)) {
+                const j = cy * W + cx;
+                type[j] = EMPTY;
+                this.vel[j] = 0;
+                this.damage[j] = 0;
+                // Ronge également un grain de sable adjacent
+                const adjs = [[0, 1], [1, 0], [-1, 0], [0, -1]];
+                for (const [adx, ady] of adjs) {
+                  const ax = cx + adx;
+                  const ay = cy + ady;
+                  if (ax >= 0 && ax < W && ay >= 0 && ay < H && isSand(type[ay * W + ax])) {
+                    const aj = ay * W + ax;
+                    type[aj] = EMPTY;
+                    this.vel[aj] = 0;
+                    this.damage[aj] = 0;
+                    break;
+                  }
+                }
+              }
+              alive = false;
+              break;
+            }
             if (ct === KING) {
               this.kingHit(Math.hypot(p.vx, p.vy));
               alive = false;
@@ -880,11 +910,38 @@ export class SandWorld {
           return;
         }
 
+        if (b.acid) {
+          // Fiole d'acide corrosif : ne fait pas de dégâts aux murs, mais libère des pixels d'acide qui rongent le sable !
+          for (let k = 0; k < 50; k++) {
+            const ang = (this.rng() - 0.5) * 1.8 - Math.PI / 2;
+            const spd = 0.8 + this.rng() * 2.8;
+            this.particles.push({
+              x: b.x + (this.rng() - 0.5) * 2,
+              y: b.y + (this.rng() - 0.5) * 2,
+              vx: Math.cos(ang) * spd + b.vx * 0.15,
+              vy: Math.sin(ang) * spd,
+              kind: 'acid',
+              isAcid: true,
+            });
+          }
+          if (hit === KING) {
+            this.killKing('acide');
+            this.events.push({ type: 'kingHit', x: b.x, y: b.y });
+          }
+          this.events.push({ type: 'acidSplash', x: b.x, y: b.y });
+          this.ball = null;
+          this.structDirty = true;
+          return;
+        }
+
         if (hit === KING) {
           this.killKing('touché');
           this.events.push({ type: 'kingHit', x: b.x, y: b.y });
         }
-        this.impact(b.x, b.y, b.vx, b.vy, b.r, Boolean(b.spike));
+        const isSpike = Boolean(b.spike);
+        const isIron = Boolean(b.iron);
+        const isSand = !isSpike && !isIron;
+        this.impact(b.x, b.y, b.vx, b.vy, b.r, isSpike, isIron, isSand);
         this.ball = null;
         return;
       }
@@ -918,7 +975,7 @@ export class SandWorld {
     return found;
   }
 
-  impact(x, y, vx, vy, ballR, isSpike = false) {
+  impact(x, y, vx, vy, ballR, isSpike = false, isIron = false, isSandBall = true) {
     const { type, damage, rng } = this;
     const speed = Math.hypot(vx, vy);
     const spikeRMult = isSpike ? 1.20 : 1.0;
@@ -993,9 +1050,9 @@ export class SandWorld {
               }
             }
 
-            // Fissuration profonde et rupture de cohésion dans la structure sèche (haut, bas et diagonales)
-            if (isDry && rng() < 0.75) {
-              const fissureLen = 4 + Math.floor(rng() * 5);
+            // Fissuration profonde et rupture de cohésion (amplifiée pour le boulet à pointes)
+            if ((isDry || isSpike) && rng() < (isSpike ? 0.90 : 0.75)) {
+              const fissureLen = (isSpike ? 6 : 4) + Math.floor(rng() * 5);
               const dirY = rng() < 0.35 ? 1 : -1;
               const dirX = nx > 0 ? 1 : (nx < 0 ? -1 : (rng() < 0.5 ? -1 : 1));
               let fy = cy + dirY;
@@ -1004,7 +1061,7 @@ export class SandWorld {
                 if (rng() < 0.4) fx += (rng() < 0.5 ? -1 : 1);
                 const fi = fy * W + fx;
                 if (isStructural(type[fi])) {
-                  damage[fi] = Math.min(255, damage[fi] + 115);
+                  damage[fi] = Math.min(255, damage[fi] + (isSpike ? 150 : 115));
                   if (rng() < 0.85) {
                     type[fi] = rng() < 0.5 ? DRY : LOOSE;
                     this.vel[fi] = 0.5;
@@ -1019,15 +1076,19 @@ export class SandWorld {
         }
       }
     }
-    const lump = Math.round(Math.PI * ballR * ballR * 0.8);
-    for (let k = 0; k < lump; k++) {
-      const a = rng() * Math.PI * 2;
-      const rr = Math.sqrt(rng()) * ballR;
-      this.spawnParticle(
-        x - nx * ballR + Math.cos(a) * rr, y - ny * ballR + Math.sin(a) * rr,
-        vx * 0.15 + Math.cos(a) * rng() * 0.8, vy * 0.05 - rng() * 1.2,
-        rng() < 0.5 ? LOOSE : DRY,
-      );
+    // Le boulet de sable s'éparpille et dépose du sable au point d'impact
+    // Le boulet en fer ou à pointes ne génère pas de sable additionnel
+    if (isSandBall) {
+      const lump = Math.round(Math.PI * ballR * ballR * 0.8);
+      for (let k = 0; k < lump; k++) {
+        const a = rng() * Math.PI * 2;
+        const rr = Math.sqrt(rng()) * ballR;
+        this.spawnParticle(
+          x - nx * ballR + Math.cos(a) * rr, y - ny * ballR + Math.sin(a) * rr,
+          vx * 0.15 + Math.cos(a) * rng() * 0.8, vy * 0.05 - rng() * 1.2,
+          rng() < 0.5 ? LOOSE : DRY,
+        );
+      }
     }
     this.events.push({ type: 'impact', x, y, r: R, speed, isSpike });
     this.structDirty = true;
@@ -1155,6 +1216,37 @@ export class SandWorld {
         k.fallStart = -1;
         k.vy = 0;
         this.events.push({ type: 'kingLand', fall });
+      }
+
+      // Déplacement autonome d'idle dans sa salle de sable si libre et solide sous ses pieds
+      if (!k.dead && !this.drying) {
+        k.idleTimer = (k.idleTimer || 0) + 1;
+        if (k.idleTimer >= 200) {
+          k.idleTimer = Math.floor(this.rng() * 60);
+          const dir = this.rng() < 0.5 ? -1 : 1;
+          const targetX = k.x + dir;
+          if (targetX >= BUILD_MIN_X && targetX + KING_W <= BUILD_MAX_X) {
+            let freeCol = true;
+            const checkX = dir > 0 ? k.x + KING_W : k.x - 1;
+            for (let y = 0; y < KING_H; y++) {
+              const t = this.type[(k.y + y) * W + checkX];
+              if (t !== EMPTY) { freeCol = false; break; }
+            }
+            let solidBelow = false;
+            for (let x = 0; x < KING_W; x++) {
+              const t = this.type[(k.y + KING_H) * W + targetX + x];
+              if (t !== EMPTY) { solidBelow = true; break; }
+            }
+            if (freeCol && solidBelow) {
+              this.clearKingCells();
+              k.x = targetX;
+              this.writeKingCells();
+              this.structDirty = true;
+              this.quietTicks = 0;
+              return 1;
+            }
+          }
+        }
       }
       return 0;
     }
@@ -1538,6 +1630,10 @@ export class SandWorld {
           r: this.ball.r,
           spike: !!this.ball.spike,
           grenade: !!this.ball.grenade,
+          iron: !!this.ball.iron,
+          acid: !!this.ball.acid,
+          sand: !!this.ball.sand,
+          type: this.ball.type || (this.ball.acid ? 'acid' : this.ball.grenade ? 'grenade' : this.ball.spike ? 'spike' : this.ball.iron ? 'iron' : 'sand'),
           landed: !!this.ball.landed,
           fuseTicks: this.ball.fuseTicks || 0,
         }

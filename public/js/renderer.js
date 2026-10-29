@@ -90,7 +90,8 @@ export class Renderer {
       ballSpike: this._loadSprite('/assets/sprites/ball_spike.png'),
       bonusRainCloud: this._loadSprite('/assets/sprites/bonus_rain_cloud.png'),
       bonusSun: this._loadSprite('/assets/sprites/bonus_sun.png'),
-      potionFlask: this._loadSprite('/assets/sprites/potion_flask.png'),
+      potionFlask: this._loadSprite('/assets/sprites/ball_poison.png'),
+      ballPoison: this._loadSprite('/assets/sprites/ball_poison.png'),
       toolSpray: this._loadSprite('/assets/sprites/tool_spray.png'),
       toolTrowel: this._loadSprite('/assets/sprites/tool_trowel.png'),
       toolSpoon: this._loadSprite('/assets/sprites/tool_spoon.png'),
@@ -114,10 +115,19 @@ export class Renderer {
   _getBonusSprite(type) {
     if (!this.sprites) return null;
     switch (type) {
+      case 'sand':
+        return this.sprites.ballSand;
+      case 'iron':
+      case 'ironBall':
+        return this.sprites.ballMetal || this.sprites.ballDark;
+      case 'heavySpikeBall':
+      case 'spike':
+        return this.sprites.ballSpike;
       case 'grenade':
         return this.sprites.bomb;
-      case 'heavySpikeBall':
-        return this.sprites.ballSpike;
+      case 'acid':
+      case 'acidBall':
+        return this.sprites.potionFlask;
       case 'ammo':
         return this.sprites.ballMetal || this.sprites.ballDark;
       case 'spray':
@@ -328,7 +338,7 @@ export class Renderer {
       ctx.fill();
     }
 
-    // mouettes animées dans le ciel
+    // mouettes animées dans le ciel (corps parfaitement centré et stable)
     const gullSprites = [this.sprites?.seagull1, this.sprites?.seagull2, this.sprites?.seagull3].filter(
       (s) => s && s.complete && s.naturalWidth > 0
     );
@@ -338,7 +348,7 @@ export class Renderer {
       if (gullSprites.length === 3) {
         const frameIdx = Math.floor((t * 0.007 + g.phase * 2) % 3);
         const spr = gullSprites[frameIdx];
-        const gw = 18 * this.dpr;
+        const gw = 22 * this.dpr;
         const gh = gw * (spr.naturalHeight / spr.naturalWidth);
         ctx.drawImage(spr, gx - gw / 2, gy - gh / 2, gw, gh);
       } else {
@@ -354,42 +364,14 @@ export class Renderer {
       }
     }
 
-    // navires à l'horizon (petit voilier et grand galion majestueux)
-    const bSmall = this.sprites?.boatSmall;
+    // Grand galion majestueux à l'horizon (flotte fièrement à la surface sans couler)
     const bLarge = this.sprites?.boatLarge;
-    const boatX = (((0.65 + t * 0.000004) % 1.1) - 0.05) * cw;
-    const boatY = hy - 1 * this.dpr;
-
     if (bLarge && bLarge.complete && bLarge.naturalWidth > 0) {
       const largeX = (((0.18 + t * 0.000002) % 1.1) - 0.05) * cw;
       const largeBob = Math.sin(t * 0.001) * 1.5 * this.dpr;
-      const lw = 36 * this.dpr;
+      const lw = 38 * this.dpr;
       const lh = lw * (bLarge.naturalHeight / bLarge.naturalWidth);
-      ctx.drawImage(bLarge, largeX - lw / 2, hy - lh * 0.85 + largeBob, lw, lh);
-    }
-
-    if (bSmall && bSmall.complete && bSmall.naturalWidth > 0) {
-      const smallBob = Math.sin(t * 0.002 + 1) * 1.0 * this.dpr;
-      const sw = 22 * this.dpr;
-      const sh = sw * (bSmall.naturalHeight / bSmall.naturalWidth);
-      ctx.drawImage(bSmall, boatX - sw / 2, boatY - sh * 0.85 + smallBob, sw, sh);
-    } else {
-      ctx.fillStyle = '#fff9f0';
-      ctx.beginPath();
-      ctx.moveTo(boatX, boatY - 14 * this.dpr);
-      ctx.lineTo(boatX + 9 * this.dpr, boatY - 2 * this.dpr);
-      ctx.lineTo(boatX, boatY - 2 * this.dpr);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = '#e4572e';
-      ctx.beginPath();
-      ctx.moveTo(boatX - 1 * this.dpr, boatY - 12 * this.dpr);
-      ctx.lineTo(boatX - 7 * this.dpr, boatY - 2 * this.dpr);
-      ctx.lineTo(boatX - 1 * this.dpr, boatY - 2 * this.dpr);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = '#5a3a1e';
-      ctx.fillRect(boatX - 8 * this.dpr, boatY - 2 * this.dpr, 18 * this.dpr, 3 * this.dpr);
+      ctx.drawImage(bLarge, largeX - lw / 2, hy - lh * 0.96 + largeBob, lw, lh);
     }
 
     // mer
@@ -401,6 +383,11 @@ export class Renderer {
     ctx.fillRect(0, hy, cw, shoreY - hy + 2);
     ctx.strokeStyle = 'rgba(255,255,255,0.38)';
     ctx.lineWidth = Math.max(1, s * 0.5);
+
+    // Vagues de mer et petit bateau sur la 3ème ligne de vagues (plus proche de la caméra)
+    const bSmall = this.sprites?.boatSmall;
+    const boatX = (((0.62 + t * 0.000006) % 1.1) - 0.05) * cw;
+
     for (let k = 0; k < 7; k++) {
       const yy = hy + ((k + 0.5) / 7) ** 1.6 * (shoreY - hy);
       const amp = (1 + k * 0.6) * this.dpr;
@@ -413,6 +400,42 @@ export class Renderer {
       }
       ctx.globalAlpha = 0.25 + k * 0.06;
       ctx.stroke();
+
+      // Dessin du petit bateau naviguant sur la 3ème rangée de vague (k = 2)
+      if (k === 2) {
+        ctx.save();
+        ctx.globalAlpha = 1;
+        const waveBob = Math.sin(boatX * 0.012 / this.dpr + ph) * amp;
+        const boatY = yy + waveBob;
+
+        if (bSmall && bSmall.complete && bSmall.naturalWidth > 0) {
+          const sw = 28 * this.dpr;
+          const sh = sw * (bSmall.naturalHeight / bSmall.naturalWidth);
+          // Légère gîte du voilier avec la vague
+          const tilt = Math.cos(boatX * 0.012 / this.dpr + ph) * 0.06;
+          ctx.translate(boatX, boatY);
+          ctx.rotate(tilt);
+          ctx.drawImage(bSmall, -sw / 2, -sh * 0.94, sw, sh);
+        } else {
+          ctx.fillStyle = '#fff9f0';
+          ctx.beginPath();
+          ctx.moveTo(boatX, boatY - 16 * this.dpr);
+          ctx.lineTo(boatX + 11 * this.dpr, boatY - 2 * this.dpr);
+          ctx.lineTo(boatX, boatY - 2 * this.dpr);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = '#e4572e';
+          ctx.beginPath();
+          ctx.moveTo(boatX - 1 * this.dpr, boatY - 14 * this.dpr);
+          ctx.lineTo(boatX - 8 * this.dpr, boatY - 2 * this.dpr);
+          ctx.lineTo(boatX - 1 * this.dpr, boatY - 2 * this.dpr);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = '#5a3a1e';
+          ctx.fillRect(boatX - 10 * this.dpr, boatY - 2 * this.dpr, 22 * this.dpr, 3.5 * this.dpr);
+        }
+        ctx.restore();
+      }
     }
     ctx.globalAlpha = 1;
 
@@ -653,50 +676,51 @@ export class Renderer {
       ctx.restore();
     }
 
-    // C. Munition spéciale dans le godet (grenade ou boule à piques)
-    // (Le boulet classique en pierre est déjà dessiné dans le godet du sprite de bras !)
-    if (c.loaded && (ammoType === 'grenade' || ammoType === 'heavySpikeBall')) {
-      const bRad = (ammoType === 'grenade' ? 2.5 : 3.4) * s;
+    // C. Munition dans le godet (sable de base, ou munition spéciale : fer, grenade, pointes, acide)
+    if (c.loaded) {
+      const isSpike = ammoType === 'heavySpikeBall' || ammoType === 'spike';
+      const isGrenade = ammoType === 'grenade';
+      const isAcid = ammoType === 'acid' || ammoType === 'acidBall';
+      const isIron = ammoType === 'iron' || ammoType === 'ironBall';
+      const isSand = !isSpike && !isGrenade && !isAcid && !isIron;
+
+      const bRad = (isGrenade ? 2.5 : isSpike ? 3.4 : isAcid ? 3.0 : 2.7) * s;
       const ballX = X(tx);
       const ballY = Y(ty - 1.2);
 
-      if (ammoType === 'grenade') {
-        const bombSpr = this.sprites?.bomb;
-        if (bombSpr && bombSpr.complete && bombSpr.naturalWidth > 0) {
-          const bw = bRad * 2.2;
-          const bh = bw * (bombSpr.naturalHeight / bombSpr.naturalWidth);
-          ctx.drawImage(bombSpr, ballX - bw / 2, ballY - bh * 0.6, bw, bh);
-        } else {
-          ctx.fillStyle = '#15803d';
+      const spr = isAcid
+        ? this.sprites?.potionFlask
+        : isGrenade
+          ? this.sprites?.bomb
+          : isSpike
+            ? this.sprites?.ballSpike
+            : isIron
+              ? (this.sprites?.ballMetal || this.sprites?.ballDark)
+              : this.sprites?.ballSand;
+
+      if (spr && spr.complete && spr.naturalWidth > 0) {
+        const bw = bRad * 2.2;
+        const bh = bw * (spr.naturalHeight / spr.naturalWidth);
+        ctx.drawImage(spr, ballX - bw / 2, ballY - bh * (isAcid ? 0.65 : 0.55), bw, bh);
+      } else if (isGrenade) {
+        ctx.fillStyle = '#15803d';
+        ctx.beginPath();
+        ctx.arc(ballX, ballY, bRad, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#052e16';
+        ctx.lineWidth = 1.1 * this.dpr;
+        ctx.stroke();
+      } else if (isSpike) {
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath();
+        ctx.arc(ballX, ballY, bRad, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#cbd5e1';
+        for (let sp = 0; sp < 6; sp++) {
+          const sa = (sp * Math.PI) / 3;
           ctx.beginPath();
-          ctx.arc(ballX, ballY, bRad, 0, Math.PI * 2);
+          ctx.arc(ballX + Math.cos(sa) * bRad * 1.2, ballY + Math.sin(sa) * bRad * 1.2, 1 * s, 0, Math.PI * 2);
           ctx.fill();
-          ctx.strokeStyle = '#052e16';
-          ctx.lineWidth = 1.1 * this.dpr;
-          ctx.stroke();
-          // Mèche qui crépite
-          ctx.fillStyle = Math.sin(performance.now() * 0.03) > 0 ? '#ef4444' : '#facc15';
-          ctx.beginPath();
-          ctx.arc(ballX, ballY - bRad - 1.0 * s, 1.0 * s, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      } else if (ammoType === 'heavySpikeBall') {
-        const spikeSpr = this.sprites?.ballSpike;
-        if (spikeSpr && spikeSpr.complete && spikeSpr.naturalWidth > 0) {
-          const size = bRad * 2.3;
-          ctx.drawImage(spikeSpr, ballX - size / 2, ballY - size / 2, size, size);
-        } else {
-          ctx.fillStyle = '#1e293b';
-          ctx.beginPath();
-          ctx.arc(ballX, ballY, bRad, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = '#cbd5e1';
-          for (let sp = 0; sp < 6; sp++) {
-            const sa = (sp * Math.PI) / 3;
-            ctx.beginPath();
-            ctx.arc(ballX + Math.cos(sa) * bRad * 1.2, ballY + Math.sin(sa) * bRad * 1.2, 1 * s, 0, Math.PI * 2);
-            ctx.fill();
-          }
         }
       }
     }
@@ -889,9 +913,12 @@ export class Renderer {
       W: '#f7f3ea',
       D: '#4a3524',
     };
+    const blinkCycle = (t + (king.x || 0) * 179) % 3800;
+    const isBlinking = !dead && (blinkCycle < 140 || (blinkCycle > 260 && blinkCycle < 360 && ((king.x || 0) % 2 === 0)));
+    const eyeLine = dead ? 'EsEsE' : (isBlinking ? 'SSSSS' : 'SESES');
     const sprite = dead
-      ? ['Y.Y.Y', 'yYyYy', 'SSSSS', 'EsEsE', 'CWWWC', 'CCcCC', 'cCCCc', 'D...D']
-      : ['Y.Y.Y', 'YyYyY', 'SSSSS', 'SESES', 'CWWWC', 'CCcCC', 'cCCCc', '.D.D.'];
+      ? ['Y.Y.Y', 'yYyYy', 'SSSSS', eyeLine, 'CWWWC', 'CCcCC', 'cCCCc', 'D...D']
+      : ['Y.Y.Y', 'YyYyY', 'SSSSS', eyeLine, 'CWWWC', 'CCcCC', 'cCCCc', '.D.D.'];
     for (let y = 0; y < KING_H; y++) {
       for (let x = 0; x < KING_W; x++) {
         let ch = sprite[y][x];
@@ -994,7 +1021,26 @@ export class Renderer {
       const gx = ox + b.x * s;
       const gy = oy + b.y * s;
       const grad = ctx.createRadialGradient(gx - b.r * s * 0.4, gy - b.r * s * 0.4, b.r * s * 0.1, gx, gy, b.r * s);
-      if (b.grenade) {
+      if (b.acid || b.type === 'acid') {
+        // FIOLE D'ACIDE CORROSIF
+        const flaskSpr = this.sprites?.potionFlask;
+        const fr = b.r * s;
+        if (flaskSpr && flaskSpr.complete && flaskSpr.naturalWidth > 0) {
+          ctx.save();
+          ctx.translate(gx, gy);
+          const rot = (b.vx || b.vy) ? Math.atan2(b.vy || 0, b.vx || 1) + Math.PI / 2 : (b.age || 0) * 0.15;
+          ctx.rotate(rot);
+          const fw = fr * 2.5;
+          const fh = fw * (flaskSpr.naturalHeight / flaskSpr.naturalWidth);
+          ctx.drawImage(flaskSpr, -fw / 2, -fh / 2, fw, fh);
+          ctx.restore();
+        } else {
+          ctx.fillStyle = '#22c55e';
+          ctx.beginPath();
+          ctx.arc(gx, gy, fr, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (b.grenade || b.type === 'grenade') {
         // GRENADE MILITAIRE À MÈCHE / MINUTERIE RETARDÉE
         const grR = b.r * s;
         const bombSpr = this.sprites?.bomb;
@@ -1065,7 +1111,7 @@ export class Renderer {
           ctx.fillStyle = flash ? '#ef4444' : '#facc15';
           ctx.fillText(`💣 ${timeLeftSec}s`, gx, gy - grR - 6.5 * s);
         }
-      } else if (b.spike) {
+      } else if (b.spike || b.type === 'spike') {
         // Boulet d'acier lourd avec des pics acérés !
         const spikeSpr = this.sprites?.ballSpike;
         if (spikeSpr && spikeSpr.complete && spikeSpr.naturalWidth > 0) {
@@ -1103,14 +1149,31 @@ export class Renderer {
             ctx.fill();
           }
         }
-      } else {
+      } else if (b.iron || b.type === 'iron') {
+        // Boulet en fer poli (impact net sans ajouter de sable)
         const metalSpr = this.sprites?.ballMetal || this.sprites?.ballDark;
         if (metalSpr && metalSpr.complete && metalSpr.naturalWidth > 0) {
           ctx.save();
           ctx.translate(gx, gy);
           ctx.rotate((b.age || 0) * 0.08);
-          const size = b.r * s * 2.2;
+          const size = b.r * s * 2.3;
           ctx.drawImage(metalSpr, -size / 2, -size / 2, size, size);
+          ctx.restore();
+        } else {
+          ctx.fillStyle = '#475569';
+          ctx.beginPath();
+          ctx.arc(gx, gy, b.r * s, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else {
+        // Boulet de sable granulaire (boulet de base classique)
+        const sandSpr = this.sprites?.ballSand;
+        if (sandSpr && sandSpr.complete && sandSpr.naturalWidth > 0) {
+          ctx.save();
+          ctx.translate(gx, gy);
+          ctx.rotate((b.age || 0) * 0.07);
+          const size = b.r * s * 2.3;
+          ctx.drawImage(sandSpr, -size / 2, -size / 2, size, size);
           ctx.restore();
         } else {
           const grad = ctx.createRadialGradient(
@@ -1320,6 +1383,9 @@ export class Renderer {
         const ph = pw * (pBagSpr.naturalHeight / pBagSpr.naturalWidth);
         const iconSize = 5.2 * s;
 
+        // Positionnement Y du centre de la panse du sac
+        const bagCenterY = 1.95 * s;
+
         if (!inWater) {
           // En vol : balancement très doux et naturel avec le vent
           const sway = Math.sin(t * 0.0025 + d.x * 0.3) * 0.09;
@@ -1329,21 +1395,21 @@ export class Renderer {
           // Dessin du parachute complet avec son sac
           ctx.drawImage(pBagSpr, -pw / 2, -ph * 0.74, pw, ph);
 
-          // Icône du bonus dessinée bien nette directement sur le sac noué
+          // Icône du bonus dessinée bien nette directement au centre du sac noué
           if (bonusSpr && bonusSpr.complete && bonusSpr.naturalWidth > 0) {
             ctx.save();
             ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
             ctx.shadowBlur = 4 * this.dpr;
             const iw = iconSize;
             const ih = iw * (bonusSpr.naturalHeight / bonusSpr.naturalWidth);
-            ctx.drawImage(bonusSpr, -iw / 2, 0.2 * s - ih / 2, iw, ih);
+            ctx.drawImage(bonusSpr, -iw / 2, bagCenterY - ih / 2, iw, ih);
             ctx.restore();
           } else {
             const icon = d.type === 'grenade' ? '💣' : d.type === 'heavySpikeBall' ? '💣' : d.type === 'dryOpponent' ? '☀️' : d.type === 'wetAll' ? '💦' : '☄️';
             ctx.font = `bold ${Math.max(8, Math.round(5 * s))}px sans-serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(icon, 0, 0.2 * s);
+            ctx.fillText(icon, 0, bagCenterY);
           }
         } else {
           // Flottant sur l'eau
@@ -1353,7 +1419,7 @@ export class Renderer {
           ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
           ctx.lineWidth = Math.max(1, 1.2 * this.dpr);
           ctx.beginPath();
-          ctx.ellipse(0, 1.5 * s, 6.5 * s, 2 * s, 0, 0, Math.PI * 2);
+          ctx.ellipse(0, bagCenterY, 6.5 * s, 2 * s, 0, 0, Math.PI * 2);
           ctx.stroke();
 
           ctx.save();
@@ -1366,7 +1432,7 @@ export class Renderer {
             ctx.shadowBlur = 4 * this.dpr;
             const iw = iconSize;
             const ih = iw * (bonusSpr.naturalHeight / bonusSpr.naturalWidth);
-            ctx.drawImage(bonusSpr, -iw / 2, 0.2 * s - ih / 2, iw, ih);
+            ctx.drawImage(bonusSpr, -iw / 2, bagCenterY - ih / 2, iw, ih);
           }
           ctx.restore();
 
@@ -1712,7 +1778,7 @@ export class Renderer {
           const spriteW = 32 * s;
           const spriteH = (819 / 786) * spriteW;
           const drawX = targetX - spriteW * 0.72;
-          const drawY = targetY - spriteH * 0.94 + bob;
+          const drawY = targetY - spriteH * 1.12 + bob;
 
           ctx.globalAlpha = alpha;
           ctx.drawImage(pourImg, drawX, drawY, spriteW, spriteH);
@@ -1735,7 +1801,7 @@ export class Renderer {
           const spriteW = 32 * s;
           const spriteH = (842 / 783) * spriteW;
           const drawX = targetX - spriteW * 0.46;
-          const drawY = targetY - spriteH * 0.92 + liftY;
+          const drawY = targetY - spriteH * 1.08 + liftY;
 
           ctx.globalAlpha = Math.max(0, alpha);
           ctx.drawImage(liftImg, drawX, drawY, spriteW, spriteH);
@@ -1817,14 +1883,14 @@ export class Renderer {
       if (holdImg && holdImg.complete && holdImg.naturalWidth > 0 && placeImg && placeImg.complete && placeImg.naturalWidth > 0) {
         ctx.save();
         if (p < 0.45) {
-          // Phase 1 : Descend avec la poignée de sable (pate_hold)
+          // Phase 1 : Descend avec la poignée de sable (pate_hold) - un peu plus haut et à gauche
           const t = p / 0.45;
           const alpha = Math.min(1, t * 3.5);
           const dropY = (1 - t) * -14 * s;
           const spriteW = 26 * s;
           const spriteH = (423 / 566) * spriteW;
-          const drawX = targetX - spriteW * 0.52;
-          const drawY = targetY - spriteH * 0.85 + dropY;
+          const drawX = targetX - spriteW * 0.68;
+          const drawY = targetY - spriteH * 1.05 + dropY;
 
           ctx.globalAlpha = alpha;
           ctx.drawImage(holdImg, drawX, drawY, spriteW, spriteH);
@@ -1839,14 +1905,14 @@ export class Renderer {
             ctx.fill();
           }
         } else {
-          // Phase 2 : Tapote et façonne le pâté (pate_place)
+          // Phase 2 : Tapote et façonne le pâté (pate_place) - un peu plus haut et à gauche
           const t = (p - 0.45) / 0.55;
           const tap = Math.sin(t * Math.PI * 4) * 2.2 * s;
           const alpha = t > 0.75 ? (1 - t) / 0.25 : 1.0;
           const spriteW = 27 * s;
           const spriteH = (290 / 529) * spriteW;
-          const drawX = targetX - spriteW * 0.55;
-          const drawY = targetY - spriteH * 0.65 + tap;
+          const drawX = targetX - spriteW * 0.70;
+          const drawY = targetY - spriteH * 0.82 + tap;
 
           ctx.globalAlpha = Math.max(0, alpha);
           ctx.drawImage(placeImg, drawX, drawY, spriteW, spriteH);
@@ -2090,6 +2156,22 @@ export class Renderer {
           title: 'DÉLUGE BÉNI : CHÂTEAU FORTIFIÉ',
           color: '#67e8f9',
           bgColor: 'rgba(8, 145, 178, 0.95)',
+        };
+      case 'iron':
+      case 'ironBall':
+        return {
+          icon: '⚔️',
+          title: 'BOULET EN FER (IMPACT NET)',
+          color: '#cbd5e1',
+          bgColor: 'rgba(51, 65, 85, 0.95)',
+        };
+      case 'acid':
+      case 'acidBall':
+        return {
+          icon: '🧪',
+          title: 'FIOLE D\'ACIDE (RONGE LE SABLE)',
+          color: '#4ade80',
+          bgColor: 'rgba(20, 83, 45, 0.95)',
         };
       case 'dryOpponent':
         return {

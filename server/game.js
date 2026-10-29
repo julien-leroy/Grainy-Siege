@@ -398,22 +398,27 @@ export class Room {
     const w = target.world;
     w.wind = t.wind;
     w.ballScale = 1 + this.round * CONFIG.ballGrowthPerRound;
-    const isSpike = !!shooter?.hasSpikeBall;
+    const isAcid = !!shooter?.hasAcidBall;
     const isGrenade = !!shooter?.hasGrenade;
+    const isSpike = !!shooter?.hasSpikeBall;
+    const isIron = !!shooter?.hasIronBall;
     if (shooter) {
-      shooter.hasSpikeBall = false;
+      shooter.hasAcidBall = false;
       shooter.hasGrenade = false;
+      shooter.hasSpikeBall = false;
+      shooter.hasIronBall = false;
     }
     const launchX = catSide === 'right' ? (GRID_W - LAUNCH_X) : LAUNCH_X;
     const v = launchVelocity(a, pw);
     if (catSide === 'right') v.vx = -v.vx; // Tire de droite à gauche !
-    w.launch(launchX, LAUNCH_Y, v.vx, v.vy, isSpike, isGrenade);
+    w.launch(launchX, LAUNCH_Y, v.vx, v.vy, isSpike, isGrenade, isIron, isAcid);
     t.shotsLeft--;
     shooter.ammoStock = t.shotsLeft;
     t.state = 'flight';
     t.firedAt = Date.now();
     t.aim = { angle: a, power: pw, side: catSide };
-    this.io.to(this.channel).emit('fx', { type: 'fire', pid: target.id, angle: a, power: pw, side: catSide, isSpike, isGrenade });
+    const ammoType = isAcid ? 'acid' : isGrenade ? 'grenade' : isSpike ? 'heavySpikeBall' : isIron ? 'iron' : 'sand';
+    this.io.to(this.channel).emit('fx', { type: 'fire', pid: target.id, angle: a, power: pw, side: catSide, isSpike, isGrenade, isIron, isAcid, ammoType });
     this.dirtyState = true;
     return true;
   }
@@ -814,6 +819,14 @@ export class Room {
       p.hasSpikeBall = true;
       this.say(`💣 ARSENAL ! ${p.name} prépare un BOULET D'ACIER À POINTES ultra destructeur !`);
       this.io.to(this.channel).emit('fx', { type: 'heavySpikeBall', pid: p.id });
+    } else if (d.type === 'iron' || d.type === 'ironBall') {
+      p.hasIronBall = true;
+      this.say(`⚔️ ARSENAL ! ${p.name} arme un BOULET EN FER MASSIF (impact net sans ajout de sable) !`);
+      this.io.to(this.channel).emit('fx', { type: 'ironBallEquipped', pid: p.id });
+    } else if (d.type === 'acid' || d.type === 'acidBall') {
+      p.hasAcidBall = true;
+      this.say(`🧪 CHIMIE ROYALE ! ${p.name} arme une FIOLE D'ACIDE CORROSIF !`);
+      this.io.to(this.channel).emit('fx', { type: 'acidEquipped', pid: p.id });
     } else if (d.type === 'grenade') {
       p.hasGrenade = true;
       this.say(`🧨 ARSENAL LOURD ! ${p.name} arme une GRENADE À RETARDEMENT DE 2 SECONDES !`);
@@ -847,24 +860,32 @@ export class Room {
     let type;
     const currentRound = this.round + 1;
     if (currentRound < 5) {
-      // Tours 1 à 4 : boulet supplémentaire (65%) et dose de spray de renfort (35%)
-      type = rand < 0.65 ? 'ammo' : 'spray';
+      // Tours 1 à 4 : boulet fer (35%), réserve boulet (35%), dose de spray de renfort (30%)
+      const sub = rand;
+      if (sub < 0.35) type = 'iron';
+      else if (sub < 0.70) type = 'ammo';
+      else type = 'spray';
     } else {
-      // Tour 5 et + : apparition des bonus lourds (grenade, boulet pointes, et les 2 légendaires rares)
-      const rareChance = Math.min(0.70, 0.35 + (currentRound - 5) * 0.08);
+      // Tour 5 et + : apparition des bonus lourds (grenade, boulet pointes, acide, et les 2 légendaires rares)
+      const rareChance = Math.min(0.75, 0.40 + (currentRound - 5) * 0.08);
       if (rand < rareChance) {
         const sub = rand / rareChance;
-        if (sub < 0.38) {
+        if (sub < 0.28) {
           type = 'grenade';
-        } else if (sub < 0.76) {
+        } else if (sub < 0.54) {
           type = 'heavySpikeBall';
-        } else if (sub < 0.88) {
+        } else if (sub < 0.78) {
+          type = 'acid'; // Fiole d'acide rongeur
+        } else if (sub < 0.89) {
           type = 'wetAll'; // Rare légendaire : arrose et durcit tout
         } else {
           type = 'dryOpponent'; // Rare légendaire : assèche tout le château adverse
         }
       } else {
-        type = (rand - rareChance) / (1 - rareChance) < 0.60 ? 'ammo' : 'spray';
+        const sub = (rand - rareChance) / (1 - rareChance);
+        if (sub < 0.38) type = 'iron';
+        else if (sub < 0.72) type = 'ammo';
+        else type = 'spray';
       }
     }
     const x = 85 + this.rng() * 160;
@@ -883,11 +904,13 @@ export class Room {
     this.drops.push(drop);
     this.dirtyState = true;
     const typeLabels = {
-      ammo: '☄️ +1 Boulet en réserve',
+      ammo: '☄️ +1 Tir en réserve',
+      iron: '⚔️ Boulet en fer massif (impact net)',
+      acid: '🧪 Fiole d\'acide corrosif (ronge le sable)',
       spray: '💦 +1 Dose de Spray en réserve',
       dryOpponent: '☀️ LÉGENDAIRE : Sécheresse Apocalyptique',
       wetAll: '🌊 LÉGENDAIRE : Déluge Béni Royal',
-      heavySpikeBall: '💣 Boulet d\'acier à pointes',
+      heavySpikeBall: '💣 Boulet d\'acier à pointes (fissures)',
       grenade: '🧨 RARE : Grenade à retardement',
     };
     this.say(`🎈 Un colis parachuté (${typeLabels[type]}) descend en mer ! Vise-le au canon ☄️ !`);
