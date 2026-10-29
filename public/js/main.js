@@ -588,6 +588,7 @@ function resetAllGameData() {
   aim.dragging = false;
   aim.power = 0.5;
   aim.angle = (45 * Math.PI) / 180;
+  if (isCharging) sfx.stopCharge();
   isCharging = false;
   chargeStartTime = 0;
   currentChargePower = 0.5;
@@ -1957,9 +1958,8 @@ function startCharging() {
   chargeStartTime = performance.now();
   currentChargePower = 0.0;
   if (fireTriggerBtn) fireTriggerBtn.classList.add('charging');
-  if (triggerLabel) triggerLabel.textContent = '⚡ DOSAGE EN COURS...';
-  sfx.winch(0.15);
-  lastWinchTick = performance.now();
+  if (triggerLabel) triggerLabel.textContent = 'Charge...';
+  sfx.startCharge(0.0);
 
   function chargeLoop(now) {
     if (!isCharging) return;
@@ -1982,10 +1982,7 @@ function startCharging() {
     aim.power = currentChargePower;
     socket.emit('aim', { angle: aim.angle, power: aim.power, side: myCatapultSide });
 
-    if (now - lastWinchTick > 140) {
-      sfx.winch(currentChargePower);
-      lastWinchTick = now;
-    }
+    sfx.setChargePower(currentChargePower);
     chargeRafId = requestAnimationFrame(chargeLoop);
   }
   chargeRafId = requestAnimationFrame(chargeLoop);
@@ -1995,6 +1992,7 @@ function releaseAndFire() {
   if (!isCharging) return;
   isCharging = false;
   if (chargeRafId) cancelAnimationFrame(chargeRafId);
+  sfx.stopCharge();
   if (fireTriggerBtn) fireTriggerBtn.classList.remove('charging');
   if (triggerLabel) triggerLabel.textContent = 'Tirer !!';
 

@@ -12,6 +12,7 @@ let sfxGain = null;
 let muted = localStorage.getItem('sc-muted') === '1';
 let noiseBuf = null;
 let seagullTimer = null;
+let chargeAudio = null;
 
 function ensure() {
   if (ctx) return ctx;
@@ -274,7 +275,150 @@ export const sfx = {
     tone(261, 0.65, { type: 'sawtooth', gain: 0.18, delay: 0.66, freqEnd: 185 });
   },
 
-  // 10. Catapulte et Tirs
+  // 10. Catapulte et Tirs : Sound design dynamique de tension (torsion du bois, cordes de chanvre, cliquets)
+  startCharge(initialPower = 0) {
+    if (!ensure()) return;
+    this.stopCharge();
+
+    const t = ctx.currentTime;
+
+    // Bus local de la charge
+    const chargeBus = ctx.createGain();
+    chargeBus.gain.setValueAtTime(0.001, t);
+    chargeBus.gain.linearRampToValueAtTime(0.38, t + 0.08);
+    chargeBus.connect(sfxGain || master);
+
+    // 1. Torsion sourde du bois de la catapulte (Sub-rumble + résonance de châssis)
+    const woodOsc = ctx.createOscillator();
+    woodOsc.type = 'triangle';
+    woodOsc.frequency.setValueAtTime(65, t);
+
+    const woodFilter = ctx.createBiquadFilter();
+    woodFilter.type = 'lowpass';
+    woodFilter.frequency.setValueAtTime(140, t);
+    woodFilter.Q.setValueAtTime(2.2, t);
+
+    const woodGain = ctx.createGain();
+    woodGain.gain.setValueAtTime(0.28, t);
+    woodOsc.connect(woodFilter).connect(woodGain).connect(chargeBus);
+
+    // 2. Tension aiguë des cordes de chanvre (Tension strain / creak qui monte en hauteur)
+    const ropeOsc = ctx.createOscillator();
+    ropeOsc.type = 'sawtooth';
+    ropeOsc.frequency.setValueAtTime(120, t);
+
+    // LFO de tremblement/vibration mécanique sous la contrainte (vibrato de force)
+    const lfo = ctx.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.setValueAtTime(7, t);
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.setValueAtTime(14, t);
+    lfo.connect(lfoGain).connect(ropeOsc.frequency);
+
+    const ropeFilter = ctx.createBiquadFilter();
+    ropeFilter.type = 'bandpass';
+    ropeFilter.frequency.setValueAtTime(450, t);
+    ropeFilter.Q.setValueAtTime(4.0, t);
+
+    const ropeGain = ctx.createGain();
+    ropeGain.gain.setValueAtTime(0.16, t);
+    ropeOsc.connect(ropeFilter).connect(ropeGain).connect(chargeBus);
+
+    // 3. Frottement granulaire des fibres de bois & cordes (Bruit filtré qui crisse)
+    const noiseSrc = ctx.createBufferSource();
+    noiseSrc.buffer = noiseBuf;
+    noiseSrc.loop = true;
+
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.setValueAtTime(750, t);
+    noiseFilter.Q.setValueAtTime(3.0, t);
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.04, t);
+    noiseSrc.connect(noiseFilter).connect(noiseGain).connect(chargeBus);
+
+    // Démarrer les générateurs
+    woodOsc.start(t);
+    ropeOsc.start(t);
+    lfo.start(t);
+    noiseSrc.start(t);
+
+    chargeAudio = {
+      bus: chargeBus,
+      woodOsc,
+      woodFilter,
+      woodGain,
+      ropeOsc,
+      ropeFilter,
+      ropeGain,
+      lfo,
+      lfoGain,
+      noiseSrc,
+      noiseFilter,
+      noiseGain,
+      lastRatchetTick: 0,
+    };
+
+    this.setChargePower(initialPower);
+  },
+
+  setChargePower(power) {
+    if (!chargeAudio || !ctx) return;
+    const p = Math.max(0, Math.min(1, power));
+    const t = ctx.currentTime;
+
+    // Fréquence du bois qui grimpe sous la charge (65Hz -> 160Hz)
+    const woodFreq = 65 + p * 95;
+    chargeAudio.woodOsc.frequency.setTargetAtTime(woodFreq, t, 0.04);
+    chargeAudio.woodFilter.frequency.setTargetAtTime(120 + p * 180, t, 0.04);
+    chargeAudio.woodGain.gain.setTargetAtTime(0.24 + p * 0.16, t, 0.04);
+
+    // Fréquence de la corde tendue qui siffle et monte (120Hz -> 390Hz)
+    const ropeFreq = 120 + p * 270;
+    chargeAudio.ropeOsc.frequency.setTargetAtTime(ropeFreq, t, 0.03);
+    chargeAudio.ropeFilter.frequency.setTargetAtTime(420 + p * 1150, t, 0.03);
+    chargeAudio.ropeGain.gain.setTargetAtTime(0.12 + p * 0.22, t, 0.03);
+
+    // Tremblement qui s'accélère à haute tension (LFO 7Hz -> 19Hz)
+    chargeAudio.lfo.frequency.setTargetAtTime(7 + p * 12, t, 0.04);
+    chargeAudio.lfoGain.gain.setTargetAtTime(10 + p * 25, t, 0.04);
+
+    // Bruit de frottement qui s'amplifie avec la contrainte
+    chargeAudio.noiseFilter.frequency.setTargetAtTime(650 + p * 1250, t, 0.04);
+    chargeAudio.noiseGain.gain.setTargetAtTime(0.03 + p * 0.09, t, 0.04);
+
+    // Crans de crémaillère (ratchet) périodiques dont le tempo s'adapte à la force
+    const nowMs = performance.now();
+    const interval = Math.max(85, 230 - p * 130);
+    if (nowMs - chargeAudio.lastRatchetTick > interval) {
+      chargeAudio.lastRatchetTick = nowMs;
+      const clickPitch = 420 + p * 380;
+      tone(clickPitch, 0.022, { type: 'square', freqEnd: clickPitch * 0.65, gain: 0.035 + p * 0.035 });
+    }
+  },
+
+  stopCharge() {
+    if (!chargeAudio || !ctx) return;
+    const ca = chargeAudio;
+    chargeAudio = null;
+    const t = ctx.currentTime;
+    try {
+      ca.bus.gain.cancelScheduledValues(t);
+      ca.bus.gain.setValueAtTime(ca.bus.gain.value, t);
+      ca.bus.gain.linearRampToValueAtTime(0.001, t + 0.05);
+
+      setTimeout(() => {
+        try {
+          ca.woodOsc.stop();
+          ca.ropeOsc.stop();
+          ca.lfo.stop();
+          ca.noiseSrc.stop();
+          ca.bus.disconnect();
+        } catch (_) {}
+      }, 60);
+    } catch (_) {}
+  },
   fire() {
     // Détente mécanique du bras en bois
     tone(240, 0.14, { type: 'square', gain: 0.12, freqEnd: 80 });

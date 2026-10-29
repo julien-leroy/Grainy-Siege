@@ -1657,7 +1657,7 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
   pointer-events: none;
   font-family: 'Fredoka', 'Quicksand', sans-serif;
@@ -1666,22 +1666,31 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
 }
 
 .sand-power-inner .power-bolt {
-  font-size: 1.35rem;
+  font-size: 1.25rem;
   line-height: 1;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
 }
 
 .sand-power-heading {
-  font-size: 0.95rem;
-  letter-spacing: 0.5px;
+  font-size: 0.88rem;
+  letter-spacing: 0.3px;
   color: #fff;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+}
+
+.sand-power-trigger-btn.charging .sand-power-heading {
+  font-size: 0.80rem;
+  letter-spacing: 0.2px;
 }
 
 .sand-power-sub {
   font-size: 0.82rem;
   color: #fef08a;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  font-variant-numeric: tabular-nums;
+  min-width: 36px;
+  text-align: right;
 }
 
 .sr-only {
