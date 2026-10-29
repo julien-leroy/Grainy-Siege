@@ -667,6 +667,80 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   display: block;
 }
 
+.share-url-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1.5px solid rgba(180, 83, 9, 0.3);
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin: 6px 0 12px;
+}
+
+.share-url-container .join-url {
+  font-size: 0.74rem;
+  color: var(--wood-soft);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: all;
+  font-weight: 600;
+  flex: 1;
+}
+
+.copy-url-btn {
+  padding: 4px 10px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  background: var(--sea-blue);
+  color: #fff;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.copy-url-btn:hover {
+  background: var(--sea-dark);
+  transform: translateY(-1px);
+}
+
+.copy-url-btn.copied {
+  background: #16a34a !important;
+  color: #fff !important;
+}
+
+.spectate-btn-wrap {
+  margin: 10px 0 14px;
+  padding: 12px;
+  background: rgba(56, 189, 248, 0.12);
+  border: 2px dashed #0284c7;
+  border-radius: 12px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.spectate-notice {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #0369a1;
+  margin: 0;
+}
+
+.spectate-btn-wrap button {
+  width: 100%;
+}
+
 .join-url {
   font-size: 0.76rem;
   color: var(--wood-soft);

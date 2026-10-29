@@ -23,6 +23,7 @@ let roomState = null;
 let myId = sessionStorage.getItem('sc-pid') || null;
 let myCode = sessionStorage.getItem('sc-code') || null;
 let viewedPid = null; // quel château affiche-t-on en grand ?
+let isWatchingGame = false; // Le spectateur a-t-il cliqué sur "Regarder la partie" ?
 
 let activeTool = 'pate'; // par défaut le pâté de sable maniable pour sculpter librement !
 let nextSprayAvailableAt = 0;
@@ -499,13 +500,58 @@ $('back-lobby-btn').addEventListener('click', () => {
   resetAllGameData();
   const overModal = $('over-modal');
   if (overModal) overModal.classList.add('hidden');
-  $('lobby-modal').classList.remove('hidden');
   stopGameLoop();
-  socket.emit('lobby', {});
+
+  // Si la partie est finie et qu'on est l'hôte, on peut renvoyer tout le monde au salon
+  if (roomState?.phase === 'over' && roomState?.hostId === myId) {
+    socket.emit('lobby', {});
+  } else {
+    // Sinon, on quitte individuellement pour ne PAS casser la partie des autres
+    leaveRoom();
+  }
 });
+
+function getRoomShareUrl(code) {
+  const c = code || myCode || roomState?.code || '';
+  return `https://grainy-siege.julienfluenceur.fr/${c ? `?room=${c}` : ''}`;
+}
+
+async function copyRoomLink() {
+  const code = myCode || roomState?.code;
+  if (!code) return;
+  const link = getRoomShareUrl(code);
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(link);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = link;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    toast(`📋 Lien copié : ${link}`);
+    const copyBtn = $('copy-room-url-btn');
+    if (copyBtn) {
+      const oldHtml = copyBtn.innerHTML;
+      copyBtn.innerHTML = '<span class="copy-icon">✔️</span> Copié !';
+      copyBtn.classList.add('copied');
+      setTimeout(() => {
+        copyBtn.innerHTML = oldHtml;
+        copyBtn.classList.remove('copied');
+      }, 2000);
+    }
+  } catch (_) {
+    toast(`📋 Lien : ${link}`);
+  }
+}
 
 function leaveRoom() {
   music.stopAll();
+  const savedCode = myCode || roomState?.code || sessionStorage.getItem('sc-code') || '';
   resetAllGameData();
   sessionStorage.removeItem('sc-pid');
   sessionStorage.removeItem('sc-code');
@@ -514,6 +560,12 @@ function leaveRoom() {
   roomState = null;
   socket.emit('leave', {});
   stopGameLoop();
+
+  // Conserver le code dans l'input pour pouvoir rejoindre en 1 clic
+  if (savedCode) {
+    const codeInput = $('code-input');
+    if (codeInput) codeInput.value = savedCode;
+  }
 
   // Cacher tous les éléments de jeu
   $('scene').classList.add('hidden');
@@ -539,12 +591,33 @@ if (leaveBtn) {
   });
 }
 
+$('copy-room-url-btn')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  unlock();
+  copyRoomLink();
+});
+
+$('spectate-game-btn')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  unlock();
+  isWatchingGame = true;
+  $('lobby-modal')?.classList.add('hidden');
+  $('scene')?.classList.remove('hidden');
+  $('hud')?.classList.remove('hidden');
+  startGameLoop();
+});
+
+$('watch-spectate-btn')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  unlock();
+  isWatchingGame = true;
+  $('over-modal')?.classList.add('hidden');
+  syncUI();
+});
 
 $('room-pill').addEventListener('click', () => {
   if (!roomState) return;
-  const link = `${location.origin}/?room=${roomState.code}`;
-  navigator.clipboard?.writeText(link);
-  toast(`🔗 Lien d'invitation copié : ${link}`);
+  copyRoomLink();
 });
 
 $('spray-quick-btn').addEventListener('click', () => {
@@ -617,6 +690,7 @@ function resetAllGameData() {
 async function onJoinedRoom(code, playerId) {
   resetAllGameData();
   stopGameLoop();
+  isWatchingGame = false;
   $('hud').classList.add('hidden');
   myId = playerId;
   myCode = code;
@@ -626,11 +700,15 @@ async function onJoinedRoom(code, playerId) {
   $('room-view').classList.remove('hidden');
   $('lobby-code').textContent = code;
 
+  const defaultUrl = getRoomShareUrl(code);
+  const joinUrlEl = $('join-url-text');
+  if (joinUrlEl) joinUrlEl.textContent = defaultUrl;
+
   try {
     const r = await fetch(`/api/join-info?code=${encodeURIComponent(code)}`);
     const info = await r.json();
     $('qr-box').innerHTML = info.qrSvg || '';
-    $('join-url-text').textContent = info.url || '';
+    if (info.url && joinUrlEl) joinUrlEl.textContent = info.url;
   } catch {}
 }
 
@@ -1102,38 +1180,25 @@ function syncUI() {
   const s = roomState;
   if (!s) return;
 
+  const isHost = s.hostId === myId;
+  const me = s.players.find((p) => p.id === myId);
+  const isSpectator = !!me?.isSpectator || (me && !me.alive && s.phase !== 'over');
+
+  // Bouton Spray dans le HUD (visible en build et en défense uniquement pour les joueurs actifs)
+  const canSpray = !isSpectator && (s.phase === 'build' || (s.phase === 'battle' && s.turn?.targetId === myId));
+  $('spray-quick-btn').classList.toggle('hidden', !canSpray);
+
+  // Modale Lobby & Spectateur
   if (s.phase === 'lobby') {
+    isWatchingGame = false;
     stopGameLoop();
     $('hud').classList.add('hidden');
     $('welcome-view').classList.add('hidden');
     $('room-view').classList.remove('hidden');
     $('over-modal').classList.add('hidden');
-  } else {
-    $('hud').classList.remove('hidden');
-    startGameLoop();
-  }
+    $('spectate-btn-wrap')?.classList.add('hidden');
+    $('lobby-modal').classList.remove('hidden');
 
-  $('room-pill').textContent = `🏖️ PLAGE ${s.code}`;
-
-  const phaseLabels = {
-    lobby: 'SALON',
-    build: '🧱 CONSTRUCTION (1 MIN)',
-    settle: '⏳ TASSEMENT DU SABLE',
-    battle: '☄️ BATAILLE DE CATAPULTE',
-    over: '🏆 FIN DE PARTIE',
-  };
-  $('phase-pill').textContent = phaseLabels[s.phase] || s.phase.toUpperCase();
-
-  const isHost = s.hostId === myId;
-  const me = s.players.find((p) => p.id === myId);
-
-  // Bouton Spray dans le HUD (visible en build et en défense uniquement)
-  const canSpray = s.phase === 'build' || (s.phase === 'battle' && s.turn?.targetId === myId);
-  $('spray-quick-btn').classList.toggle('hidden', !canSpray);
-
-  // Modale Lobby
-  $('lobby-modal').classList.toggle('hidden', s.phase !== 'lobby');
-  if (s.phase === 'lobby') {
     $('roster-count').textContent = String(s.players.length);
     $('add-bot-btn').classList.toggle('hidden', !isHost || s.players.length >= 8);
     $('start-btn').classList.toggle('hidden', !isHost);
@@ -1146,7 +1211,7 @@ function syncUI() {
       const li = document.createElement('li');
       li.className = 'roster-item';
       const left = document.createElement('span');
-      left.innerHTML = `<span class="color-dot" style="background:${p.color}"></span> ${escapeHtml(p.name)} ${p.id === s.hostId ? '👑' : ''} ${p.isBot ? '🤖' : ''}`;
+      left.innerHTML = `<span class="color-dot" style="background:${p.color}"></span> ${escapeHtml(p.name)} ${p.id === s.hostId ? '👑' : ''} ${p.isBot ? '🤖' : ''} ${p.isSpectator ? '👀' : ''}`;
       li.appendChild(left);
       if (isHost && p.isBot) {
         const kick = document.createElement('button');
@@ -1156,6 +1221,38 @@ function syncUI() {
         li.appendChild(kick);
       }
       ul.appendChild(li);
+    }
+  } else {
+    // Si la partie est en cours et que le joueur est spectateur (ou a rejoint en cours) :
+    // S'il n'a pas encore cliqué sur "Regarder la partie", on lui affiche le lobby avec le bouton de spectateur
+    const showSpectateModal = isSpectator && !isWatchingGame;
+    $('lobby-modal').classList.toggle('hidden', !showSpectateModal);
+    if (showSpectateModal) {
+      stopGameLoop();
+      $('hud').classList.add('hidden');
+      $('welcome-view').classList.add('hidden');
+      $('room-view').classList.remove('hidden');
+      $('spectate-btn-wrap')?.classList.remove('hidden');
+      $('start-btn')?.classList.add('hidden');
+      $('add-bot-btn')?.classList.add('hidden');
+      $('wait-host-msg')?.classList.add('hidden');
+
+      const ul = $('roster-list');
+      if (ul) {
+        ul.innerHTML = '';
+        for (const p of s.players) {
+          const li = document.createElement('li');
+          li.className = 'roster-item';
+          const left = document.createElement('span');
+          left.innerHTML = `<span class="color-dot" style="background:${p.color}"></span> ${escapeHtml(p.name)} ${p.alive ? '🏰' : '💀'} ${p.isSpectator ? '👀' : ''}`;
+          li.appendChild(left);
+          ul.appendChild(li);
+        }
+      }
+    } else {
+      $('spectate-btn-wrap')?.classList.add('hidden');
+      $('hud').classList.remove('hidden');
+      startGameLoop();
     }
   }
 

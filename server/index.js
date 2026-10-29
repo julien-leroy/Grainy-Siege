@@ -74,7 +74,13 @@ io.on('connection', (socket) => {
     }
     room = r;
     me = (playerId && r.reattach(playerId, socket)) || r.addPlayer({ name, socket });
-    cb?.({ ok: true, code: r.code, playerId: me.id });
+    cb?.({
+      ok: true,
+      code: r.code,
+      playerId: me.id,
+      phase: r.phase,
+      isSpectator: !!me.isSpectator || !me.alive,
+    });
     r.sendAllWorlds(socket);
   }));
 
@@ -110,7 +116,7 @@ io.on('connection', (socket) => {
       socket.leave(r.code);
       room = null;
       me = null;
-      r.removePlayer(pid);
+      r.leavePlayer(pid);
     }
     cb?.({ ok: true });
   }));
@@ -172,15 +178,13 @@ api.get('/health', (_req, res) => res.json({ ok: true, rooms: rooms.size, uptime
 
 api.get('/join-info', async (req, res) => {
   const code = String(req.query.code || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
-  const ips = Object.values(os.networkInterfaces()).flat().filter((i) => i && i.family === 'IPv4' && !i.internal).map((i) => i.address);
-  const host = ips[0] ? `${ips[0]}:${PORT}` : req.get('host');
-  const url = `http://${host}${code ? `/?room=${code}` : '/'}`;
+  const url = `https://grainy-siege.julienfluenceur.fr/${code ? `?room=${code}` : ''}`;
   let qrSvg = '';
   try {
     const QRCode = (await import('qrcode')).default;
     qrSvg = await QRCode.toString(url, { type: 'svg', margin: 1, width: 132, color: { dark: '#2c2218', light: '#00000000' } });
   } catch {}
-  res.json({ url, qrSvg, ips });
+  res.json({ url, qrSvg });
 });
 
 api.get('/rooms', (_req, res) => {

@@ -45,7 +45,9 @@ export class Room {
   // ---------------------------------------------------------------- joueurs
   addPlayer({ name, socket, isBot = false }) {
     if (this.players.size >= MAX_PLAYERS) throw new Error('La salle est pleine');
-    if (this.phase !== 'lobby') throw new Error('La partie a déjà commencé');
+    if (this.phase !== 'lobby') {
+      return this.addSpectator({ name, socket });
+    }
     const id = `p${nextId++}`;
     const used = new Set([...this.players.values()].map((p) => p.color));
     const color = PLAYER_COLORS.find((c) => !used.has(c)) || PLAYER_COLORS[0];
@@ -54,6 +56,7 @@ export class Room {
       name: String(name || 'Joueur').slice(0, 18),
       color,
       isBot,
+      isSpectator: false,
       socket: socket || null,
       connected: !!socket || isBot,
       world: new SandWorld((this.rng() * 2 ** 32) >>> 0),
@@ -74,6 +77,33 @@ export class Room {
     return p;
   }
 
+  addSpectator({ name, socket }) {
+    const id = `spec_${nextId++}`;
+    const p = {
+      id,
+      name: String(name || 'Spectateur').slice(0, 18),
+      color: '#94a3b8',
+      isBot: false,
+      isSpectator: true,
+      socket: socket || null,
+      connected: !!socket,
+      world: new SandWorld(0),
+      alive: false,
+      lastPlace: 0,
+      lastSpray: 0,
+      defenseSpraysLeft: 0,
+      placed: 0,
+      plan: null,
+      sentFast: -1,
+      sentSlow: -1,
+    };
+    this.players.set(id, p);
+    if (socket) socket.join(this.channel);
+    this.say(`👀 ${p.name} observe la bataille en spectateur`);
+    this.dirtyState = true;
+    return p;
+  }
+
   addBot() {
     const n = [...this.players.values()].filter((p) => p.isBot).length;
     return this.addPlayer({ name: botName(n), isBot: true });
@@ -82,7 +112,9 @@ export class Room {
   reattach(playerId, socket) {
     const p = this.players.get(playerId);
     if (!p || p.isBot) return null;
-    if (p.socket && p.socket.id !== socket.id) p.socket.disconnect(true);
+    if (p.socket && p.socket.id !== socket.id) {
+      try { p.socket.disconnect(true); } catch (_) {}
+    }
     p.socket = socket;
     p.connected = true;
     socket.join(this.channel);
@@ -93,31 +125,50 @@ export class Room {
     return p;
   }
 
-  removePlayer(id) {
+  leavePlayer(id) {
     const p = this.players.get(id);
     if (!p) return;
-    const prevOrderIdx = this.order.indexOf(id);
-    const wasShooter = this.turn && this.turn.shooterId === id;
-    const wasTarget = this.turn && this.turn.targetId === id;
 
-    this.players.delete(id);
-    this.order = this.order.filter((x) => x !== id);
+    if (this.phase === 'lobby') {
+      return this.removePlayer(id);
+    }
+
+    // En cours de partie : son roi meurt, son socket est libéré, la partie continue pour les autres
+    p.alive = false;
+    if (p.world && p.world.king) {
+      p.world.king.dead = true;
+      p.world.king.cause = 'abandon';
+    }
+    p.connected = false;
+    if (p.socket) {
+      try {
+        p.socket.leave(this.channel);
+        p.socket.leave(this.code);
+      } catch (_) {}
+      p.socket = null;
+    }
+
     if (this.hostId === id) {
       const h = [...this.players.values()].find((x) => !x.isBot && x.connected);
       this.hostId = h ? h.id : null;
     }
+
     this.dirtyState = true;
-    this.say(`🚪 ${p.name} a quitté la partie.`);
+    this.say(`💀 ${p.name} a quitté la bataille (Roi éliminé).`);
+    this.io.to(this.channel).emit('fx', { type: 'kingHit', pid: p.id, hits: 8, dead: true, reason: 'abandon' });
 
-    // Si la partie est en cours (phase active de jeu)
-    if (this.phase === 'battle') {
-      const alive = this.alivePlayers();
-      if (alive.length <= 1) {
-        return this.finish(alive[0]?.id || null);
-      }
+    // Vérifier les survivants
+    const alive = this.alivePlayers();
+    if (alive.length <= 1) {
+      return this.finish(alive[0]?.id || null);
+    }
 
-      // Recalcul des tours de combat si le joueur qui quitte était impliqué
+    // Si on est en combat et que le joueur était impliqué dans le tour
+    if (this.phase === 'battle' && this.turn) {
+      const wasShooter = this.turn.shooterId === id;
+      const wasTarget = this.turn.targetId === id;
       if (wasShooter) {
+        const prevOrderIdx = this.order.indexOf(id);
         const prevShooter = this.order.length > 0
           ? this.order[(prevOrderIdx - 1 + this.order.length) % this.order.length]
           : null;
@@ -133,27 +184,38 @@ export class Room {
           this.nextTurn(this.turn.shooterId);
         }
       }
-    } else if (this.phase === 'build' || this.phase === 'settle') {
-      const alive = this.alivePlayers();
-      if (alive.length <= 1) {
-        return this.finish(alive[0]?.id || null);
-      }
     }
 
+    this.broadcastState();
+  }
+
+  removePlayer(id) {
+    if (this.phase !== 'lobby') {
+      return this.leavePlayer(id);
+    }
+
+    const p = this.players.get(id);
+    if (!p) return;
+
+    this.players.delete(id);
+    this.order = this.order.filter((x) => x !== id);
+    if (this.hostId === id) {
+      const h = [...this.players.values()].find((x) => !x.isBot && x.connected);
+      this.hostId = h ? h.id : null;
+    }
+    this.dirtyState = true;
+    this.say(`🚪 ${p.name} a quitté le salon.`);
     this.broadcastState();
   }
 
   disconnect(socket) {
     for (const p of this.players.values()) {
       if (p.socket && p.socket.id === socket.id) {
-        p.connected = false;
-        p.socket = null;
-        if (this.phase === 'lobby') this.removePlayer(p.id);
-        else if (this.hostId === p.id) {
-          const h = [...this.players.values()].find((x) => !x.isBot && x.connected);
-          if (h) this.hostId = h.id;
+        if (this.phase === 'lobby') {
+          this.removePlayer(p.id);
+        } else {
+          this.leavePlayer(p.id);
         }
-        this.dirtyState = true;
       }
     }
   }
@@ -434,6 +496,10 @@ export class Room {
   }
 
   backToLobby(byId) {
+    if (this.phase !== 'over' && this.phase !== 'lobby') {
+      // La partie est en cours : quitter individuellement sans interrompre la partie des autres
+      return this.leavePlayer(byId);
+    }
     this.phase = 'lobby';
     this.turn = null;
     this.winnerId = null;
@@ -442,13 +508,16 @@ export class Room {
     this.lastDropSpawn = 0;
     this.log = [];
     for (const p of [...this.players.values()]) {
-      if (!p.isBot && !p.connected) this.removePlayer(p.id);
-      else {
+      if (!p.isBot && !p.connected) {
+        this.players.delete(p.id);
+        this.order = this.order.filter((x) => x !== p.id);
+      } else {
         p.world = new SandWorld((this.rng() * 2 ** 32) >>> 0);
         const pedestalType = Math.floor(this.rng() * 5);
         const kx = Math.round(210 + (this.rng() - 0.5) * 16);
         p.world.initBeachDunes(pedestalType, kx);
         p.alive = true;
+        p.isSpectator = false;
         p.placed = 0;
         p.lastPlace = 0;
         p.lastSpray = 0;
@@ -1078,6 +1147,7 @@ export class Room {
       name: p.name,
       color: p.color,
       isBot: p.isBot,
+      isSpectator: !!p.isSpectator,
       connected: p.connected,
       alive: p.alive,
       kingPlaced: !!k,

@@ -105,7 +105,19 @@
               </div>
               <div id="qr-box" class="qr-box" title="Scanne pour rejoindre sur mobile"></div>
             </div>
-            <p id="join-url-text" class="join-url"></p>
+            <div class="share-url-container">
+              <span id="join-url-text" class="join-url">https://grainy-siege.julienfluenceur.fr/?room=----</span>
+              <button id="copy-room-url-btn" class="btn btn-sm btn-accent copy-url-btn" type="button" title="Copier le lien de la partie">
+                <span class="copy-icon">📋</span> Copier le lien
+              </button>
+            </div>
+
+            <div id="spectate-btn-wrap" class="spectate-btn-wrap hidden">
+              <p class="spectate-notice">⚔️ Une bataille est en cours sur cette plage !</p>
+              <button id="spectate-game-btn" class="btn btn-primary btn-lg pulse-glow" type="button">
+                👀 Regarder la partie en direct
+              </button>
+            </div>
 
             <div class="roster-header">
               <span>Bâtisseurs sur la plage (<span id="roster-count">0</span>/8)</span>
@@ -249,6 +261,7 @@
       <p id="winner-subtitle" class="subtitle"></p>
       <div class="over-actions">
         <button id="replay-btn" class="btn btn-primary btn-lg">🔄 Rejouer une manche</button>
+        <button id="watch-spectate-btn" class="btn btn-primary btn-lg hidden">👀 Observer la suite de la partie</button>
         <button id="back-lobby-btn" class="btn btn-secondary">🏖️ Retour au salon</button>
       </div>
     </div>

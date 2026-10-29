@@ -542,25 +542,32 @@ test('game: quand un joueur quitte en combat, la partie continue sil reste > 1 j
   room.removePlayer(currentShooterId);
 
   // La partie DOIT continuer car il reste 2 joueurs vivants !
+  const deadP = room.players.get(currentShooterId);
   assert.equal(room.phase, 'battle', 'la partie continue avec les 2 joueurs restants');
-  assert.equal(room.players.size, 2, '2 joueurs restants');
+  assert.equal(deadP.alive, false, 'le joueur qui quitte a alive=false');
+  assert.equal(deadP.world.king.dead, true, 'le roi du joueur qui quitte est mort');
   assert.equal(room.alivePlayers().length, 2, '2 joueurs vivants restants');
+
+  // Un joueur qui rejoint pendant la partie devient spectateur
+  const spec = room.addPlayer({ name: 'Dan', socket: { join() {}, emit() {} } });
+  assert.equal(spec.isSpectator, true, 'le joueur rejoignant en cours est spectateur');
+  assert.equal(spec.alive, false, 'le spectateur n est pas un joueur actif');
 
   // Le tour doit avoir été recalculé immédiatement
   assert.notEqual(room.turn.shooterId, currentShooterId, 'le tireur a changé');
-  assert.ok(room.players.has(room.turn.shooterId), 'le nouveau tireur est un joueur encore en jeu');
-  assert.ok(room.players.has(room.turn.targetId), 'la nouvelle cible est un joueur encore en jeu');
+  assert.ok(room.alivePlayers().some((p) => p.id === room.turn.shooterId), 'le nouveau tireur est un joueur vivant');
+  assert.ok(room.alivePlayers().some((p) => p.id === room.turn.targetId), 'la nouvelle cible est un joueur vivant');
   assert.notEqual(room.turn.shooterId, room.turn.targetId, 'le tireur et la cible sont distincts');
 
-  // L'un des 2 joueurs restants quitte à son tour -> il ne reste plus qu'un seul joueur
+  // L'un des 2 joueurs vivants restants quitte à son tour -> il ne reste plus qu'un seul joueur vivant
   const leavingId = room.turn.shooterId;
-  const lastPlayer = [...room.players.values()].find((p) => p.id !== leavingId);
+  const lastAlivePlayer = room.alivePlayers().find((p) => p.id !== leavingId);
 
   room.removePlayer(leavingId);
 
   // Victoire immédiate pour le dernier joueur en vie !
   assert.equal(room.phase, 'over', 'la partie se termine avec 1 seul joueur');
-  assert.equal(room.winnerId, lastPlayer.id, 'le dernier joueur restant est déclaré vainqueur');
+  assert.equal(room.winnerId, lastAlivePlayer.id, 'le dernier joueur vivant est déclaré vainqueur');
 });
 
 test('sandsim: pendant le combat un bloc non maintenu par du sable au sol tombe avec de la physique', () => {
