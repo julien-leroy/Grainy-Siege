@@ -1074,12 +1074,15 @@ socket.on('fx', (e) => {
     }
   } else if (e.type === 'impact') {
     const isSpike = Boolean(e.isSpike);
-    sfx.impact(Math.min(2.0, ((e.speed || 2) / 2.5) * (isSpike ? 1.5 : 1)));
-    sfx.sandSlide(Math.min(2.0, ((e.r || 5) / 4.5) * (isSpike ? 1.4 : 1)));
-    renderer.shake = Math.min(26, (5 + (e.r || 5) * 1.3) * (isSpike ? 1.4 : 1));
-    renderer.puff(e.x, e.y, e.r || 6, isSpike ? 42 : 24, isSpike ? '200, 150, 90' : '235, 215, 170');
+    const isIron = Boolean(e.isIron);
+    sfx.impact(Math.min(2.0, ((e.speed || 2) / 2.5) * (isSpike ? 1.5 : isIron ? 1.3 : 1)));
+    sfx.sandSlide(Math.min(2.0, ((e.r || 5) / 4.5) * (isSpike ? 1.4 : isIron ? 1.2 : 1)));
+    renderer.shake = Math.min(26, (5 + (e.r || 5) * 1.3) * (isSpike ? 1.4 : isIron ? 1.25 : 1));
+    renderer.puff(e.x, e.y, e.r || 6, isSpike ? 42 : isIron ? 28 : 24, isSpike ? '200, 150, 90' : isIron ? '148, 163, 184' : '235, 215, 170');
     if (isSpike) {
       renderer.popup(e.x, e.y - 12, '💥 BOULET À POINTES : IMPACT MASSIF !', '#f87171');
+    } else if (isIron) {
+      renderer.popup(e.x, e.y - 12, '⚔️ BOULET EN FER : IMPACT NET !', '#cbd5e1');
     }
   } else if (e.type === 'miss') {
     sfx.miss();
@@ -1342,16 +1345,24 @@ function syncUI() {
         const isAvailable = i <= left;
         span.className = `shot-ball ${isAvailable ? 'available' : 'used'}`;
         const isNextShot = i === (total - left + 1);
-        let icon = '☄️';
-        let label = `Boulet standard ${i}`;
-        if (isNextShot && me?.hasGrenade) {
-          icon = '💣';
-          label = 'Grenade explosive retardée';
-        } else if (isNextShot && me?.hasSpikeBall) {
-          icon = '💣';
-          label = 'Boulet d\'acier à pointes';
+        let iconSrc = '/assets/sprites/ball_sand.png';
+        let label = `Boulet standard en sable ${i}`;
+        if (isNextShot) {
+          if (me?.hasAcidBall) {
+            iconSrc = '/assets/sprites/ball_poison.png';
+            label = 'Fiole d\'acide corrosif';
+          } else if (me?.hasGrenade) {
+            iconSrc = '/assets/sprites/bomb.png';
+            label = 'Grenade explosive retardée';
+          } else if (me?.hasSpikeBall) {
+            iconSrc = '/assets/sprites/ball_spike.png';
+            label = 'Boulet d\'acier à pointes';
+          } else if (me?.hasIronBall) {
+            iconSrc = '/assets/sprites/ball_metal.png';
+            label = 'Boulet en fer massif';
+          }
         }
-        span.textContent = icon;
+        span.innerHTML = `<img src="${iconSrc}" alt="${label}" class="shot-ball-img">`;
         span.title = isAvailable ? `${label} (prêt)` : `Tir ${i} effectué`;
         shotsBallsEl.appendChild(span);
       }
@@ -1360,7 +1371,11 @@ function syncUI() {
     const triggerLabelEl = $('trigger-label');
     const triggerBoltEl = document.querySelector('.power-bolt');
     if (triggerLabelEl && triggerBoltEl) {
-      if (me?.hasGrenade || me?.hasSpikeBall) {
+      if (me?.hasAcidBall) {
+        triggerBoltEl.textContent = '🧪';
+      } else if (me?.hasIronBall) {
+        triggerBoltEl.textContent = '⚔️';
+      } else if (me?.hasGrenade || me?.hasSpikeBall) {
         triggerBoltEl.textContent = '💣';
       } else {
         triggerBoltEl.textContent = '⚡';
@@ -2517,7 +2532,7 @@ function frame(now) {
       ? (roomState.turn.shotsLeft - 1)
       : (activePlayer.bonusAmmo || 0);
     if (reserveShots > 0) {
-      activeBonuses.push({ icon: '☄️', label: `+${reserveShots} BOULET${reserveShots > 1 ? 'S' : ''} EN RÉSERVE`, color: '#fde047' });
+      activeBonuses.push({ icon: '☄️', label: `+${reserveShots} BOULET${reserveShots > 1 ? 'S' : ''} DE SABLE EN RÉSERVE`, color: '#fde047' });
     }
     if (activePlayer.defenseSpraysLeft > 0) {
       activeBonuses.push({ icon: '💦', label: `${activePlayer.defenseSpraysLeft} SPRAY${activePlayer.defenseSpraysLeft > 1 ? 'S' : ''} DE RENFORT`, color: '#38bdf8' });

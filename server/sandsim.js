@@ -1123,7 +1123,7 @@ export class SandWorld {
         );
       }
     }
-    this.events.push({ type: 'impact', x, y, r: R, speed, isSpike });
+    this.events.push({ type: 'impact', x, y, r: R, speed, isSpike, isIron });
     this.structDirty = true;
     this.quietTicks = 0;
   }

@@ -662,8 +662,65 @@ test('game: en debut de game tous les chateaux sont humides (T.WET pas HARD) et 
     const drop = room.spawnDrop(Date.now());
     if (drop.type === 'dryOpponent') sunDrops++;
   }
-  // Doit être rare (autour de 2-4%, bien inférieur à 8%)
   assert.ok(sunDrops < 60, `le bonus soleil est bien plus rare (obtenu ${sunDrops}/1000 fois)`);
+});
+
+test('game: bonus boulet de fer et acide sérialisés, armés sur catapulte et tirés avec les bons types', () => {
+  const room = new Room('BALL_TYPES_TEST', createFakeIo());
+  const p1 = room.addPlayer({ name: 'Alice' });
+  const p2 = room.addPlayer({ name: 'Bob' });
+  p1.connected = true;
+  p2.connected = true;
+
+  room.start();
+  room.endBuild();
+  room.startBattle();
+
+  const shooterId = room.turn.shooterId;
+  const shooter = room.players.get(shooterId);
+  const target = room.players.get(room.turn.targetId);
+
+  // Vérifier l'état initial : pas de fer ni acide
+  let serialized = room.publicPlayer(shooter, Date.now());
+  assert.equal(serialized.hasIronBall, false);
+  assert.equal(serialized.hasAcidBall, false);
+
+  // Ramasser un bonus fer
+  room.applyBonus(shooterId, { id: 701, type: 'iron' }, null);
+  assert.equal(shooter.hasIronBall, true, 'le joueur a récupéré le boulet en fer');
+
+  // Vérifier que la sérialisation réseau transmet hasIronBall au client
+  serialized = room.publicPlayer(shooter, Date.now());
+  assert.equal(serialized.hasIronBall, true, 'hasIronBall est bien présent dans la sérialisation réseau');
+
+  // Tirer à la catapulte avec le boulet en fer
+  const fireSuccess = room.fire(shooterId, 0.7, 0.5, 'left');
+  assert.equal(fireSuccess, true, 'le tir est déclenché');
+
+  // Le boulet dans le monde de la cible est bien de type 'iron'
+  assert.ok(target.world.ball, 'un boulet est en vol');
+  assert.equal(target.world.ball.iron, true, 'le boulet en vol a iron=true');
+  assert.equal(target.world.ball.type, 'iron', 'le type du boulet est iron');
+
+  // hasIronBall a été consommé
+  assert.equal(shooter.hasIronBall, false, 'le boulet en fer a été consommé après le tir');
+  serialized = room.publicPlayer(shooter, Date.now());
+  assert.equal(serialized.hasIronBall, false, 'hasIronBall redevient false');
+
+  // Ramasser ensuite un bonus acide
+  room.turn.shotsLeft = 2;
+  room.turn.state = 'aim';
+  room.applyBonus(shooterId, { id: 702, type: 'acid' }, null);
+  assert.equal(shooter.hasAcidBall, true, 'le joueur a récupéré la fiole d acide');
+  serialized = room.publicPlayer(shooter, Date.now());
+  assert.equal(serialized.hasAcidBall, true, 'hasAcidBall est transmis au client');
+
+  // Tirer l'acide
+  target.world.ball = null;
+  room.fire(shooterId, 0.7, 0.5, 'left');
+  assert.ok(target.world.ball, 'fiole d acide en vol');
+  assert.equal(target.world.ball.acid, true, 'le boulet en vol a acid=true');
+  assert.equal(target.world.ball.type, 'acid', 'le type du boulet est acid');
 });
 
 

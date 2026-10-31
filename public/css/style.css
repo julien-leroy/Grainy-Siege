@@ -1653,9 +1653,21 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
 }
 
 .shot-ball.used {
-  opacity: 0.25;
+  opacity: 0.35;
   filter: grayscale(1);
   transform: scale(0.9);
+}
+
+.shot-ball-img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
+}
+
+.shot-ball.used .shot-ball-img {
+  filter: grayscale(1) opacity(0.35);
 }
 
 /* 3. Grand bouton de puissance étiré en longueur directement dans le sable */

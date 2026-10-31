@@ -130,7 +130,7 @@ export class Renderer {
       case 'acidBall':
         return this.sprites.potionFlask;
       case 'ammo':
-        return this.sprites.ballMetal || this.sprites.ballDark;
+        return this.sprites.ballSand;
       case 'spray':
         return this.sprites.toolSpray || this.sprites.potionFlask;
       case 'wetAll':
@@ -138,7 +138,7 @@ export class Renderer {
       case 'dryOpponent':
         return this.sprites.bonusSun;
       default:
-        return this.sprites.potionFlask || this.sprites.ballMetal;
+        return this.sprites.ballSand;
     }
   }
 
@@ -685,7 +685,7 @@ export class Renderer {
       const isIron = ammoType === 'iron' || ammoType === 'ironBall';
       const isSand = !isSpike && !isGrenade && !isAcid && !isIron;
 
-      const bRad = (isGrenade ? 2.5 : isSpike ? 3.4 : isAcid ? 3.0 : 2.7) * s;
+      const bRad = (isGrenade ? 2.5 : isSpike ? 3.4 : isAcid ? 3.0 : isIron ? 2.8 : 2.7) * s;
       const ballX = X(tx);
       const ballY = Y(ty - 1.2);
 
@@ -723,6 +723,28 @@ export class Renderer {
           ctx.arc(ballX + Math.cos(sa) * bRad * 1.2, ballY + Math.sin(sa) * bRad * 1.2, 1 * s, 0, Math.PI * 2);
           ctx.fill();
         }
+      } else if (isIron) {
+        const grad = ctx.createRadialGradient(ballX - bRad * 0.35, ballY - bRad * 0.35, bRad * 0.1, ballX, ballY, bRad);
+        grad.addColorStop(0, '#94a3b8');
+        grad.addColorStop(0.5, '#475569');
+        grad.addColorStop(1, '#0f172a');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(ballX, ballY, bRad, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 1.0 * this.dpr;
+        ctx.stroke();
+      } else if (isAcid) {
+        ctx.fillStyle = '#22c55e';
+        ctx.beginPath();
+        ctx.arc(ballX, ballY, bRad, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.fillStyle = '#eab308';
+        ctx.beginPath();
+        ctx.arc(ballX, ballY, bRad, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
 
@@ -1029,7 +1051,17 @@ export class Renderer {
       if (this.trail.pts.length > 18) this.trail.pts.shift();
       for (let k = 0; k < this.trail.pts.length; k++) {
         const q = this.trail.pts[k];
-        ctx.fillStyle = `rgba(240,220,170,${(k / this.trail.pts.length) * 0.38})`;
+        const alpha = (k / this.trail.pts.length) * 0.38;
+        const trailColor = b.acid || b.type === 'acid'
+          ? `rgba(74,222,128,${alpha})`
+          : b.iron || b.type === 'iron'
+            ? `rgba(203,213,225,${alpha})`
+            : b.grenade || b.type === 'grenade'
+              ? `rgba(100,116,139,${alpha})`
+              : b.spike || b.type === 'spike'
+                ? `rgba(248,113,113,${alpha})`
+                : `rgba(240,220,170,${alpha})`;
+        ctx.fillStyle = trailColor;
         ctx.beginPath();
         ctx.arc(ox + q.x * s, oy + q.y * s, b.r * s * (k / this.trail.pts.length) * 0.85, 0, Math.PI * 2);
         ctx.fill();

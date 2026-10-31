@@ -64,9 +64,16 @@ export class ClientWorld {
     return {
       x: a.x + (b.x - a.x) * t,
       y: a.y + (b.y - a.y) * t,
+      vx: b.vx || 0,
+      vy: b.vy || 0,
+      age: b.age || 0,
       r: b.r,
       spike: !!b.spike,
       grenade: !!b.grenade,
+      iron: !!b.iron,
+      acid: !!b.acid,
+      sand: !!b.sand,
+      type: b.type || (b.acid ? 'acid' : b.grenade ? 'grenade' : b.spike ? 'spike' : b.iron ? 'iron' : 'sand'),
       landed: !!b.landed,
       fuseTicks: b.fuseTicks || 0,
     };

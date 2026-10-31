@@ -294,6 +294,8 @@ export class Room {
       p.moulds = { ...this.mouldStock };
       p.hasSpikeBall = false;
       p.hasGrenade = false;
+      p.hasIronBall = false;
+      p.hasAcidBall = false;
       p.bonusAmmo = 0;
       p.plan = p.isBot ? makeBuildPlan(this.rng, BUILD_SECONDS * 1000, p.world.king?.x ?? 210) : null;
     }
@@ -528,6 +530,8 @@ export class Room {
         p.moulds = null;
         p.hasSpikeBall = false;
         p.hasGrenade = false;
+        p.hasIronBall = false;
+        p.hasAcidBall = false;
         p.bonusAmmo = 0;
       }
     }
@@ -1163,6 +1167,8 @@ export class Room {
       moulds: p.moulds || null,
       hasSpikeBall: !!p.hasSpikeBall,
       hasGrenade: !!p.hasGrenade,
+      hasIronBall: !!p.hasIronBall,
+      hasAcidBall: !!p.hasAcidBall,
       bonusAmmo: p.bonusAmmo || 0,
     };
   }
