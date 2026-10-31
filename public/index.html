@@ -101,15 +101,14 @@
             <div class="room-header">
               <div>
                 <span class="small-label">CODE DE LA PLAGE</span>
-                <div class="room-code-big" id="lobby-code">----</div>
+                <div class="room-code-wrapper">
+                  <div class="room-code-big" id="lobby-code">----</div>
+                  <button id="copy-room-url-btn" class="copy-icon-btn" type="button" title="Copier le lien de la room" aria-label="Copier le lien de la room">
+                    <span class="copy-icon">📋</span>
+                  </button>
+                </div>
               </div>
               <div id="qr-box" class="qr-box" title="Scanne pour rejoindre sur mobile"></div>
-            </div>
-            <div class="share-url-container">
-              <span id="join-url-text" class="join-url">https://grainy-siege.julienfluenceur.fr/?room=----</span>
-              <button id="copy-room-url-btn" class="btn btn-sm btn-accent copy-url-btn" type="button" title="Copier le lien de la partie">
-                <span class="copy-icon">📋</span> Copier le lien
-              </button>
             </div>
 
             <div id="spectate-btn-wrap" class="spectate-btn-wrap hidden">

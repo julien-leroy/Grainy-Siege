@@ -83,6 +83,7 @@ export class Renderer {
       pateHold: this._loadSprite('/assets/sprites/pate_hold.png'),
       patePlace: this._loadSprite('/assets/sprites/pate_place.png'),
       parachuteBag: this._loadSprite('/assets/sprites/parachute_bag.png'),
+      parachuteSunk: this._loadSprite('/assets/sprites/parachute_sunk.png'),
       ballSand: this._loadSprite('/assets/sprites/ball_sand.png'),
       ballDark: this._loadSprite('/assets/sprites/ball_dark.png'),
       ballMetal: this._loadSprite('/assets/sprites/ball_metal.png'),
@@ -1427,35 +1428,58 @@ export class Renderer {
             ctx.fillText(icon, 0, bagCenterY);
           }
         } else {
-          // Flottant sur l'eau
+          // Bonus coulé dans la mer (non récupéré par le joueur)
           ctx.translate(cx, cy);
 
-          // Ondulations d'eau autour du sac
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
-          ctx.lineWidth = Math.max(1, 1.2 * this.dpr);
-          ctx.beginPath();
-          ctx.ellipse(0, bagCenterY, 9 * s, 2.8 * s, 0, 0, Math.PI * 2);
-          ctx.stroke();
+          const pSunkSpr = this.sprites?.parachuteSunk;
+          if (pSunkSpr && pSunkSpr.complete && pSunkSpr.naturalWidth > 0) {
+            const sw = 23.0 * s;
+            const sh = sw * (pSunkSpr.naturalHeight / pSunkSpr.naturalWidth);
+            ctx.save();
+            const waterTilt = Math.sin(t * 0.003 + d.x * 0.5) * 0.05;
+            ctx.rotate(waterTilt);
+            ctx.drawImage(pSunkSpr, -sw / 2, -sh * 0.86, sw, sh);
 
-          ctx.save();
-          const waterTilt = Math.sin(t * 0.003 + d.x * 0.5) * 0.08;
-          ctx.rotate(waterTilt);
-          ctx.drawImage(pBagSpr, -pw / 2, -ph * 0.74, pw, ph);
+            // Icône bonus légèrement atténuée sur le sac qui coule
+            if (bonusSpr && bonusSpr.complete && bonusSpr.naturalWidth > 0) {
+              ctx.save();
+              ctx.globalAlpha = 0.8;
+              ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+              ctx.shadowBlur = 3 * this.dpr;
+              const iw = iconSize * 0.85;
+              const ih = iw * (bonusSpr.naturalHeight / bonusSpr.naturalWidth);
+              ctx.drawImage(bonusSpr, -iw / 2, -sh * 0.28, iw, ih);
+              ctx.restore();
+            }
+            ctx.restore();
+          } else {
+            // Fallback si sprite non chargé
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+            ctx.lineWidth = Math.max(1, 1.2 * this.dpr);
+            ctx.beginPath();
+            ctx.ellipse(0, bagCenterY, 9 * s, 2.8 * s, 0, 0, Math.PI * 2);
+            ctx.stroke();
 
-          if (bonusSpr && bonusSpr.complete && bonusSpr.naturalWidth > 0) {
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-            ctx.shadowBlur = 4 * this.dpr;
-            const iw = iconSize;
-            const ih = iw * (bonusSpr.naturalHeight / bonusSpr.naturalWidth);
-            ctx.drawImage(bonusSpr, -iw / 2, bagCenterY - ih / 2, iw, ih);
+            ctx.save();
+            const waterTilt = Math.sin(t * 0.003 + d.x * 0.5) * 0.08;
+            ctx.rotate(waterTilt);
+            ctx.drawImage(pBagSpr, -pw / 2, -ph * 0.74, pw, ph);
+
+            if (bonusSpr && bonusSpr.complete && bonusSpr.naturalWidth > 0) {
+              ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+              ctx.shadowBlur = 4 * this.dpr;
+              const iw = iconSize;
+              const ih = iw * (bonusSpr.naturalHeight / bonusSpr.naturalWidth);
+              ctx.drawImage(bonusSpr, -iw / 2, bagCenterY - ih / 2, iw, ih);
+            }
+            ctx.restore();
           }
-          ctx.restore();
 
-          // Petites bulles d'eau
-          ctx.fillStyle = 'rgba(224, 242, 254, 0.8)';
+          // Petites bulles d'eau qui remontent
+          ctx.fillStyle = 'rgba(224, 242, 254, 0.85)';
           ctx.beginPath();
-          ctx.arc(-2.8 * s, -1.8 * s, 1.0 * s, 0, Math.PI * 2);
-          ctx.arc(3.2 * s, -2.8 * s, 0.8 * s, 0, Math.PI * 2);
+          ctx.arc(-3.5 * s, -1.8 * s, 1.1 * s, 0, Math.PI * 2);
+          ctx.arc(3.8 * s, -2.6 * s, 0.8 * s, 0, Math.PI * 2);
           ctx.fill();
         }
       } else if (!inWater) {

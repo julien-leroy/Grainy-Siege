@@ -622,5 +622,49 @@ test('sandsim: la boule de poison libère des grains de sable verts qui creusent
   assert.equal(w.particles.filter((p) => p.isAcid).length, 0, 'les grains d acide se sont tous évaporés');
 });
 
+test('game: en debut de game tous les chateaux sont mouilles integralement et bonus soleil rare', () => {
+  const room = new Room('WET_TEST', createFakeIo());
+  const p1 = room.addPlayer({ name: 'Alice' });
+  const p2 = room.addPlayer({ name: 'Bob' });
+  p1.connected = true;
+  p2.connected = true;
+
+  room.start();
+  // Vérifier qu'au début du jeu en phase build, le château/plage de chaque joueur est intégralement mouillé
+  for (const p of room.players.values()) {
+    let sandFound = 0;
+    for (let i = 0; i < GRID_W * GROUND_Y; i++) {
+      if (p.world.type[i] === T.WET || p.world.type[i] === T.HARD) {
+        sandFound++;
+        assert.equal(p.world.moist[i], 255, 'le sable initial est mouillé à 100%');
+      }
+    }
+    assert.ok(sandFound > 0, 'du sable de départ est présent');
+  }
+
+  // Passer en bataille
+  room.endBuild();
+  room.startBattle();
+
+  // En début de combat, tous les châteaux sont également intégralement mouillés
+  for (const p of room.players.values()) {
+    for (let i = 0; i < GRID_W * GROUND_Y; i++) {
+      if (p.world.type[i] === T.WET || p.world.type[i] === T.HARD) {
+        assert.equal(p.world.moist[i], 255, 'le sable en début de bataille est mouillé à 100%');
+      }
+    }
+  }
+
+  // Vérifier la rareté du bonus soleil (dryOpponent) sur 1000 tirages après round 5
+  room.round = 6;
+  let sunDrops = 0;
+  for (let k = 0; k < 1000; k++) {
+    const drop = room.spawnDrop(Date.now());
+    if (drop.type === 'dryOpponent') sunDrops++;
+  }
+  // Doit être rare (autour de 2-4%, bien inférieur à 8%)
+  assert.ok(sunDrops < 60, `le bonus soleil est bien plus rare (obtenu ${sunDrops}/1000 fois)`);
+});
+
 
 

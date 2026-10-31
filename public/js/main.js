@@ -537,12 +537,12 @@ async function copyRoomLink() {
     const copyBtn = $('copy-room-url-btn');
     if (copyBtn) {
       const oldHtml = copyBtn.innerHTML;
-      copyBtn.innerHTML = '<span class="copy-icon">✔️</span> Copié !';
+      copyBtn.innerHTML = '<span class="copy-icon">✓</span>';
       copyBtn.classList.add('copied');
       setTimeout(() => {
         copyBtn.innerHTML = oldHtml;
         copyBtn.classList.remove('copied');
-      }, 2000);
+      }, 1500);
     }
   } catch (_) {
     toast(`📋 Lien : ${link}`);
@@ -700,15 +700,10 @@ async function onJoinedRoom(code, playerId) {
   $('room-view').classList.remove('hidden');
   $('lobby-code').textContent = code;
 
-  const defaultUrl = getRoomShareUrl(code);
-  const joinUrlEl = $('join-url-text');
-  if (joinUrlEl) joinUrlEl.textContent = defaultUrl;
-
   try {
     const r = await fetch(`/api/join-info?code=${encodeURIComponent(code)}`);
     const info = await r.json();
     $('qr-box').innerHTML = info.qrSvg || '';
-    if (info.url && joinUrlEl) joinUrlEl.textContent = info.url;
   } catch {}
 }
 

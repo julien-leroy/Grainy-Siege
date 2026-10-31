@@ -283,6 +283,7 @@ export class Room {
       const pedestalType = Math.floor(this.rng() * 5);
       const kx = Math.round(210 + (this.rng() - 0.5) * 16);
       p.world.initBeachDunes(pedestalType, kx);
+      p.world.wetAll(); // En début de game tous les châteaux sont mouillés intégralement
       p.alive = true;
       p.placed = 0;
       p.lastPlace = 0;
@@ -311,6 +312,7 @@ export class Room {
     this.phase = 'settle';
     this.endsAt = Date.now() + SETTLE_MS;
     for (const p of this.players.values()) {
+      p.world.wetAll();
       if (!p.world.king) {
         p.world.initBeachDunes(0, 210);
         this.say(`Le Roi de ${p.name} a été posé d'office sur son reposoir`);
@@ -325,6 +327,7 @@ export class Room {
     this.drops = [];
     this.lastDropSpawn = Date.now() + 3000;
     for (const p of this.players.values()) {
+      p.world.wetAll(); // En début de game de combat, tous les châteaux sont mouillés intégralement
       p.world.armed = true;
       p.world.drying = true;
       p.defenseSpraysLeft = 0; // Gagnera +1 dose de spray dès son premier tour de défense
@@ -945,16 +948,16 @@ export class Room {
       const rareChance = Math.min(0.75, 0.40 + (currentRound - 5) * 0.08);
       if (rand < rareChance) {
         const sub = rand / rareChance;
-        if (sub < 0.28) {
+        if (sub < 0.30) {
           type = 'grenade';
-        } else if (sub < 0.54) {
+        } else if (sub < 0.58) {
           type = 'heavySpikeBall';
-        } else if (sub < 0.78) {
+        } else if (sub < 0.84) {
           type = 'acid'; // Fiole d'acide rongeur
-        } else if (sub < 0.89) {
+        } else if (sub < 0.96) {
           type = 'wetAll'; // Rare légendaire : arrose et durcit tout
         } else {
-          type = 'dryOpponent'; // Rare légendaire : assèche tout le château adverse
+          type = 'dryOpponent'; // Ultra-rare légendaire (4% des largages rares) : assèche tout le château adverse
         }
       } else {
         const sub = (rand - rareChance) / (1 - rareChance);
