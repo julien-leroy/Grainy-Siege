@@ -586,40 +586,43 @@ test('sandsim: pendant le combat un bloc non maintenu par du sable au sol tombe 
   assert.ok(counts.loose + counts.dry > 0, 'le bloc non soutenu s\'effondre en sable physique');
 });
 
-test('sandsim: la boule de poison libère des grains de sable verts qui creusent le sable puis s évaporent', () => {
+test('sandsim: la boule d acide genere de vrais grains de sable verts physiques qui consument le sable jaune puis disparaissent', () => {
   const w = new SandWorld(42);
   w.stamp('cube', 180, GROUND_Y - 12, true);
   const sandCountBefore = w.countTypes().wet;
   assert.ok(sandCountBefore > 0, 'cube de sable présent');
 
-  // Lancer une boule de poison (acide) sur le cube
+  // Lancer une fiole d'acide sur le cube
   w.launch(180, GROUND_Y - 30, 0, 1.5, false, false, false, true);
   assert.ok(w.ball && w.ball.acid, 'boule acide en vol');
 
-  // Laisser la boule impacter et se déverser comme du sable
+  // Laisser la fiole impacter et libérer les grains de sable vert
   for (let t = 0; t < 15; t++) w.step();
 
-  // Des grains verts d'acide sont créés et encodés
-  assert.ok(w.particles.length > 0, 'particules d acide générées');
-  assert.ok(w.particles.some((p) => p.isAcid), 'particules identifiées comme acide');
+  // De vrais grains de sable de type ACID (T.ACID) sont présents dans la grille
+  const countsWithAcid = w.countTypes();
+  assert.ok(countsWithAcid.acid > 0, 'de vrais grains de sable verts ACID sont créés dans la grille');
+  assert.equal(w.particles.length, 0, 'pas de fausses particules volantes');
+  assert.ok(w.acidCount > 0, 'compteur acidCount synchronisé');
 
-  // Vérifier l'encodage binaire des particules avec Y négatif
-  const enc = w.encodeParticles();
-  const arr = new Int16Array(enc.buffer, enc.byteOffset, enc.byteLength / 2);
-  let hasAcidEncoded = false;
-  for (let k = 1; k < arr.length; k += 2) {
-    if (arr[k] < 0) hasAcidEncoded = true;
+  // Vérifier qu'ils sont bien encodés dans l'encodage RLE du monde de sable
+  const enc = w.encode();
+  let hasAcidInRle = false;
+  for (let k = 0; k < enc.length; k += 2) {
+    if ((enc[k] & 0b111) === T.ACID) hasAcidInRle = true;
   }
-  assert.ok(hasAcidEncoded, 'grains d acide encodés avec coordonnée Y négative pour le rendu vert');
+  assert.ok(hasAcidInRle, 'grains d acide encodés dans le buffer RLE pour rendu dans la grille');
 
-  // Simuler l'avancement : les grains rongent un peu le sable en contact pendant quelques secondes
-  for (let t = 0; t < 70; t++) w.step();
-  const sandCountAfter = w.countTypes().wet;
-  assert.ok(sandCountAfter < sandCountBefore, 'les grains verts ont creusé et rongé du sable');
+  // Simuler l'avancement : les grains verts consument le sable jaune adjacent toutes les 0.1 à 0.3s
+  for (let t = 0; t < 80; t++) w.step();
+  const countsDuring = w.countTypes();
+  assert.ok(countsDuring.wet < sandCountBefore, 'les grains verts ont rongé du sable jaune');
 
-  // Continuer la simulation : tous les grains finissent par se consumer et s'évaporer
-  for (let t = 0; t < 220; t++) w.step();
-  assert.equal(w.particles.filter((p) => p.isAcid).length, 0, 'les grains d acide se sont tous évaporés');
+  // Continuer la simulation : tous les grains verts ont fini de consumer leur quota (1 à 3 grains) et ont disparu
+  for (let t = 0; t < 300; t++) w.step();
+  const finalCounts = w.countTypes();
+  assert.equal(finalCounts.acid, 0, 'tous les grains verts se sont consumés et ont disparu');
+  assert.equal(w.acidCount, 0, 'compteur acidCount revenu à 0');
 });
 
 test('game: en debut de game tous les chateaux sont humides (T.WET pas HARD) et ne sechent que sur ecran cible', () => {

@@ -33,6 +33,7 @@ export const T = Object.freeze({
   LOOSE: 4, // mottes de sable mouillé effondré (granulaire mais cohésif)
   KING: 5,
   HARD: 6, // sable mouillé durci au spray d'eau (plus sombre, plus résistant aux chocs et porte-à-faux)
+  ACID: 7, // grains de sable d'acide vert corrosif physique
 });
 
 // Encodage réseau : type sur 3 bits (0..7), niveau d'endommagement (0..3) sur les bits 3-4,

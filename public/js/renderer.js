@@ -22,6 +22,7 @@ const PALETTE = {
   [T.HARD]: [166, 130, 76], // sable gorgé d'eau, plus dense et foncé
   [T.DRY]: [238, 213, 158],
   [T.LOOSE]: [216, 182, 124],
+  [T.ACID]: [34, 197, 94], // Sable vert acide corrosif physique
 };
 
 function hexToRgb(hex) {
@@ -240,7 +241,12 @@ export class Renderer {
         if (t === T.EMPTY || t === T.GROUND || t === T.KING) continue;
         const moistLvl = (t === T.WET || t === T.HARD) ? ((code >> MOIST_SHIFT) & 7) : 4;
         let baseR, baseG, baseB;
-        if (t === T.DRY) {
+        if (t === T.ACID) {
+          // Grains de sable d'acide vert corrosif physique
+          baseR = 34;
+          baseG = 197;
+          baseB = 94;
+        } else if (t === T.DRY) {
           [baseR, baseG, baseB] = PALETTE[T.DRY];
         } else if (t === T.LOOSE) {
           [baseR, baseG, baseB] = PALETTE[T.LOOSE];
@@ -266,7 +272,7 @@ export class Renderer {
         const left = x > 0 ? cells[i - 1] & TYPE_MASK : 1;
         const right = x < GRID_W - 1 ? cells[i + 1] & TYPE_MASK : 1;
         let light = 0;
-        if (up === T.EMPTY) light += (t === T.HARD || moistLvl >= 6) ? 28 : 22;
+        if (up === T.EMPTY) light += (t === T.HARD || moistLvl >= 6) ? 28 : (t === T.ACID) ? 18 : 22;
         if (left === T.EMPTY) light += 9;
         if (right === T.EMPTY) light -= 14;
         if (down === T.EMPTY) light -= 26;
@@ -277,7 +283,8 @@ export class Renderer {
             const px = x * SUB + sx;
             const py = y * SUB + sy;
             const hN = hash(px, py);
-            let n = (hN - 0.5) * (t === T.DRY ? 26 : (t === T.HARD || moistLvl >= 6) ? 14 : 18) + light;
+            let n = (hN - 0.5) * (t === T.ACID ? 24 : t === T.DRY ? 26 : (t === T.HARD || moistLvl >= 6) ? 14 : 18) + light;
+            if (t === T.ACID && hN > 0.86) n += 20; // Étincelle toxique sur les grains
             if (t === T.DRY && hN > 0.93) n += 18;
             // Reflet spéculaire d'eau sur le sable durci / saturé
             if ((t === T.HARD || moistLvl >= 6) && sy === 0 && up === T.EMPTY) n += 24;
@@ -285,9 +292,15 @@ export class Renderer {
             if (dmg && hash(px * 7 + 3, py * 5 + 1) < dmg * 0.095) n -= 48;
             if (sy === 0 && up === T.EMPTY && t === T.WET && moistLvl < 6) n += 10;
             const o = (py * SW + px) * 4;
-            data[o] = Math.min(255, Math.max(0, baseR + n));
-            data[o + 1] = Math.min(255, Math.max(0, baseG + n * 0.92));
-            data[o + 2] = Math.min(255, Math.max(0, baseB + n * ((t === T.HARD || moistLvl >= 6) ? 0.88 : 0.75)));
+            if (t === T.ACID) {
+              data[o] = Math.min(255, Math.max(0, baseR + n * 0.5));
+              data[o + 1] = Math.min(255, Math.max(0, baseG + n * 1.0));
+              data[o + 2] = Math.min(255, Math.max(0, baseB + n * 0.5));
+            } else {
+              data[o] = Math.min(255, Math.max(0, baseR + n));
+              data[o + 1] = Math.min(255, Math.max(0, baseG + n * 0.92));
+              data[o + 2] = Math.min(255, Math.max(0, baseB + n * ((t === T.HARD || moistLvl >= 6) ? 0.88 : 0.75)));
+            }
             data[o + 3] = 255;
           }
         }
@@ -1020,27 +1033,14 @@ export class Renderer {
 
     this.drawKing(world.king, color, t, highlightKing);
 
-    // éjectas et grains de sable (normaux et grains verts d'acide corrosif)
+    // éjectas et grains de sable normaux en vol
     const p = world.parts;
     if (p.length) {
+      ctx.fillStyle = '#e6c88e';
       for (let k = 0; k < p.length; k += 2) {
-        const rawY = p[k + 1];
-        const isAcid = rawY < 0;
-        const py = isAcid ? (-rawY - 1) / 8 : rawY / 8;
         const px = p[k] / 8;
-        if (isAcid) {
-          // Grains d'acide vert corrosif avec éclat toxique et micro-vapeur d'évaporation
-          const flicker = (k + Math.floor(t * 0.025)) % 3;
-          ctx.fillStyle = flicker === 0 ? '#4ade80' : flicker === 1 ? '#22c55e' : '#16a34a';
-          ctx.fillRect(ox + px * s - 0.2 * s, oy + py * s - 0.2 * s, s * 1.4, s * 1.4);
-          if (k % 4 === 0) {
-            ctx.fillStyle = 'rgba(74, 222, 128, 0.35)';
-            ctx.fillRect(ox + (px - 0.5) * s, oy + (py - 0.5) * s, s * 2.0, s * 2.0);
-          }
-        } else {
-          ctx.fillStyle = '#e6c88e';
-          ctx.fillRect(ox + px * s, oy + py * s, s, s);
-        }
+        const py = p[k + 1] / 8;
+        ctx.fillRect(ox + px * s, oy + py * s, s, s);
       }
     }
     // boulet

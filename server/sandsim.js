@@ -22,7 +22,7 @@ import { CONFIG } from './config.js';
 const W = GRID_W;
 const H = GRID_H;
 const N = W * H;
-const { EMPTY, GROUND, WET, DRY, LOOSE, KING, HARD } = T;
+const { EMPTY, GROUND, WET, DRY, LOOSE, KING, HARD, ACID } = T;
 const MAX_PARTICLES = 1800;
 
 export function mulberry32(seed) {
@@ -142,9 +142,10 @@ export const PEDESTAL_SHAPES = [
   },
 ];
 
-const isGranular = (t) => t === DRY || t === LOOSE;
+const isGranular = (t) => t === DRY || t === LOOSE || t === ACID;
 const isStructural = (t) => t === WET || t === HARD;
-const isSand = (t) => t === WET || t === HARD || t === DRY || t === LOOSE;
+const isYellowSand = (t) => t === WET || t === HARD || t === DRY || t === LOOSE;
+const isSand = (t) => isYellowSand(t) || t === ACID;
 // Fragilité face aux chocs : le sable détrempé encaisse, le sable sec casse net.
 const brittle = (m) => 0.3 + 1.1 * (1 - m / 255);
 // Dégâts accumulés au-delà desquels la cellule se désagrège.
@@ -163,6 +164,7 @@ export class SandWorld {
     this.buckets = [];
     this.bodyTag = 1;
     this.support = new Uint8Array(N);
+    this.acidCount = 0;
     this.isBridge = new Uint8Array(N);
     this.queue = new Int32Array(N);
     this.bodies = [];
@@ -571,7 +573,7 @@ export class SandWorld {
 
   // ------------------------------------------------------------------ boucle
   get sleeping() {
-    return this.quietTicks > 180 && !this.ball && this.particles.length === 0 && !this.structDirty && !this.drying;
+    return this.quietTicks > 180 && !this.ball && this.particles.length === 0 && !this.structDirty && !this.drying && this.acidCount === 0;
   }
 
   step() {
@@ -580,6 +582,7 @@ export class SandWorld {
     let activity = 0;
     activity += this.stepGrains();
     activity += this.stepParticles();
+    activity += this.stepAcid();
     if (this.ball) {
       this.stepBall();
       activity++;
@@ -668,16 +671,18 @@ export class SandWorld {
   }
 
   get settled() {
-    return this.quietTicks > 20 && !this.ball && this.particles.length === 0;
+    return this.quietTicks > 20 && !this.ball && this.particles.length === 0 && this.acidCount === 0;
   }
 
   moveCell(from, to, v) {
     this.type[to] = this.type[from];
     this.vel[to] = v;
-    this.damage[to] = 0;
+    this.damage[to] = this.damage[from];
+    this.moist[to] = this.moist[from];
     this.type[from] = EMPTY;
     this.vel[from] = 0;
     this.damage[from] = 0;
+    this.moist[from] = 0;
     // si on retire un appui sous du sable mouillé/durci, il faut revérifier la structure
     if (from >= W && isStructural(this.type[from - W])) this.structDirty = true;
   }
@@ -693,7 +698,7 @@ export class SandWorld {
         const x = ltr ? k : W - 1 - k;
         const i = y * W + x;
         const t = type[i];
-        if (t !== DRY && t !== LOOSE) continue;
+        if (t !== DRY && t !== LOOSE && t !== ACID) continue;
 
         // 1) chute libre
         let v = vel[i] + g;
@@ -725,10 +730,16 @@ export class SandWorld {
           const falling = vel[cur] > 0.45 || n > 0;
           if (falling) {
             if (bt === KING) {
-              this.kingHit(v);
+              if (ct === ACID) {
+                this.killKing('acide');
+                if (this.acidCount > 0) this.acidCount--;
+              } else {
+                this.kingHit(v);
+              }
               type[cur] = EMPTY;
               vel[cur] = 0;
               this.damage[cur] = 0;
+              this.moist[cur] = 0;
               this.structDirty = true;
               continue;
             } else if (isStructural(bt) && v > 2) {
@@ -769,6 +780,117 @@ export class SandWorld {
     return moved;
   }
 
+  stepAcid() {
+    if (this.acidCount === 0) return 0;
+    const { type, vel, damage, moist, rng } = this;
+    let activity = 0;
+    // On parcourt la grille pour trouver les grains d'acide vert
+    for (let y = H - 2; y >= 0; y--) {
+      const row = y * W;
+      for (let x = 0; x < W; x++) {
+        const i = row + x;
+        if (type[i] !== ACID) continue;
+
+        // Décrémente le timer de corrosion (damage[i])
+        if (damage[i] > 0) {
+          damage[i]--;
+          continue;
+        }
+
+        // Le timer est arrivé à 0 : consommer 1 grain de sable jaune le plus proche !
+        // Réarme le timer entre 0.1s et 0.3s (6 à 18 ticks à 60 TPS)
+        damage[i] = 6 + Math.floor(rng() * 13);
+
+        // Recherche du grain de sable jaune le plus proche (voisins r=1, puis r=2)
+        let targetIdx = -1;
+        const offsetsR1 = [
+          [0, 1], [-1, 1], [1, 1], [-1, 0], [1, 0], [0, -1], [-1, -1], [1, -1],
+        ];
+        // Mélange aléatoire pour corroder de façon naturelle
+        for (let k = offsetsR1.length - 1; k > 0; k--) {
+          const j = Math.floor(rng() * (k + 1));
+          const tmp = offsetsR1[k];
+          offsetsR1[k] = offsetsR1[j];
+          offsetsR1[j] = tmp;
+        }
+
+        for (const [dx, dy] of offsetsR1) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+          const ni = ny * W + nx;
+          const nt = type[ni];
+          if (nt === KING) {
+            this.killKing('acide');
+            targetIdx = -2;
+            break;
+          }
+          if (isYellowSand(nt)) {
+            targetIdx = ni;
+            break;
+          }
+        }
+
+        if (targetIdx === -1) {
+          // Aucun grain jaune à r=1, cherche à r=2
+          const offsetsR2 = [
+            [0, 2], [-1, 2], [1, 2], [-2, 1], [2, 1], [-2, 0], [2, 0],
+            [-2, -1], [2, -1], [0, -2], [-1, -2], [1, -2],
+          ];
+          for (let k = offsetsR2.length - 1; k > 0; k--) {
+            const j = Math.floor(rng() * (k + 1));
+            const tmp = offsetsR2[k];
+            offsetsR2[k] = offsetsR2[j];
+            offsetsR2[j] = tmp;
+          }
+          for (const [dx, dy] of offsetsR2) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+            const ni = ny * W + nx;
+            const nt = type[ni];
+            if (nt === KING) {
+              this.killKing('acide');
+              targetIdx = -2;
+              break;
+            }
+            if (isYellowSand(nt)) {
+              targetIdx = ni;
+              break;
+            }
+          }
+        }
+
+        if (targetIdx >= 0) {
+          // Consume le grain de sable jaune !
+          type[targetIdx] = EMPTY;
+          vel[targetIdx] = 0;
+          damage[targetIdx] = 0;
+          moist[targetIdx] = 0;
+          this.structDirty = true;
+          activity++;
+          // Décrémente le quota de grains restants pour ce grain d'acide
+          moist[i]--;
+        } else if (targetIdx === -1) {
+          // Pas de sable jaune autour : s'épuise progressivement
+          moist[i]--;
+        }
+
+        // Si ce grain d'acide a consumé son quota (entre 1 et 3 grains), il disparaît
+        if (moist[i] <= 0) {
+          type[i] = EMPTY;
+          vel[i] = 0;
+          damage[i] = 0;
+          moist[i] = 0;
+          if (this.acidCount > 0) this.acidCount--;
+          this.structDirty = true;
+          activity++;
+        }
+      }
+    }
+    return activity;
+  }
+
   spawnParticle(x, y, vx, vy, kind) {
     if (this.particles.length >= MAX_PARTICLES) return;
     this.particles.push({ x, y, vx, vy, kind });
@@ -800,14 +922,6 @@ export class SandWorld {
     let w = 0;
     for (let r = 0; r < ps.length; r++) {
       const p = ps[r];
-      // Pour les grains d'acide vert : durée de vie qui décroît jusqu'à évaporation
-      if (p.isAcid) {
-        p.life = (p.life || 100) - 1;
-        if (p.life <= 0) {
-          // Le grain d'acide s'évapore dans les airs !
-          continue;
-        }
-      }
       p.vy += g;
       p.vx *= 0.99;
       p.vx += this.wind * 4;
@@ -826,52 +940,19 @@ export class SandWorld {
         if (cy >= 0) {
           const ct = type[cy * W + cx];
           if (ct !== EMPTY) {
-            if (p.isAcid) {
-              if (ct === KING) {
-                this.killKing('acide');
-                alive = false;
-                break;
-              } else if (isSand(ct)) {
-                // Le grain vert se déverse et repose sur le sable comme du sable physique
-                p.contactTicks = (p.contactTicks || 0) + 1;
-                // Friction physique douce sur le sable pour qu'il coule et se déverse naturellement
-                p.vx *= 0.65;
-                p.vy = Math.min(0.22, Math.max(0, p.vy * 0.45));
-                // Ronge lentement : après un certain contact (~24 ticks de contact), dissout 1 grain de sable
-                if (p.contactTicks >= 24 && (p.corroded || 0) < 1) {
-                  const j = cy * W + cx;
-                  type[j] = EMPTY;
-                  this.vel[j] = 0;
-                  this.damage[j] = 0;
-                  p.corroded = (p.corroded || 0) + 1;
-                  p.contactTicks = 0;
-                  this.structDirty = true;
-                }
-                // Si le grain a rongé son grain et s'approche de sa fin de vie, il se consume et disparaît
-                if ((p.corroded || 0) >= 1 && p.life < 50) {
-                  alive = false;
-                  break;
-                }
-              } else if (ct === GROUND) {
-                // Sol rocheux/plage dure : glisse doucement
-                p.vy = -Math.abs(p.vy) * 0.2;
-                p.vx *= 0.7;
-              }
-            } else {
-              if (ct === KING) {
-                this.kingHit(Math.hypot(p.vx, p.vy));
-                alive = false;
-                break;
-              }
-              if (isStructural(ct) && sp > 2.5) {
-                const j = cy * W + cx;
-                const factor = ct === HARD ? 0.45 : 1;
-                this.damage[j] = Math.min(255, this.damage[j] + sp * 6 * factor);
-              }
-              this.settleParticle(p.x, p.y, p.kind, Math.max(0, p.vy));
+            if (ct === KING) {
+              this.kingHit(Math.hypot(p.vx, p.vy));
               alive = false;
               break;
             }
+            if (isStructural(ct) && sp > 2.5) {
+              const j = cy * W + cx;
+              const factor = ct === HARD ? 0.45 : 1;
+              this.damage[j] = Math.min(255, this.damage[j] + sp * 6 * factor);
+            }
+            this.settleParticle(p.x, p.y, p.kind, Math.max(0, p.vy));
+            alive = false;
+            break;
           }
         }
         p.x = nx;
@@ -937,25 +1018,34 @@ export class SandWorld {
 
         if (b.acid) {
           // Boule d'acide : se déverse de la même manière que se déverse le sable avec un boulet normal,
-          // sauf que les grains sont verts et se consument en rongeant un peu le sable en contact pendant quelques petites secondes !
+          // sauf que les grains sont de vrais grains de sable physiques verts dans la grille,
+          // et tous les 0.1 à 0.3 secondes ils consument 1 grain de sable jaune le plus proche (1 à 3 au total) !
           const speed = Math.hypot(b.vx, b.vy);
           const nx = b.vx / (speed || 1);
           const ny = b.vy / (speed || 1);
-          const lump = Math.round(Math.PI * b.r * b.r * 0.85); // ~35-45 grains
+          const lump = 18 + Math.floor(this.rng() * 5); // petite quantité (~18-22 grains)
           for (let k = 0; k < lump; k++) {
             const a = this.rng() * Math.PI * 2;
-            const rr = Math.sqrt(this.rng()) * b.r;
-            this.particles.push({
-              x: b.x - nx * b.r * 0.5 + Math.cos(a) * rr,
-              y: b.y - ny * b.r * 0.5 + Math.sin(a) * rr,
-              vx: b.vx * 0.16 + Math.cos(a) * this.rng() * 0.6,
-              vy: b.vy * 0.08 - this.rng() * 1.0,
-              kind: 'acid',
-              isAcid: true,
-              life: 160 + Math.floor(this.rng() * 80), // ~2.5 à 4s d'existence (160-240 ticks à 60 TPS)
-              contactTicks: 0,
-              corroded: 0,
-            });
+            const rr = Math.sqrt(this.rng()) * (b.r * 0.85);
+            let gx = Math.round(b.x - nx * b.r * 0.4 + Math.cos(a) * rr);
+            let gy = Math.round(b.y - ny * b.r * 0.4 + Math.sin(a) * rr);
+            if (gx < 0) gx = 0; if (gx >= W) gx = W - 1;
+            if (gy < 0) gy = 0; if (gy >= H - 1) gy = H - 2;
+
+            // Trouve une case libre pour déposer le grain de sable vert
+            let cur = gy * W + gx;
+            let guard = 0;
+            while (cur >= 0 && this.type[cur] !== EMPTY && guard++ < 35) {
+              cur -= W;
+              gy--;
+            }
+            if (cur >= 0 && this.type[cur] === EMPTY) {
+              this.type[cur] = ACID;
+              this.vel[cur] = 0.4 + this.rng() * 1.2;
+              this.damage[cur] = 6 + Math.floor(this.rng() * 13); // 6..18 ticks (0.1..0.3s)
+              this.moist[cur] = 1 + Math.floor(this.rng() * 3);  // 1..3 grains jaunes à consumer
+              this.acidCount++;
+            }
           }
           if (hit === KING) {
             this.killKing('acide');
@@ -1618,8 +1708,7 @@ export class SandWorld {
     for (let k = 0; k < ps.length; k++) {
       const p = ps[k];
       arr[k * 2] = Math.round(p.x * 8);
-      const rawY = Math.round(p.y * 8);
-      arr[k * 2 + 1] = p.isAcid ? (-rawY - 1) : rawY;
+      arr[k * 2 + 1] = Math.round(p.y * 8);
     }
     return Buffer.from(arr.buffer.slice(0, arr.byteLength));
   }
@@ -1657,13 +1746,14 @@ export class SandWorld {
 
   // ------------------------------------------------------------------ outils (MCP / tests)
   countTypes() {
-    const c = { wet: 0, hard: 0, dry: 0, loose: 0 };
+    const c = { wet: 0, hard: 0, dry: 0, loose: 0, acid: 0 };
     for (let i = 0; i < N; i++) {
       const t = this.type[i];
       if (t === WET) c.wet++;
       else if (t === HARD) c.hard++;
       else if (t === DRY) c.dry++;
       else if (t === LOOSE) c.loose++;
+      else if (t === ACID) c.acid++;
     }
     return c;
   }
