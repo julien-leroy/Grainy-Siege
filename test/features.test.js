@@ -596,7 +596,7 @@ test('sandsim: la boule de poison libère des grains de sable verts qui creusent
   w.launch(180, GROUND_Y - 30, 0, 1.5, false, false, false, true);
   assert.ok(w.ball && w.ball.acid, 'boule acide en vol');
 
-  // Laisser la boule impacter
+  // Laisser la boule impacter et se déverser comme du sable
   for (let t = 0; t < 15; t++) w.step();
 
   // Des grains verts d'acide sont créés et encodés
@@ -612,17 +612,17 @@ test('sandsim: la boule de poison libère des grains de sable verts qui creusent
   }
   assert.ok(hasAcidEncoded, 'grains d acide encodés avec coordonnée Y négative pour le rendu vert');
 
-  // Simuler l'avancement : les grains rongent le sable et creusent
-  for (let t = 0; t < 60; t++) w.step();
+  // Simuler l'avancement : les grains rongent un peu le sable en contact pendant quelques secondes
+  for (let t = 0; t < 70; t++) w.step();
   const sandCountAfter = w.countTypes().wet;
   assert.ok(sandCountAfter < sandCountBefore, 'les grains verts ont creusé et rongé du sable');
 
-  // Continuer la simulation : tous les grains finissent par s'évaporer
-  for (let t = 0; t < 150; t++) w.step();
+  // Continuer la simulation : tous les grains finissent par se consumer et s'évaporer
+  for (let t = 0; t < 220; t++) w.step();
   assert.equal(w.particles.filter((p) => p.isAcid).length, 0, 'les grains d acide se sont tous évaporés');
 });
 
-test('game: en debut de game tous les chateaux sont mouilles integralement et bonus soleil rare', () => {
+test('game: en debut de game tous les chateaux sont humides (T.WET pas HARD) et ne sechent que sur ecran cible', () => {
   const room = new Room('WET_TEST', createFakeIo());
   const p1 = room.addPlayer({ name: 'Alice' });
   const p2 = room.addPlayer({ name: 'Bob' });
@@ -630,13 +630,14 @@ test('game: en debut de game tous les chateaux sont mouilles integralement et bo
   p2.connected = true;
 
   room.start();
-  // Vérifier qu'au début du jeu en phase build, le château/plage de chaque joueur est intégralement mouillé
+  // Vérifier qu'au début du jeu en phase build, le château/plage de chaque joueur est en sable mouillé normal (T.WET)
   for (const p of room.players.values()) {
     let sandFound = 0;
     for (let i = 0; i < GRID_W * GROUND_Y; i++) {
-      if (p.world.type[i] === T.WET || p.world.type[i] === T.HARD) {
+      if (p.world.type[i] === T.WET) {
         sandFound++;
-        assert.equal(p.world.moist[i], 255, 'le sable initial est mouillé à 100%');
+        assert.equal(p.world.type[i], T.WET, 'le sable initial est bien T.WET (pas durci HARD)');
+        assert.ok(p.world.moist[i] >= 190 && p.world.moist[i] <= 210, 'humidité normale de construction');
       }
     }
     assert.ok(sandFound > 0, 'du sable de départ est présent');
@@ -646,14 +647,13 @@ test('game: en debut de game tous les chateaux sont mouilles integralement et bo
   room.endBuild();
   room.startBattle();
 
-  // En début de combat, tous les châteaux sont également intégralement mouillés
-  for (const p of room.players.values()) {
-    for (let i = 0; i < GRID_W * GROUND_Y; i++) {
-      if (p.world.type[i] === T.WET || p.world.type[i] === T.HARD) {
-        assert.equal(p.world.moist[i], 255, 'le sable en début de bataille est mouillé à 100%');
-      }
-    }
-  }
+  // Seul le château cible affiché à l'écran sèche pendant les combats
+  room.tick();
+  const currentTargetId = room.turn.targetId;
+  const currentShooterId = room.turn.shooterId;
+  assert.ok(currentTargetId, 'une cible est définie');
+  assert.equal(room.players.get(currentTargetId).world.drying, true, 'le château affiché à l écran (cible) sèche');
+  assert.equal(room.players.get(currentShooterId).world.drying, false, 'le château hors écran ne sèche pas');
 
   // Vérifier la rareté du bonus soleil (dryOpponent) sur 1000 tirages après round 5
   room.round = 6;

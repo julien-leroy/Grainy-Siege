@@ -590,7 +590,8 @@ export class SandWorld {
       activity += failed;
     }
     if (this.drying && this.tick % 6 === 0) {
-      this.stepDrying();
+      const dried = this.stepDrying();
+      if (dried > 0) activity++;
     }
     if (activity > 0) {
       this.version++;
@@ -601,10 +602,11 @@ export class SandWorld {
   }
 
   stepDrying() {
-    if (!this.drying) return;
+    if (!this.drying) return 0;
     const { type, moist, moistTmp } = this;
     moistTmp.set(moist);
     const D = 0.10; // Diffusion capillaire naturelle entre grains voisins
+    let driedCount = 0;
     for (let y = 0; y < GROUND_Y; y++) {
       const row = y * W;
       for (let x = 0; x < W; x++) {
@@ -642,11 +644,12 @@ export class SandWorld {
         }
 
         // Taux d'évaporation équilibré et progressif :
-        // Le sable durci (HARD) conserve son humidité 2.6x plus longtemps que le sable mouillé (WET)
+        // Le sable sèche lentement depuis l'extérieur (faces exposées) vers l'intérieur
         if (exposedFaces > 0) {
-          const baseRate = t === HARD ? 0.06 : 0.16;
+          const baseRate = t === HARD ? 0.08 : 0.20;
           const faceMultiplier = 0.75 + exposedFaces * 0.25;
           m -= baseRate * faceMultiplier;
+          driedCount++;
         }
 
         // Diffusion capillaire vers / depuis les grains voisins
@@ -658,6 +661,10 @@ export class SandWorld {
       }
     }
     moist.set(moistTmp);
+    if (this.tick % 18 === 0) {
+      this.structDirty = true;
+    }
+    return driedCount;
   }
 
   get settled() {
@@ -821,29 +828,34 @@ export class SandWorld {
           if (ct !== EMPTY) {
             if (p.isAcid) {
               if (ct === KING) {
-                this.kingHit(2.0);
+                this.killKing('acide');
                 alive = false;
                 break;
               } else if (isSand(ct)) {
-                // Ronge et dissout le grain de sable touché
-                const j = cy * W + cx;
-                type[j] = EMPTY;
-                this.vel[j] = 0;
-                this.damage[j] = 0;
-                p.digs = (p.digs || 0) + 1;
-                // Ralentit en creusant la matière mais continue de couler pour creuser un peu plus profond
-                p.vx *= 0.45;
-                p.vy = Math.min(0.8, Math.max(0.18, p.vy * 0.45));
-                if (p.digs >= (p.maxDigs || 4)) {
-                  // A fini de creuser sa dose de sable : s'évapore et se consume !
+                // Le grain vert se déverse et repose sur le sable comme du sable physique
+                p.contactTicks = (p.contactTicks || 0) + 1;
+                // Friction physique douce sur le sable pour qu'il coule et se déverse naturellement
+                p.vx *= 0.65;
+                p.vy = Math.min(0.22, Math.max(0, p.vy * 0.45));
+                // Ronge lentement : après un certain contact (~24 ticks de contact), dissout 1 grain de sable
+                if (p.contactTicks >= 24 && (p.corroded || 0) < 1) {
+                  const j = cy * W + cx;
+                  type[j] = EMPTY;
+                  this.vel[j] = 0;
+                  this.damage[j] = 0;
+                  p.corroded = (p.corroded || 0) + 1;
+                  p.contactTicks = 0;
+                  this.structDirty = true;
+                }
+                // Si le grain a rongé son grain et s'approche de sa fin de vie, il se consume et disparaît
+                if ((p.corroded || 0) >= 1 && p.life < 50) {
                   alive = false;
                   break;
                 }
               } else if (ct === GROUND) {
-                // Sol rocheux/plage dure : rebondit légèrement puis s'évapore plus vite
+                // Sol rocheux/plage dure : glisse doucement
                 p.vy = -Math.abs(p.vy) * 0.2;
-                p.vx *= 0.6;
-                p.life -= 3;
+                p.vx *= 0.7;
               }
             } else {
               if (ct === KING) {
@@ -924,22 +936,25 @@ export class SandWorld {
         }
 
         if (b.acid) {
-          // Boule de poison / Fiole d'acide :
-          // Répand des grains de sable verts qui creusent un peu le sable avant de s'évaporer !
-          const count = 75;
-          for (let k = 0; k < count; k++) {
-            const ang = (this.rng() - 0.5) * 2.5 - Math.PI / 2;
-            const spd = 0.5 + this.rng() * 3.4;
+          // Boule d'acide : se déverse de la même manière que se déverse le sable avec un boulet normal,
+          // sauf que les grains sont verts et se consument en rongeant un peu le sable en contact pendant quelques petites secondes !
+          const speed = Math.hypot(b.vx, b.vy);
+          const nx = b.vx / (speed || 1);
+          const ny = b.vy / (speed || 1);
+          const lump = Math.round(Math.PI * b.r * b.r * 0.85); // ~35-45 grains
+          for (let k = 0; k < lump; k++) {
+            const a = this.rng() * Math.PI * 2;
+            const rr = Math.sqrt(this.rng()) * b.r;
             this.particles.push({
-              x: b.x + (this.rng() - 0.5) * 2.5,
-              y: b.y + (this.rng() - 0.5) * 2.5,
-              vx: Math.cos(ang) * spd + b.vx * 0.2,
-              vy: Math.sin(ang) * spd + b.vy * 0.1,
+              x: b.x - nx * b.r * 0.5 + Math.cos(a) * rr,
+              y: b.y - ny * b.r * 0.5 + Math.sin(a) * rr,
+              vx: b.vx * 0.16 + Math.cos(a) * this.rng() * 0.6,
+              vy: b.vy * 0.08 - this.rng() * 1.0,
               kind: 'acid',
               isAcid: true,
-              life: 80 + Math.floor(this.rng() * 60), // ~1.5s à 2.5s d'existence
-              digs: 0,
-              maxDigs: 3 + Math.floor(this.rng() * 4), // Creuse 3 à 6 grains de sable
+              life: 160 + Math.floor(this.rng() * 80), // ~2.5 à 4s d'existence (160-240 ticks à 60 TPS)
+              contactTicks: 0,
+              corroded: 0,
             });
           }
           if (hit === KING) {

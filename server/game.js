@@ -283,7 +283,6 @@ export class Room {
       const pedestalType = Math.floor(this.rng() * 5);
       const kx = Math.round(210 + (this.rng() - 0.5) * 16);
       p.world.initBeachDunes(pedestalType, kx);
-      p.world.wetAll(); // En début de game tous les châteaux sont mouillés intégralement
       p.alive = true;
       p.placed = 0;
       p.lastPlace = 0;
@@ -312,7 +311,6 @@ export class Room {
     this.phase = 'settle';
     this.endsAt = Date.now() + SETTLE_MS;
     for (const p of this.players.values()) {
-      p.world.wetAll();
       if (!p.world.king) {
         p.world.initBeachDunes(0, 210);
         this.say(`Le Roi de ${p.name} a été posé d'office sur son reposoir`);
@@ -327,9 +325,8 @@ export class Room {
     this.drops = [];
     this.lastDropSpawn = Date.now() + 3000;
     for (const p of this.players.values()) {
-      p.world.wetAll(); // En début de game de combat, tous les châteaux sont mouillés intégralement
       p.world.armed = true;
-      p.world.drying = true;
+      p.world.drying = false; // Ne sèche que quand le château est affiché à l'écran (cible du tour)
       p.defenseSpraysLeft = 0; // Gagnera +1 dose de spray dès son premier tour de défense
       p.ammoStock = 0;         // Gagnera +2 boulets dès son premier tour d'attaque
       if (p.world.king && !p.world.king.dead) p.world.king.hits = 0;
@@ -706,7 +703,12 @@ export class Room {
     this.tickCount++;
     const now = Date.now();
 
-    for (const p of this.players.values()) p.world.step();
+    // Le château ne sèche que lorsqu'il est affiché sur l'écran à partir du lancement des combats (cible du tour)
+    const activeTargetId = (this.phase === 'battle' && this.turn) ? this.turn.targetId : null;
+    for (const p of this.players.values()) {
+      p.world.drying = Boolean(activeTargetId && p.id === activeTargetId);
+      p.world.step();
+    }
 
     if (this.phase === 'build') {
       const elapsed = now - this.phaseStart;

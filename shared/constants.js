@@ -42,7 +42,7 @@ export const DMG_SHIFT = 3;
 export const MOIST_SHIFT = 5;
 
 // Humidité (0..255) : le sable fraîchement moulé est mouillé, le spray le détrempe.
-export const MOIST_BUILD = 255;
+export const MOIST_BUILD = 205;
 export const MOIST_SPRAY = 255;
 
 export const BUILD_SECONDS = 60;

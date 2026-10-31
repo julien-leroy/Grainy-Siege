@@ -1439,18 +1439,6 @@ export class Renderer {
             const waterTilt = Math.sin(t * 0.003 + d.x * 0.5) * 0.05;
             ctx.rotate(waterTilt);
             ctx.drawImage(pSunkSpr, -sw / 2, -sh * 0.86, sw, sh);
-
-            // Icône bonus légèrement atténuée sur le sac qui coule
-            if (bonusSpr && bonusSpr.complete && bonusSpr.naturalWidth > 0) {
-              ctx.save();
-              ctx.globalAlpha = 0.8;
-              ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-              ctx.shadowBlur = 3 * this.dpr;
-              const iw = iconSize * 0.85;
-              const ih = iw * (bonusSpr.naturalHeight / bonusSpr.naturalWidth);
-              ctx.drawImage(bonusSpr, -iw / 2, -sh * 0.28, iw, ih);
-              ctx.restore();
-            }
             ctx.restore();
           } else {
             // Fallback si sprite non chargé
@@ -1464,14 +1452,6 @@ export class Renderer {
             const waterTilt = Math.sin(t * 0.003 + d.x * 0.5) * 0.08;
             ctx.rotate(waterTilt);
             ctx.drawImage(pBagSpr, -pw / 2, -ph * 0.74, pw, ph);
-
-            if (bonusSpr && bonusSpr.complete && bonusSpr.naturalWidth > 0) {
-              ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-              ctx.shadowBlur = 4 * this.dpr;
-              const iw = iconSize;
-              const ih = iw * (bonusSpr.naturalHeight / bonusSpr.naturalWidth);
-              ctx.drawImage(bonusSpr, -iw / 2, bagCenterY - ih / 2, iw, ih);
-            }
             ctx.restore();
           }
 
