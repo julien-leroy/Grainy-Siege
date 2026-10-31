@@ -839,8 +839,12 @@ export class Room {
     } else if (t.state === 'resolve') {
       const dt = now - t.resolveStart;
       const anyDead = [...this.players.values()].some((p) => p.alive && p.world.king?.dead);
-      const settled = target.world.settled;
-      if ((dt > RESOLVE_MIN_MS && settled && !anyDead) || (anyDead && dt > 2400) || dt > RESOLVE_MAX_MS) {
+      const isIntermediateShot = t.shotsLeft > 0 && now < t.attackPhaseEndsAt && !anyDead;
+      // Entre deux tirs : attente rapide et raisonnable (~650ms après impact) pour re-tirer sans attendre
+      // Dernier tir : on laisse ~1.8 seconde pour bien admirer les dégâts sur le château
+      const waitTime = isIntermediateShot ? 650 : 1800;
+
+      if (dt >= waitTime) {
         for (const p of this.players.values()) {
           if (p.alive && p.world.king?.dead) p.alive = false;
         }
@@ -855,7 +859,7 @@ export class Room {
           this.dirtyState = true;
           this.say(`☄️ Boulet armé ! Il te reste ${t.shotsLeft} tir(s) dans cette phase !`);
           if (shooter?.isBot) {
-            t.botFireAt = now + 1200 + this.rng() * 800;
+            t.botFireAt = now + 800 + this.rng() * 600;
           }
         } else {
           this.nextTurn(t.shooterId);

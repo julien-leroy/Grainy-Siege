@@ -1340,22 +1340,22 @@ export class Renderer {
     const { ctx } = this;
     const { s, ox, oy } = this.view;
     const centerX = ox + ((BUILD_MIN_X + BUILD_MAX_X) / 2) * s;
-    const centerY = oy + (GROUND_Y + 10) * s;
+    const centerY = oy + (GROUND_Y + 11.5) * s;
 
     ctx.save();
-    const badgeW = 260 * this.dpr;
-    const badgeH = 26 * this.dpr;
-    const r = 13 * this.dpr;
+    const badgeW = 320 * this.dpr;
+    const badgeH = 46 * this.dpr;
+    const r = 16 * this.dpr;
     const left = centerX - badgeW / 2;
     const top = centerY - badgeH / 2;
 
-    ctx.shadowColor = spraysLeft > 0 ? 'rgba(56, 189, 248, 0.45)' : 'rgba(0, 0, 0, 0.4)';
-    ctx.shadowBlur = spraysLeft > 0 ? 12 * this.dpr : 4 * this.dpr;
+    ctx.shadowColor = spraysLeft > 0 ? 'rgba(56, 189, 248, 0.55)' : 'rgba(0, 0, 0, 0.4)';
+    ctx.shadowBlur = spraysLeft > 0 ? 14 * this.dpr : 4 * this.dpr;
 
     const grad = ctx.createLinearGradient(left, top, left + badgeW, top + badgeH);
-    grad.addColorStop(0, 'rgba(8, 47, 73, 0.94)');
-    grad.addColorStop(0.5, 'rgba(12, 74, 110, 0.92)');
-    grad.addColorStop(1, 'rgba(3, 105, 161, 0.94)');
+    grad.addColorStop(0, 'rgba(6, 38, 62, 0.96)');
+    grad.addColorStop(0.5, 'rgba(8, 51, 80, 0.94)');
+    grad.addColorStop(1, 'rgba(3, 85, 130, 0.96)');
     ctx.fillStyle = grad;
 
     ctx.beginPath();
@@ -1364,44 +1364,85 @@ export class Renderer {
     ctx.fill();
 
     ctx.shadowBlur = 0;
-    ctx.strokeStyle = spraysLeft > 0 ? 'rgba(56, 189, 248, 0.85)' : 'rgba(148, 163, 184, 0.4)';
-    ctx.lineWidth = 1.8 * this.dpr;
+    ctx.strokeStyle = spraysLeft > 0 ? '#38bdf8' : 'rgba(148, 163, 184, 0.35)';
+    ctx.lineWidth = 2.0 * this.dpr;
     ctx.stroke();
 
+    // Titre / Badge textuel
     const fontSize = Math.max(10, Math.round(11 * this.dpr));
     ctx.font = `800 ${fontSize}px system-ui, -apple-system, sans-serif`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText('💦 SPRAY DÉFENSE :', left + 14 * this.dpr, centerY);
+    ctx.fillStyle = spraysLeft > 0 ? '#38bdf8' : '#94a3b8';
+    ctx.fillText('🛡️ SPRAY DÉFENSE :', left + 14 * this.dpr, centerY);
 
-    const dropletsX = left + 130 * this.dpr;
+    // Grandes icônes du spray de défense
+    const sprImg = this.sprites?.toolSpray;
+    const slotStartX = left + 145 * this.dpr;
+    const slotGap = 34 * this.dpr;
+
     for (let i = 0; i < maxSprays; i++) {
-      const dx = dropletsX + i * 20 * this.dpr;
+      const sx = slotStartX + i * slotGap;
       const isAvailable = i < spraysLeft;
+      const slotR = 14.5 * this.dpr;
+
       if (isAvailable) {
-        ctx.font = `${Math.round(13 * this.dpr)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.fillText('💧', dx, centerY);
-      } else {
-        ctx.fillStyle = 'rgba(148, 163, 184, 0.35)';
+        // Halo lumineux pour chaque spray disponible
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.22)';
         ctx.beginPath();
-        ctx.arc(dx, centerY, 5 * this.dpr, 0, Math.PI * 2);
+        ctx.arc(sx, centerY, slotR, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-        ctx.lineWidth = 1 * this.dpr;
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.6 * this.dpr;
         ctx.stroke();
+
+        if (sprImg && sprImg.complete && sprImg.naturalWidth > 0) {
+          const sh = 25 * this.dpr;
+          const sw = sh * (sprImg.naturalWidth / sprImg.naturalHeight);
+          ctx.drawImage(sprImg, sx - sw / 2, centerY - sh / 2, sw, sh);
+        } else {
+          ctx.font = `${Math.round(16 * this.dpr)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.fillText('💦', sx, centerY);
+        }
+      } else {
+        // Emplacement vide / spray déjà utilisé
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.45)';
+        ctx.beginPath();
+        ctx.arc(sx, centerY, slotR - 1 * this.dpr, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.25)';
+        ctx.lineWidth = 1.0 * this.dpr;
+        ctx.stroke();
+
+        if (sprImg && sprImg.complete && sprImg.naturalWidth > 0) {
+          ctx.save();
+          ctx.globalAlpha = 0.20;
+          ctx.filter = 'grayscale(1)';
+          const sh = 23 * this.dpr;
+          const sw = sh * (sprImg.naturalWidth / sprImg.naturalHeight);
+          ctx.drawImage(sprImg, sx - sw / 2, centerY - sh / 2, sw, sh);
+          ctx.restore();
+        }
       }
     }
 
+    // Libellé d'action / Disponibilité à droite
     ctx.textAlign = 'right';
-    ctx.font = `700 ${Math.max(9, Math.round(9.5 * this.dpr))}px system-ui, sans-serif`;
     if (spraysLeft > 0) {
-      ctx.fillStyle = '#38bdf8';
-      ctx.fillText(`(${spraysLeft} prêt${spraysLeft > 1 ? 's' : ''}) Clic château !`, left + badgeW - 12 * this.dpr, centerY);
+      ctx.font = `800 ${Math.max(9, Math.round(10 * this.dpr))}px system-ui, sans-serif`;
+      ctx.fillStyle = '#7dd3fc';
+      ctx.fillText(`${spraysLeft} PRÊT${spraysLeft > 1 ? 'S' : ''}`, left + badgeW - 14 * this.dpr, centerY - 6 * this.dpr);
+      ctx.font = `700 ${Math.max(8, Math.round(8.5 * this.dpr))}px system-ui, sans-serif`;
+      ctx.fillStyle = '#facc15';
+      ctx.fillText('[CLIC / E]', left + badgeW - 14 * this.dpr, centerY + 7 * this.dpr);
     } else {
+      ctx.font = `800 ${Math.max(9, Math.round(9.5 * this.dpr))}px system-ui, sans-serif`;
       ctx.fillStyle = '#f87171';
-      ctx.fillText('Épuisé (Touche 🎁 en vol)', left + badgeW - 12 * this.dpr, centerY);
+      ctx.fillText('0 PRÊT', left + badgeW - 14 * this.dpr, centerY - 6 * this.dpr);
+      ctx.font = `600 ${Math.max(8, Math.round(8.0 * this.dpr))}px system-ui, sans-serif`;
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('(Épuisé)', left + badgeW - 14 * this.dpr, centerY + 7 * this.dpr);
     }
 
     ctx.restore();

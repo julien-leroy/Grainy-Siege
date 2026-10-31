@@ -10,6 +10,7 @@ let master = null;
 let musicGain = null;
 let sfxGain = null;
 let muted = localStorage.getItem('sc-muted') === '1';
+let musicMuted = localStorage.getItem('sc-music-muted') === '1';
 let noiseBuf = null;
 let seagullTimer = null;
 let chargeAudio = null;
@@ -31,7 +32,7 @@ function ensure() {
   sfxGain.connect(master);
 
   musicGain = ctx.createGain();
-  musicGain.gain.value = 0.24;
+  musicGain.gain.value = musicMuted ? 0 : 0.24;
   musicGain.connect(master);
 
   // Tampon de bruit blanc pour le vent, les vagues et le sable
@@ -57,6 +58,19 @@ export function toggleMute() {
   localStorage.setItem('sc-muted', muted ? '1' : '0');
   if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : 0.72, ctx.currentTime, 0.05);
   return muted;
+}
+
+export function isMusicMuted() {
+  return musicMuted;
+}
+
+export function toggleMusicMute() {
+  musicMuted = !musicMuted;
+  localStorage.setItem('sc-music-muted', musicMuted ? '1' : '0');
+  if (musicGain && ctx) {
+    musicGain.gain.setTargetAtTime(musicMuted ? 0 : 0.24, ctx.currentTime, 0.05);
+  }
+  return musicMuted;
 }
 
 // Bruit blanc filtré (pour le sable, vent, vagues, explosions)

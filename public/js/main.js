@@ -8,7 +8,7 @@ import {
 } from '/shared/constants.js';
 import { ClientWorld } from './world.js';
 import { Renderer, drawThumb } from './renderer.js';
-import { sfx, music, unlock, isMuted, toggleMute } from './audio.js';
+import { sfx, music, unlock, isMuted, toggleMute, isMusicMuted, toggleMusicMute } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -638,6 +638,20 @@ $('mute-btn').addEventListener('click', () => {
   unlock();
   toggleMute();
   updateMuteBtn();
+});
+
+function updateMusicBtn() {
+  const btn = $('music-btn');
+  if (!btn) return;
+  const off = isMusicMuted();
+  btn.textContent = off ? '🔇' : '🎵';
+  btn.title = off ? 'Activer la musique' : 'Couper la musique';
+}
+updateMusicBtn();
+$('music-btn')?.addEventListener('click', () => {
+  unlock();
+  toggleMusicMute();
+  updateMusicBtn();
 });
 
 function resetAllGameData() {
@@ -1323,7 +1337,7 @@ function syncUI() {
   const isDefending = inBattle && s.turn.targetId === myId;
 
   $('catapult-hud')?.classList.toggle('hidden', !isMyTurn);
-  $('defender-controls').classList.toggle('hidden', !inBattle || isMyTurn);
+  $('defender-controls').classList.toggle('hidden', !inBattle || isMyTurn || !isDefending);
   $('wind-pill').classList.toggle('hidden', !inBattle);
 
   // Bouton latéral de bascule de catapulte (au centre sur le bord où se trouve la catapulte opposée)
@@ -1383,19 +1397,11 @@ function syncUI() {
       if (!isCharging) triggerLabelEl.textContent = 'Tirer !!';
     }
 
-    if (!isMyTurn) {
-      const shooter = s.players.find((p) => p.id === s.turn.shooterId);
-      if (isDefending) {
-        const leftSprays = me?.defenseSpraysLeft ?? 1;
-        $('spectator-msg').innerHTML = leftSprays > 0
-          ? `🛡️ <strong>Tu te défends !</strong> Clique sur ton château ou [E] pour <strong>arroser et durcir ton sable 💦</strong> (${leftSprays} spray disponible pour cette phase de défense) !`
-          : '🛡️ <strong>Tu te défends !</strong> Spray déjà utilisé ce tour ! Protège ton Roi !';
-      } else {
-        $('spectator-msg').innerHTML =
-          s.turn.state === 'aim'
-            ? `🎯 <strong>${escapeHtml(shooter?.name || 'Le joueur')}</strong> ajuste sa catapulte…`
-            : '☄️ <strong>Boulet en vol !</strong>';
-      }
+    if (isDefending) {
+      const leftSprays = me?.defenseSpraysLeft ?? 0;
+      $('spectator-msg').innerHTML = leftSprays > 0
+        ? `🛡️ <strong>Tu te défends !</strong> Clique sur ton château ou [E] pour <strong>arroser et durcir ton sable 💦</strong> (${leftSprays} spray disponible) !`
+        : '🛡️ <strong>Spray épuisé pour ce tour !</strong> Protège ton Roi !';
     }
     const shooter = s.players.find((p) => p.id === s.turn.shooterId);
     if (shooter) renderer.catapult.color = shooter.color;
@@ -1440,7 +1446,7 @@ function syncUI() {
       const nextShooter = s.turn.nextShooter || (s.turn.nextShooterId ? s.players.find((p) => p.id === s.turn.nextShooterId) : null);
       const nextTarget = s.turn.nextTarget || (s.turn.nextTargetId ? s.players.find((p) => p.id === s.turn.nextTargetId) : null);
 
-      const crownSvg = (color, size = 26) => `
+      const crownSvg = (color, size = 20) => `
         <svg viewBox="0 0 24 24" width="${size}" height="${size}" class="king-crown-icon" aria-hidden="true">
           <path d="M4 19h16v2H4v-2zm16-9l-4 5-4-7-4 7-4-5v7h16v-7z" fill="${color || '#ccc'}" stroke="#ffffff" stroke-width="1.3" stroke-linejoin="round"/>
           <circle cx="4" cy="9" r="1.5" fill="#facc15"/>
@@ -1451,20 +1457,35 @@ function syncUI() {
 
       let html = `
         <div class="king-duels-bar">
-          <div class="king-duel-item active" title="Tour en cours">
-            <span class="king-badge" style="--c:${curShooter?.color || '#ccc'}" title="Tireur : ${escapeHtml(curShooter?.name || '?')}">${crownSvg(curShooter?.color, 26)}</span>
+          <div class="king-duel-item active" title="Tour actuel : ${escapeHtml(curShooter?.name || '?')} (Tireur ☄️) VS ${escapeHtml(curTarget?.name || '?')} (Défenseur 🏰)">
+            <div class="duel-fighter shooter" style="--c:${curShooter?.color || '#3b82f6'}" title="Tireur : ${escapeHtml(curShooter?.name || '?')} (Catapulte)">
+              <span class="king-badge" style="--c:${curShooter?.color || '#3b82f6'}">${crownSvg(curShooter?.color, 18)}</span>
+              <span class="duel-fighter-name">${escapeHtml(curShooter?.name || '?')}</span>
+              <span class="duel-fighter-badge">🎯 Tireur</span>
+            </div>
             <span class="duel-swords">⚔️</span>
-            <span class="king-badge" style="--c:${curTarget?.color || '#ccc'}" title="Cible : ${escapeHtml(curTarget?.name || '?')}">${crownSvg(curTarget?.color, 26)}</span>
+            <div class="duel-fighter target" style="--c:${curTarget?.color || '#ef4444'}" title="Défenseur : ${escapeHtml(curTarget?.name || '?')} (Château)">
+              <span class="duel-fighter-badge def">🛡️ Château</span>
+              <span class="duel-fighter-name">${escapeHtml(curTarget?.name || '?')}</span>
+              <span class="king-badge" style="--c:${curTarget?.color || '#ef4444'}">${crownSvg(curTarget?.color, 18)}</span>
+            </div>
           </div>
       `;
 
       if (nextShooter && nextTarget) {
         html += `
           <span class="duel-flow-arrow">➔</span>
-          <div class="king-duel-item next" title="Prochain tour">
-            <span class="king-badge next" style="--c:${nextShooter.color}" title="Prochain tireur : ${escapeHtml(nextShooter.name)}">${crownSvg(nextShooter.color, 20)}</span>
+          <div class="king-duel-item next" title="Prochain duel : ${escapeHtml(nextShooter.name)} (Tireur) ➔ ${escapeHtml(nextTarget.name)} (Défenseur)">
+            <span class="duel-next-label">Suivant :</span>
+            <span class="duel-fighter-mini" style="--c:${nextShooter.color}">
+              <span class="king-badge next" style="--c:${nextShooter.color}">${crownSvg(nextShooter.color, 14)}</span>
+              <span class="duel-mini-name">${escapeHtml(nextShooter.name)}</span>
+            </span>
             <span class="duel-swords next">⚔️</span>
-            <span class="king-badge next" style="--c:${nextTarget.color}" title="Prochaine cible : ${escapeHtml(nextTarget.name)}">${crownSvg(nextTarget.color, 20)}</span>
+            <span class="duel-fighter-mini" style="--c:${nextTarget.color}">
+              <span class="duel-mini-name">${escapeHtml(nextTarget.name)}</span>
+              <span class="king-badge next" style="--c:${nextTarget.color}">${crownSvg(nextTarget.color, 14)}</span>
+            </span>
           </div>
         `;
       }
