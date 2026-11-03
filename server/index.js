@@ -40,21 +40,79 @@ function createRoom() {
   return room;
 }
 
+function formatPayload(data) {
+  if (data == null) return 'aucun';
+  try {
+    const str = typeof data === 'object' ? JSON.stringify(data) : String(data);
+    return str.length > 200 ? str.slice(0, 197) + '...' : str;
+  } catch {
+    return '[non-sérialisable]';
+  }
+}
+
+function logActionError(eventName, err, { room, me, socket, data }) {
+  const roomCode = room?.code || 'N/A';
+  const phase = room?.phase || 'hors-salle';
+  const playerDesc = me ? `${me.name} (id: ${me.id})` : `Socket: ${socket.id.slice(0, 8)}`;
+  const errMsg = err?.message || String(err);
+  const stack = err?.stack ? err.stack.split('\n').slice(1, 4).map((l) => l.trim()).join('\n      ') : '';
+
+  console.error(
+    `❌ [ERREUR SERVEUR ACTION] Action: '${eventName}' | Salle: ${roomCode} | Joueur: ${playerDesc} | Phase: ${phase}\n` +
+    `   ↳ Message: ${errMsg}\n` +
+    `   ↳ Données: ${formatPayload(data)}` +
+    (stack ? `\n   ↳ Stack:\n      ${stack}` : '')
+  );
+}
+
 // ------------------------------------------------------------------ Socket.IO
 io.on('connection', (socket) => {
   let room = null;
   let me = null;
 
+  let clientErrorsCount = 0;
+  let lastClientErrorReset = Date.now();
+
   const fail = (cb, e) => cb?.({ ok: false, error: e.message || String(e) });
-  const guard = (fn) => (data, cb) => {
+  const guard = (name, fn) => (data, cb) => {
     try {
       fn(data || {}, cb);
     } catch (e) {
+      logActionError(name, e, { room, me, socket, data });
       fail(cb, e);
     }
   };
 
-  socket.on('create', guard(({ name }, cb) => {
+  socket.on('clientError', (report) => {
+    const now = Date.now();
+    if (now - lastClientErrorReset > 60000) {
+      clientErrorsCount = 0;
+      lastClientErrorReset = now;
+    }
+    if (++clientErrorsCount > 8) {
+      if (clientErrorsCount === 9) {
+        console.warn(`⚠️ [BUG CLIENT REPORTÉ] Limite d'erreurs atteinte pour ${me?.name || socket.id} (anti-flood actif).`);
+      }
+      return;
+    }
+
+    const roomCode = room?.code || report?.context?.myCode || 'N/A';
+    const phase = room?.phase || report?.context?.phase || 'inconnue';
+    const playerDesc = me ? `${me.name} (id: ${me.id})` : (report?.context?.myId ? `ID: ${report.context.myId}` : `Socket: ${socket.id.slice(0, 8)}`);
+    const msg = report?.message || 'Erreur inconnue';
+    const src = report?.source ? `${report.source}:${report.lineno ?? '?'}:${report.colno ?? '?'}` : 'Inconnu';
+    const stack = report?.stack ? report.stack.split('\n').slice(0, 4).map((l) => l.trim()).join('\n      ') : '';
+
+    console.error(
+      `⚠️ [BUG CLIENT REPORTÉ] Salle: ${roomCode} | Joueur: ${playerDesc} | Phase: ${phase}\n` +
+      `   ↳ Fichier: ${src}\n` +
+      `   ↳ Message: ${msg}` +
+      (report?.context?.activeTool ? `\n   ↳ Outil sélectionné: ${report.context.activeTool}` : '') +
+      (stack ? `\n   ↳ Trace:\n      ${stack}` : '')
+    );
+  });
+
+  socket.on('create', guard('create', ({ name }, cb) => {
     if (room) {
       room.disconnect(socket);
       socket.leave(room.channel);
@@ -65,7 +123,7 @@ io.on('connection', (socket) => {
     room.sendAllWorlds(socket);
   }));
 
-  socket.on('join', guard(({ code, name, playerId }, cb) => {
+  socket.on('join', guard('join', ({ code, name, playerId }, cb) => {
     const r = rooms.get(String(code || '').toUpperCase().trim());
     if (!r) throw new Error('Salle introuvable');
     if (room && room !== r) {
@@ -84,26 +142,26 @@ io.on('connection', (socket) => {
     r.sendAllWorlds(socket);
   }));
 
-  socket.on('addBot', guard((_, cb) => {
+  socket.on('addBot', guard('addBot', (_, cb) => {
     if (!room || me?.id !== room.hostId) throw new Error("Réservé à l'hôte");
     room.addBot();
     room.sendAllWorlds();
     cb?.({ ok: true });
   }));
 
-  socket.on('kick', guard(({ id }, cb) => {
+  socket.on('kick', guard('kick', ({ id }, cb) => {
     if (!room || me?.id !== room.hostId || room.phase !== 'lobby') return;
     const p = room.players.get(id);
     if (p?.isBot) room.removePlayer(id);
     cb?.({ ok: true });
   }));
 
-  socket.on('start', guard((_, cb) => {
+  socket.on('start', guard('start', (_, cb) => {
     room?.start(me?.id);
     cb?.({ ok: true });
   }));
 
-  socket.on('startTraining', guard(({ name, mode }, cb) => {
+  socket.on('startTraining', guard('startTraining', ({ name, mode }, cb) => {
     if (!room) {
       room = createRoom();
       me = room.addPlayer({ name: name || 'Joueur', socket });
@@ -114,27 +172,27 @@ io.on('connection', (socket) => {
     cb?.({ ok: true, code: room.code, playerId: me?.id, trainingMode: room.trainingMode });
   }));
 
-  socket.on('finishBuildTraining', guard((_, cb) => {
+  socket.on('finishBuildTraining', guard('finishBuildTraining', (_, cb) => {
     const ok = !!room?.finishBuildTraining(me?.id);
     cb?.({ ok });
   }));
 
-  socket.on('resetTrainingTarget', guard((_, cb) => {
+  socket.on('resetTrainingTarget', guard('resetTrainingTarget', (_, cb) => {
     const ok = !!room?.resetTrainingTarget(me?.id);
     cb?.({ ok });
   }));
 
-  socket.on('selectAmmo', guard(({ type }, cb) => {
+  socket.on('selectAmmo', guard('selectAmmo', ({ type }, cb) => {
     const ok = !!room?.selectAmmo(me?.id, type);
     cb?.({ ok });
   }));
 
-  socket.on('lobby', guard((_, cb) => {
+  socket.on('lobby', guard('lobby', (_, cb) => {
     room?.backToLobby(me?.id);
     cb?.({ ok: true });
   }));
 
-  socket.on('leave', guard((_, cb) => {
+  socket.on('leave', guard('leave', (_, cb) => {
     if (room && me) {
       const r = room;
       const pid = me.id;
@@ -147,21 +205,20 @@ io.on('connection', (socket) => {
     cb?.({ ok: true });
   }));
 
-  socket.on('place', guard((d, cb) => {
-    console.log('[SOCKET PLACE RECEIVED]', d, 'meId=', me?.id, 'roomCode=', room?.code);
+  socket.on('place', guard('place', (d, cb) => {
     const res = !!room?.place(me?.id, d);
     cb?.({ ok: res });
   }));
-  socket.on('flatten', guard((d, cb) => cb?.({ ok: !!room?.flatten(me?.id, d) })));
-  socket.on('dig', guard((d, cb) => cb?.({ ok: !!room?.dig(me?.id, d) })));
-  socket.on('placeKing', guard((d, cb) => cb?.({ ok: !!room?.placeKing(me?.id, d) })));
-  socket.on('spray', guard((d, cb) => cb?.(room?.spray(me?.id, d) || { ok: false })));
-  socket.on('chooseTarget', guard(({ targetId }) => room?.chooseTarget(me?.id, targetId)));
-  socket.on('chooseCatapultSide', guard(({ side }) => room?.chooseCatapultSide(me?.id, side)));
-  socket.on('aim', guard((d) => room?.relayAim(me?.id, d)));
-  socket.on('fire', guard((d, cb) => cb?.({ ok: !!room?.fire(me?.id, d) })));
-  socket.on('collectBonus', guard(({ dropId, targetPlayerId }, cb) => cb?.({ ok: !!room?.collectBonus(me?.id, dropId, targetPlayerId) })));
-  socket.on('chat', guard(({ message }, cb) => {
+  socket.on('flatten', guard('flatten', (d, cb) => cb?.({ ok: !!room?.flatten(me?.id, d) })));
+  socket.on('dig', guard('dig', (d, cb) => cb?.({ ok: !!room?.dig(me?.id, d) })));
+  socket.on('placeKing', guard('placeKing', (d, cb) => cb?.({ ok: !!room?.placeKing(me?.id, d) })));
+  socket.on('spray', guard('spray', (d, cb) => cb?.(room?.spray(me?.id, d) || { ok: false })));
+  socket.on('chooseTarget', guard('chooseTarget', ({ targetId }) => room?.chooseTarget(me?.id, targetId)));
+  socket.on('chooseCatapultSide', guard('chooseCatapultSide', ({ side }) => room?.chooseCatapultSide(me?.id, side)));
+  socket.on('aim', guard('aim', (d) => room?.relayAim(me?.id, d)));
+  socket.on('fire', guard('fire', (d, cb) => cb?.({ ok: !!room?.fire(me?.id, d) })));
+  socket.on('collectBonus', guard('collectBonus', ({ dropId, targetPlayerId }, cb) => cb?.({ ok: !!room?.collectBonus(me?.id, dropId, targetPlayerId) })));
+  socket.on('chat', guard('chat', ({ message }, cb) => {
     const text = String(message || '').trim().slice(0, 140);
     if (!text || !room || !me) return;
     room.broadcastChat(me, text);
@@ -184,7 +241,13 @@ setInterval(() => {
   if (acc > 250) acc = 250; // pas de spirale de la mort
   while (acc >= STEP) {
     acc -= STEP;
-    for (const r of rooms.values()) r.tick();
+    for (const r of rooms.values()) {
+      try {
+        r.tick();
+      } catch (err) {
+        console.error(`💥 [ERREUR SIMULATION TICK] Salle: ${r.code} | Phase: ${r.phase} | ${err?.message || err}\n${err?.stack?.split('\n').slice(0, 4).join('\n')}`);
+      }
+    }
   }
 }, 4);
 
@@ -302,4 +365,11 @@ server.listen(PORT, () => {
   const ips = Object.values(os.networkInterfaces()).flat().filter((i) => i && i.family === 'IPv4' && !i.internal).map((i) => i.address);
   console.log(`🏖️  Le Plus Haut Château de Sable — http://localhost:${PORT}`);
   for (const ip of ips) console.log(`   Sur le réseau local : http://${ip}:${PORT}`);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('💥 [CRASH PROCESSUS NON GÉRÉ]:', err?.stack || err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('💥 [PROMESSE REJETÉE NON GÉRÉE]:', reason);
 });

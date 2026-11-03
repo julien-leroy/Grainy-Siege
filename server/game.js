@@ -354,6 +354,8 @@ export class Room {
     this.phase = 'build';
     this.phaseStart = Date.now();
     this.endsAt = Date.now() + BUILD_SECONDS * 1000;
+    const humans = [...this.players.values()].filter((p) => !p.isBot).map((p) => p.name);
+    console.log(`🎮 [PARTIE LANCÉE] Salle: ${this.code} | Mode: Normal | Humains (${humans.length}): [${humans.join(', ')}] | Total: ${this.players.size}`);
     this.say('🏖️ Nouvelle manche ! Bâtissez votre château autour du Roi !');
     this.dirtyState = true;
     this.sendAllWorlds();
@@ -450,6 +452,8 @@ export class Room {
       this.sendAllWorlds();
       this.io.to(this.channel).emit('fx', { type: 'phase', phase: 'build', intro: 'build' });
     }
+    const humans = [...this.players.values()].filter((p) => !p.isBot).map((p) => p.name);
+    console.log(`🎯 [ENTRAÎNEMENT LANCÉ] Salle: ${this.code} | Mode: ${this.trainingMode} | Humains (${humans.length}): [${humans.join(', ')}] | Total: ${this.players.size}`);
     this.broadcastState();
   }
 
@@ -762,6 +766,9 @@ export class Room {
     this.winnerId = winnerId;
     this.turn = null;
     const w = this.players.get(winnerId);
+    const aliveHumans = [...this.players.values()].filter((p) => !p.isBot && p.alive).map((p) => p.name);
+    const winnerDesc = w ? `${w.name} (${w.isBot ? 'Bot' : 'Humain'})` : 'Match nul (aucun vainqueur)';
+    console.log(`🏆 [FIN DE PARTIE] Salle: ${this.code} | Vainqueur: ${winnerDesc} | Manche(s): ${this.round + 1} | Survivants humains: [${aliveHumans.join(', ')}]`);
     this.say(w ? `🏆 ${w.name} remporte la bataille de sable !` : 'Match nul… la mer a tout emporté.');
     this.io.to(this.channel).emit('fx', { type: 'win', winnerId });
     this.dirtyState = true;
@@ -817,16 +824,9 @@ export class Room {
 
   // ---------------------------------------------------------------- actions de construction & défense
   place(playerId, { shape, x, y, flipped }) {
-    console.log(`[PLACE_REQUEST] playerId=${playerId}, phase=${this.phase}, shape=${shape}, x=${x}, y=${y}, flipped=${flipped}`);
-    if (this.phase !== 'build') {
-      console.log(`[PLACE_REJECTED] phase is not build (${this.phase})`);
-      return null;
-    }
+    if (this.phase !== 'build') return null;
     const p = this.players.get(playerId);
-    if (!p || !p.alive) {
-      console.log(`[PLACE_REJECTED] player not found or dead (p=${!!p}, alive=${p?.alive})`);
-      return null;
-    }
+    if (!p || !p.alive) return null;
     const now = Date.now();
     const shapeStr = String(shape);
     const isPate = shapeStr === 'pate';
@@ -836,10 +836,7 @@ export class Room {
     // - Pâté : cooldown de la main (800ms)
     // - Cooldown de 500ms sur le pâté juste après la pose d'un patron pour éviter l'enchaînement involontaire
     // - Moules / patrons : remplissage du seau (3000ms)
-    if (isPate && p.pateCooldownUntil && now < p.pateCooldownUntil) {
-      console.log(`[PLACE_REJECTED] pate pattern cooldown (${now} < ${p.pateCooldownUntil})`);
-      return null;
-    }
+    if (isPate && p.pateCooldownUntil && now < p.pateCooldownUntil) return null;
 
     let lastTime = isPate ? (p.lastPatePlace || 0) : (p.lastMouldPlace || 0);
     if (p.lastPlace !== undefined && p.lastPlace < lastTime) {
@@ -848,18 +845,11 @@ export class Room {
       else p.lastMouldPlace = p.lastPlace;
     }
 
-    if (now - lastTime < requiredCooldown) {
-      console.log(`[PLACE_REJECTED] cooldown (${now - lastTime} < ${requiredCooldown})`);
-      return null;
-    }
+    if (now - lastTime < requiredCooldown) return null;
     if (p.moulds && p.moulds[shapeStr] !== undefined && !isPate) {
-      if (p.moulds[shapeStr] <= 0) {
-        console.log(`[PLACE_REJECTED] mould stock depleted (${shapeStr}=${p.moulds[shapeStr]})`);
-        return null;
-      }
+      if (p.moulds[shapeStr] <= 0) return null;
     }
     const pos = p.world.stamp(shapeStr, Number(x), Number(y), true, !!flipped);
-    console.log(`[PLACE_RESULT] stamp returned:`, pos);
     if (pos) {
       if (isPate) {
         p.lastPatePlace = now;

@@ -26,6 +26,44 @@ let viewedPid = null; // quel château affiche-t-on en grand ?
 let inspectingOwnCastle = false; // Le joueur inspecte-t-il son propre château en bataille pour mettre un spray ?
 let isWatchingGame = false; // Le spectateur a-t-il cliqué sur "Regarder la partie" ?
 
+// Remontée automatique des bugs client vers les logs serveur
+window.addEventListener('error', (evt) => {
+  try {
+    socket.emit('clientError', {
+      message: evt.message || 'Erreur inconnue',
+      source: evt.filename ? evt.filename.split('/').pop() : 'inconnu',
+      lineno: evt.lineno,
+      colno: evt.colno,
+      stack: evt.error?.stack || null,
+      context: {
+        phase: roomState?.phase || null,
+        myId,
+        myCode,
+        activeTool,
+      },
+    });
+  } catch {}
+});
+
+window.addEventListener('unhandledrejection', (evt) => {
+  try {
+    const reason = evt.reason;
+    socket.emit('clientError', {
+      message: reason?.message || String(reason || 'Promesse rejetée non gérée'),
+      source: 'PromiseRejection',
+      lineno: null,
+      colno: null,
+      stack: reason?.stack || null,
+      context: {
+        phase: roomState?.phase || null,
+        myId,
+        myCode,
+        activeTool,
+      },
+    });
+  } catch {}
+});
+
 let activeTool = 'pate'; // par défaut le pâté de sable maniable pour sculpter librement !
 let nextSprayAvailableAt = 0;
 const KING_GHOST = { w: KING_W, h: KING_H, mask: new Uint8Array(KING_W * KING_H).fill(1) };

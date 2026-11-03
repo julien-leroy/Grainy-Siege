@@ -911,3 +911,53 @@ test('game: modes entrainement (construction + resistance IA, et entrainement au
   }
 });
 
+test('server logs: formatage des logs de lancement, fin de partie et vainqueur', () => {
+  const io = createFakeIo();
+  const room = new Room('LOGS', io);
+  const p1 = room.addPlayer({ name: 'Alice' });
+  const p2 = room.addPlayer({ name: 'Bob' });
+  p1.connected = true;
+  p2.connected = true;
+  room.addBot(); // Bot 1
+
+  const logs = [];
+  const origLog = console.log;
+  console.log = (...args) => logs.push(args.join(' '));
+
+  try {
+    // 1. Lancement de partie normale
+    room.start(p1.id);
+    const startLog = logs.find((l) => l.includes('[PARTIE LANCÉE]'));
+    assert.ok(startLog, 'un log PARTIE LANCÉE a été émis');
+    assert.ok(startLog.includes('Salle: LOGS'));
+    assert.ok(startLog.includes('Mode: Normal'));
+    assert.ok(startLog.includes('Humains (2): [Alice, Bob]'));
+    assert.ok(startLog.includes('Total: 3'));
+
+    // 2. Fin de partie avec victoire
+    logs.length = 0;
+    p2.alive = false;
+    room.finish(p1.id);
+    const winLog = logs.find((l) => l.includes('[FIN DE PARTIE]'));
+    assert.ok(winLog, 'un log FIN DE PARTIE a été émis');
+    assert.ok(winLog.includes('Vainqueur: Alice (Humain)'));
+    assert.ok(winLog.includes('Salle: LOGS'));
+
+    // 3. Fin de partie match nul
+    logs.length = 0;
+    room.finish(null);
+    const drawLog = logs.find((l) => l.includes('[FIN DE PARTIE]'));
+    assert.ok(drawLog.includes('Vainqueur: Match nul'));
+
+    // 4. Lancement mode entraînement
+    logs.length = 0;
+    room.startTraining(p1.id, 'shoot');
+    const trainLog = logs.find((l) => l.includes('[ENTRAÎNEMENT LANCÉ]'));
+    assert.ok(trainLog, 'un log ENTRAÎNEMENT LANCÉ a été émis');
+    assert.ok(trainLog.includes('Mode: shoot'));
+    assert.ok(trainLog.includes('Humains (2): [Alice, Bob]'));
+  } finally {
+    console.log = origLog;
+  }
+});
+
