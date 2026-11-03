@@ -29,6 +29,17 @@
       <button id="my-castle-btn" class="pill my-castle-pill hidden" type="button" title="Aller voir ton château pour y mettre un spray [Touche E]">
         🏰 Mon Château & Spray
       </button>
+      <div id="train-hud-bar" class="train-hud-bar hidden">
+        <button id="train-start-ai-btn" class="pill train-action-pill hidden" type="button" title="Terminer la construction et lancer les vagues d'attaque de l'IA">
+          ⚔️ Tester face à l'IA
+        </button>
+        <button id="train-new-target-btn" class="pill train-action-pill hidden" type="button" title="Générer un nouveau château cible intact">
+          🔄 Nouveau château cible
+        </button>
+        <button id="train-switch-mode-btn" class="pill train-switch-pill" type="button" title="Changer de mode d'entraînement">
+          🎯 Mode Entraînement
+        </button>
+      </div>
     </div>
 
     <div class="hud-center">
@@ -80,7 +91,10 @@
             </div>
 
             <div class="welcome-actions">
-              <button id="solo-btn" class="btn btn-primary btn-lg pulse-glow">⚡ Jouer tout de suite (contre Bots)</button>
+              <div class="quick-play-row">
+                <button id="solo-btn" class="btn btn-primary btn-lg pulse-glow">⚡ Partie rapide</button>
+                <button id="train-btn" class="btn btn-train btn-lg" type="button">🎯 S'entraîner</button>
+              </div>
               <button id="create-btn" class="btn btn-secondary btn-lg">🏰 Créer un salon multijoueur</button>
               <div class="divider"><span>ou rejoindre des amis</span></div>
               <div class="join-row">
@@ -92,9 +106,9 @@
             <div class="rules-chips">
               <span class="rule-chip" title="Le Roi repose sur son talus avec sa safe zone : protège-le sans l'étouffer !">👑 Roi & Safe Zone</span>
               <span class="rule-chip" title="Appuie sur [R] pour retourner n'importe quel patron horizontalement">🔄 Touche [R] Miroir</span>
-              <span class="rule-chip" title="Gagne +1 dose de spray par tour de défense (réserves conservées)">💦 +1 Spray / défense</span>
-              <span class="rule-chip" title="Gagne +2 boulets par round d'attaque (30s) et conserve tes réserves">☄️ +2 Boulets / tour</span>
-              <span class="rule-chip" title="Grenades explosives retardées (2s), boulets d'acier et bonus légendaires">💣 Grenades & Bonus</span>
+              <span class="rule-chip" title="Gagne +1 dose de spray par tour de défense (max 5 sprays stockés)">💦 5 Sprays max</span>
+              <span class="rule-chip" title="Gagne +2 boulets par tour d'attaque et stocke jusqu'à 5 boulets">☄️ 5 Boulets max</span>
+              <span class="rule-chip" title="Clique sur l'icône d'un boulet sous la catapulte pour choisir lequel tirer">💣 Choix du boulet</span>
             </div>
 
             <p id="lobby-error" class="error-msg hidden"></p>
@@ -278,6 +292,28 @@
       <p class="subtitle">Quel château adverse veux-tu assécher d'un coup ?</p>
       <div id="target-choice-list" class="target-choice-list"></div>
       <button id="target-choice-cancel-btn" class="btn btn-sm btn-secondary" style="margin-top:12px;">Annuler</button>
+    </div>
+  </section>
+
+  <!-- Modale de choix du mode d'entraînement -->
+  <section id="training-modal" class="modal-backdrop hidden">
+    <div class="modal-card training-choice-card">
+      <div class="bonus-choice-icon">🎯</div>
+      <h2>CAMP D'ENTRAÎNEMENT</h2>
+      <p class="subtitle">Choisis ton exercice d'entraînement sur la plage :</p>
+      <div class="training-modes-grid">
+        <button id="train-mode-build-btn" class="training-mode-card" type="button">
+          <span class="training-mode-icon">🏗️🛡️</span>
+          <strong class="training-mode-title">Construction & Résistance IA</strong>
+          <span class="training-mode-desc">Bâtis ton château avec tous les moules disponibles, puis résiste aux assauts continus de l'IA avec tes sprays !</span>
+        </button>
+        <button id="train-mode-shoot-btn" class="training-mode-card" type="button">
+          <span class="training-mode-icon">☄️💣</span>
+          <strong class="training-mode-title">Entraînement au Tir</strong>
+          <span class="training-mode-desc">Tire à volonté avec tous les boulets en illimité (Sable, Fer, Acide, Pointes, Grenade) en cliquant sur leur icône !</span>
+        </button>
+      </div>
+      <button id="training-modal-cancel-btn" class="btn btn-sm btn-secondary" type="button" style="margin-top:14px;">Fermer</button>
     </div>
   </section>
 

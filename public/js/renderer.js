@@ -1349,14 +1349,14 @@ export class Renderer {
   }
 
   // ---------------------------------------------------------------- Jauge de recharges de spray sous le château (Mode Défense)
-  drawDefenseSprayStock(spraysLeft, maxSprays = 3, cooldownRatio = 1, t = 0) {
+  drawDefenseSprayStock(spraysLeft, maxSprays = 5, cooldownRatio = 1, t = 0) {
     const { ctx } = this;
     const { s, ox, oy } = this.view;
     const centerX = ox + ((BUILD_MIN_X + BUILD_MAX_X) / 2) * s;
     const centerY = oy + (GROUND_Y + 11.5) * s;
 
     ctx.save();
-    const badgeW = 320 * this.dpr;
+    const badgeW = 390 * this.dpr;
     const badgeH = 46 * this.dpr;
     const r = 16 * this.dpr;
     const left = centerX - badgeW / 2;
@@ -1389,10 +1389,10 @@ export class Renderer {
     ctx.fillStyle = spraysLeft > 0 ? '#38bdf8' : '#94a3b8';
     ctx.fillText('🛡️ SPRAY DÉFENSE :', left + 14 * this.dpr, centerY);
 
-    // Grandes icônes du spray de défense
+    // Grandes icônes du spray de défense (jusqu'à 5)
     const sprImg = this.sprites?.toolSpray;
     const slotStartX = left + 145 * this.dpr;
-    const slotGap = 34 * this.dpr;
+    const slotGap = 33 * this.dpr;
 
     for (let i = 0; i < maxSprays; i++) {
       const sx = slotStartX + i * slotGap;

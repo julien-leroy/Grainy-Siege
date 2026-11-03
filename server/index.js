@@ -103,6 +103,32 @@ io.on('connection', (socket) => {
     cb?.({ ok: true });
   }));
 
+  socket.on('startTraining', guard(({ name, mode }, cb) => {
+    if (!room) {
+      room = createRoom();
+      me = room.addPlayer({ name: name || 'Joueur', socket });
+      room.addBot();
+    }
+    room.startTraining(me?.id, mode || 'build_defense');
+    room.sendAllWorlds(socket);
+    cb?.({ ok: true, code: room.code, playerId: me?.id, trainingMode: room.trainingMode });
+  }));
+
+  socket.on('finishBuildTraining', guard((_, cb) => {
+    const ok = !!room?.finishBuildTraining(me?.id);
+    cb?.({ ok });
+  }));
+
+  socket.on('resetTrainingTarget', guard((_, cb) => {
+    const ok = !!room?.resetTrainingTarget(me?.id);
+    cb?.({ ok });
+  }));
+
+  socket.on('selectAmmo', guard(({ type }, cb) => {
+    const ok = !!room?.selectAmmo(me?.id, type);
+    cb?.({ ok });
+  }));
+
   socket.on('lobby', guard((_, cb) => {
     room?.backToLobby(me?.id);
     cb?.({ ok: true });

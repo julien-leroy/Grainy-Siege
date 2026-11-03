@@ -449,21 +449,20 @@ test('game: reserves cumulatives (+2 boulets, +1 spray) et bonus spray en mer', 
   assert.ok(shot, 'tir effectué');
   assert.equal(room.turn.shotsLeft, 1, 'il reste 1 boulet non tiré');
 
-  // Bonus caisse en mer : spray d'eau défensif
+  // Bonus caisse en mer : spray d'eau défensif (plafonnement à 5 sprays maximum)
   room.drops = [{ id: 99, type: 'spray', x: 200, y: 140, vy: 0, floating: true }];
-  // Plafonnement à 3 sprays maximum
-  shooter.defenseSpraysLeft = 2;
+  shooter.defenseSpraysLeft = 4;
   room.applyBonus(shooter.id, { id: 100, type: 'spray' }, null);
-  assert.equal(shooter.defenseSpraysLeft, 3, 'le spray passe à 3');
+  assert.equal(shooter.defenseSpraysLeft, 5, 'le spray passe à 5');
   room.applyBonus(shooter.id, { id: 101, type: 'spray' }, null);
-  assert.equal(shooter.defenseSpraysLeft, 3, 'le spray est plafonné à 3 maximum');
+  assert.equal(shooter.defenseSpraysLeft, 5, 'le spray est plafonné à 5 maximum');
 
-  // Plafonnement à 3 boulets maximum
-  shooter.ammoStock = 2;
+  // Plafonnement à 5 boulets maximum
+  shooter.ammoStock = 4;
   room.applyBonus(shooter.id, { id: 102, type: 'ammo' }, null);
-  assert.equal(shooter.ammoStock, 3, 'les boulets passent à 3');
+  assert.equal(shooter.ammoStock, 5, 'les boulets passent à 5');
   room.applyBonus(shooter.id, { id: 103, type: 'ammo' }, null);
-  assert.equal(shooter.ammoStock, 3, 'les boulets sont plafonnés à 3 maximum');
+  assert.equal(shooter.ammoStock, 5, 'les boulets sont plafonnés à 5 maximum');
 });
 
 test('catapulte: puissance oscillante ping-pong (min -> max -> min -> max)', () => {
@@ -821,3 +820,94 @@ test('game: tout joueur vivant peut utiliser un spray sur son propre chateau a t
   assert.ok(res && res.ok, 'le joueur peut arroser son propre château même pendant le tour d attaque');
   assert.equal(shooter.defenseSpraysLeft, 1, 'un spray a été consommé');
 });
+
+test('game: inventaire de boulets par type (max 5), selection auto du dernier bonus et choix manuel', () => {
+  const room = new Room('AMMO_INV_TEST', createFakeIo());
+  const p1 = room.addPlayer({ name: 'Alice' });
+  const p2 = room.addPlayer({ name: 'Bob' });
+  p1.connected = true;
+  p2.connected = true;
+
+  room.start();
+  room.endBuild();
+  room.startBattle();
+
+  const shooterId = room.turn.shooterId;
+  const shooter = room.players.get(shooterId);
+  const target = room.players.get(room.turn.targetId);
+
+  // Au début du tour : 2 boulets de sable, selectedAmmo = 'sand'
+  assert.equal(shooter.ammoInventory.sand, 2);
+  assert.equal(shooter.selectedAmmo, 'sand');
+
+  // Récupère un boulet en fer -> s'ajoute à l'inventaire (Sable x2, Fer x1) et se sélectionne automatiquement
+  room.applyBonus(shooterId, { id: 801, type: 'iron' }, null);
+  assert.equal(shooter.ammoInventory.sand, 2);
+  assert.equal(shooter.ammoInventory.iron, 1);
+  assert.equal(shooter.selectedAmmo, 'iron', 'le dernier bonus récupéré (fer) est automatiquement sélectionné');
+  assert.equal(room.turn.shotsLeft, 3);
+
+  // Récupère un boulet acide -> (Sable x2, Fer x1, Acide x1) et sélectionne automatiquement 'acid'
+  room.applyBonus(shooterId, { id: 802, type: 'acid' }, null);
+  assert.equal(shooter.ammoInventory.acid, 1);
+  assert.equal(shooter.selectedAmmo, 'acid', 'le dernier bonus récupéré (acide) est automatiquement sélectionné');
+  assert.equal(room.turn.shotsLeft, 4);
+
+  // Le joueur clique sur le bouton du boulet en fer pour le sélectionner manuellement
+  const selOk = room.selectAmmo(shooterId, 'iron');
+  assert.equal(selOk, true, 'sélection manuelle du boulet en fer');
+  assert.equal(shooter.selectedAmmo, 'iron');
+
+  // Tire -> c'est bien le boulet en fer qui part, et il reste Sable x2 et Acide x1 !
+  const fired = room.fire(shooterId, { angle: 0.7, power: 0.6, side: 'left' });
+  assert.equal(fired, true);
+  assert.equal(target.world.ball.type, 'iron', 'le boulet tiré est bien celui sélectionné (iron)');
+  assert.equal(shooter.ammoInventory.iron, 0, 'le boulet en fer a été décrémenté');
+  assert.equal(shooter.ammoInventory.sand, 2, 'les 2 boulets de sable sont toujours en stock');
+  assert.equal(shooter.ammoInventory.acid, 1, 'le boulet acide est toujours en stock');
+  // Comme iron est tombé à 0, selectedAmmo bascule automatiquement sur un boulet restant (acid)
+  assert.equal(shooter.selectedAmmo, 'acid');
+});
+
+test('game: modes entrainement (construction + resistance IA, et entrainement au tir boulets illimites)', () => {
+  const room = new Room('TRAIN_TEST', createFakeIo());
+  const human = room.addPlayer({ name: 'Alice' });
+  human.connected = true;
+
+  // 1. Mode construction puis résistance aux attaques de l'IA
+  room.startTraining(human.id, 'build_defense');
+  assert.equal(room.isTraining, true);
+  assert.equal(room.trainingMode, 'build_defense');
+  assert.equal(room.phase, 'build');
+  assert.equal(human.moulds.colosse, 99, 'tous les patrons sont disponibles en quantité généreuse');
+
+  // Passer à la phase d'assaut de l'IA
+  room.finishBuildTraining(human.id);
+  assert.equal(room.phase, 'battle');
+  const bot = [...room.players.values()].find((p) => p.isBot);
+  assert.ok(bot, 'un bot IA a été créé');
+  assert.equal(room.turn.shooterId, bot.id, 'seule l IA tire en mode résistance');
+  assert.equal(room.turn.targetId, human.id, 'le joueur humain défend son château');
+  assert.equal(human.defenseSpraysLeft, 5, 'le joueur dispose de 5 sprays pour résister');
+
+  // 2. Mode entraînement au tir (boulets illimités de tous les types)
+  room.startTraining(human.id, 'shoot');
+  assert.equal(room.isTraining, true);
+  assert.equal(room.trainingMode, 'shoot');
+  assert.equal(room.phase, 'battle');
+  assert.equal(room.turn.shooterId, human.id, 'le joueur humain est le tireur');
+  assert.equal(room.turn.infiniteAmmo, true, 'munitions illimitées activées');
+
+  // Choisir et tirer n'importe quel type de boulet sans jamais épuiser le stock
+  for (const type of ['sand', 'iron', 'acid', 'heavySpikeBall', 'grenade']) {
+    room.turn.state = 'aim';
+    bot.world.ball = null;
+    assert.equal(room.selectAmmo(human.id, type), true, `sélection de ${type} autorisée`);
+    assert.equal(human.selectedAmmo, type);
+    assert.equal(room.fire(human.id, { angle: 0.75, power: 0.65, side: 'left' }), true);
+    const expectedBallType = type === 'heavySpikeBall' ? 'spike' : type;
+    assert.equal(bot.world.ball.type, expectedBallType, `le boulet tiré est bien ${expectedBallType}`);
+    assert.equal(room.turn.shotsLeft, 999, 'les munitions restent illimitées après le tir');
+  }
+});
+

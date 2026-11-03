@@ -477,6 +477,55 @@ $('solo-btn').addEventListener('click', () => {
   });
 });
 
+function launchTraining(mode) {
+  unlock();
+  resetAllGameData();
+  showLobbyError(null);
+  $('training-modal')?.classList.add('hidden');
+  socket.emit('startTraining', { name: getPlayerName(), mode }, (res) => {
+    if (!res?.ok) return showLobbyError(res?.error || 'Erreur');
+    myId = res.playerId;
+    myCode = res.code;
+    sessionStorage.setItem('sc-pid', res.playerId);
+    sessionStorage.setItem('sc-code', res.code);
+    $('lobby-modal')?.classList.add('hidden');
+    $('hud')?.classList.remove('hidden');
+    startGameLoop();
+  });
+}
+
+$('train-btn')?.addEventListener('click', () => {
+  unlock();
+  $('training-modal')?.classList.remove('hidden');
+});
+
+$('train-switch-mode-btn')?.addEventListener('click', () => {
+  unlock();
+  $('training-modal')?.classList.remove('hidden');
+});
+
+$('training-modal-cancel-btn')?.addEventListener('click', () => {
+  $('training-modal')?.classList.add('hidden');
+});
+
+$('train-mode-build-btn')?.addEventListener('click', () => {
+  launchTraining('build_defense');
+});
+
+$('train-mode-shoot-btn')?.addEventListener('click', () => {
+  launchTraining('shoot');
+});
+
+$('train-start-ai-btn')?.addEventListener('click', () => {
+  unlock();
+  socket.emit('finishBuildTraining', {});
+});
+
+$('train-new-target-btn')?.addEventListener('click', () => {
+  unlock();
+  socket.emit('resetTrainingTarget', {});
+});
+
 $('add-bot-btn').addEventListener('click', () => {
   unlock();
   socket.emit('addBot', {});
@@ -493,7 +542,11 @@ $('start-btn').addEventListener('click', () => {
 $('replay-btn').addEventListener('click', () => {
   unlock();
   resetAllGameData();
-  socket.emit('start', {});
+  if (roomState?.isTraining) {
+    socket.emit('startTraining', { name: getPlayerName(), mode: roomState.trainingMode || 'build_defense' });
+  } else {
+    socket.emit('start', {});
+  }
 });
 
 $('back-lobby-btn').addEventListener('click', () => {
@@ -504,7 +557,7 @@ $('back-lobby-btn').addEventListener('click', () => {
   stopGameLoop();
 
   // Si la partie est finie et qu'on est l'hôte, on peut renvoyer tout le monde au salon
-  if (roomState?.phase === 'over' && roomState?.hostId === myId) {
+  if (roomState?.phase === 'over' && roomState?.hostId === myId && !roomState?.isTraining) {
     socket.emit('lobby', {});
   } else {
     // Sinon, on quitte individuellement pour ne PAS casser la partie des autres
@@ -1215,6 +1268,14 @@ function fireVictoryConfetti() {
   }, 350);
 }
 
+const AMMO_CATALOG = [
+  { type: 'sand', icon: '/assets/sprites/ball_sand.png', label: 'Boulet de sable', bolt: '⚡' },
+  { type: 'iron', icon: '/assets/sprites/ball_metal.png', label: 'Boulet en fer massif', bolt: '⚔️' },
+  { type: 'acid', icon: '/assets/sprites/ball_poison.png', label: 'Fiole d\'acide corrosif', bolt: '🧪' },
+  { type: 'heavySpikeBall', icon: '/assets/sprites/ball_spike.png', label: 'Boulet d\'acier à pointes', bolt: '💣' },
+  { type: 'grenade', icon: '/assets/sprites/bomb.png', label: 'Grenade à retardement (2s)', bolt: '🧨' },
+];
+
 // ------------------------------------------------------------------ Synchronisation de l'interface
 function syncUI() {
   const s = roomState;
@@ -1223,6 +1284,14 @@ function syncUI() {
   const isHost = s.hostId === myId;
   const me = s.players.find((p) => p.id === myId);
   const isSpectator = !!me?.isSpectator || (me && !me.alive && s.phase !== 'over');
+
+  // Barre d'entraînement dans le HUD
+  const trainHudBar = $('train-hud-bar');
+  if (trainHudBar) {
+    trainHudBar.classList.toggle('hidden', !s.isTraining);
+    $('train-start-ai-btn')?.classList.toggle('hidden', !(s.isTraining && s.phase === 'build'));
+    $('train-new-target-btn')?.classList.toggle('hidden', !(s.isTraining && s.trainingMode === 'shoot' && s.phase === 'battle'));
+  }
 
   // Bouton Spray dans le HUD (toujours disponible en build et en bataille pour les joueurs vivants)
   const canSpray = !isSpectator && Boolean(me?.alive) && (s.phase === 'build' || s.phase === 'battle');
@@ -1340,7 +1409,9 @@ function syncUI() {
       } else {
         notifBanner.classList.add('status-defense');
         notifIcon.textContent = '🧱';
-        notifText.innerHTML = 'Bâtis autour de ton <strong>Roi 👑</strong> et durcis le sable au <strong>Spray 💦</strong> !';
+        notifText.innerHTML = s.isTraining
+          ? '<strong>Mode Entraînement :</strong> Bâtis ton château puis clique sur <strong>⚔️ Tester face à l\'IA</strong> !'
+          : 'Bâtis autour de ton <strong>Roi 👑</strong> et durcis le sable au <strong>Spray 💦</strong> !';
       }
     } else if (s.phase === 'settle') {
       notifIcon.textContent = '⏳';
@@ -1356,7 +1427,8 @@ function syncUI() {
       } else if (s.turn.shooterId === myId) {
         notifBanner.classList.add('status-attack');
         notifIcon.textContent = '🎯';
-        notifText.innerHTML = `<strong>À ton tour !</strong> Tire sur le château de <strong>${escapeHtml(target?.name || '?')}</strong> (${s.turn.shotsLeft ?? 1} boulet(s)).`;
+        const shotsLabel = s.turn.infiniteAmmo ? '∞' : (s.turn.shotsLeft ?? 1);
+        notifText.innerHTML = `<strong>À ton tour !</strong> Tire sur le château de <strong>${escapeHtml(target?.name || '?')}</strong> (${shotsLabel} boulet(s)).`;
       } else if (s.turn.targetId === myId) {
         notifBanner.classList.add('status-defense');
         notifIcon.textContent = '🛡️';
@@ -1419,52 +1491,52 @@ function syncUI() {
     const arrow = wVal > 0 ? '→'.repeat(Math.min(3, Math.ceil(wVal / 3))) : wVal < 0 ? '←'.repeat(Math.min(3, Math.ceil(-wVal / 3))) : 'calme';
     $('wind-pill').textContent = `💨 Vent : ${arrow} (${wVal > 0 ? '+' : ''}${wVal})`;
 
-    // Mettre à jour l'indicateur des boules de catapulte disponibles
+    // Barre des boulets sous la catapulte : un bouton icône par type de boulet possédé (ex: [Sable x2] [Fer x1] [Acide x1])
     const shotsBallsEl = $('shots-balls');
+    const selectedAmmo = me?.selectedAmmo || 'sand';
+    const isUnlimitedAmmo = Boolean(s.turn?.infiniteAmmo || (s.isTraining && s.trainingMode === 'shoot'));
+    const inv = me?.ammoInventory || {
+      sand: s.turn?.shotsLeft ?? 0,
+      iron: me?.hasIronBall ? 1 : 0,
+      acid: me?.hasAcidBall ? 1 : 0,
+      heavySpikeBall: me?.hasSpikeBall ? 1 : 0,
+      grenade: me?.hasGrenade ? 1 : 0,
+    };
+
     if (shotsBallsEl && s.turn) {
-      const left = s.turn.shotsLeft ?? 1;
-      const total = s.turn.shotsTotal ?? 1;
       shotsBallsEl.innerHTML = '';
-      for (let i = 1; i <= total; i++) {
-        const span = document.createElement('span');
-        const isAvailable = i <= left;
-        span.className = `shot-ball ${isAvailable ? 'available' : 'used'}`;
-        const isNextShot = i === (total - left + 1);
-        let iconSrc = '/assets/sprites/ball_sand.png';
-        let label = `Boulet standard en sable ${i}`;
-        if (isNextShot) {
-          if (me?.hasAcidBall) {
-            iconSrc = '/assets/sprites/ball_poison.png';
-            label = 'Fiole d\'acide corrosif';
-          } else if (me?.hasGrenade) {
-            iconSrc = '/assets/sprites/bomb.png';
-            label = 'Grenade explosive retardée';
-          } else if (me?.hasSpikeBall) {
-            iconSrc = '/assets/sprites/ball_spike.png';
-            label = 'Boulet d\'acier à pointes';
-          } else if (me?.hasIronBall) {
-            iconSrc = '/assets/sprites/ball_metal.png';
-            label = 'Boulet en fer massif';
-          }
-        }
-        span.innerHTML = `<img src="${iconSrc}" alt="${label}" class="shot-ball-img">`;
-        span.title = isAvailable ? `${label} (prêt)` : `Tir ${i} effectué`;
-        shotsBallsEl.appendChild(span);
+      for (const entry of AMMO_CATALOG) {
+        const count = isUnlimitedAmmo ? 99 : (inv[entry.type] || 0);
+        if (!isUnlimitedAmmo && count <= 0) continue;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        const isSelected = selectedAmmo === entry.type;
+        btn.className = `shot-ball ammo-type-btn available ${isSelected ? 'selected' : ''}`;
+        btn.dataset.ammo = entry.type;
+        const qtyLabel = isUnlimitedAmmo ? '∞' : `x${count}`;
+        btn.innerHTML = `
+          <img src="${entry.icon}" alt="${entry.label}" class="shot-ball-img">
+          <span class="ammo-count-badge">${qtyLabel}</span>
+        `;
+        btn.title = `${entry.label} (${qtyLabel}) — Cliquer pour sélectionner`;
+        btn.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          unlock();
+          if (me) me.selectedAmmo = entry.type;
+          sfx.ratchet(740);
+          socket.emit('selectAmmo', { type: entry.type });
+          syncUI();
+        });
+        shotsBallsEl.appendChild(btn);
       }
     }
 
     const triggerLabelEl = $('trigger-label');
     const triggerBoltEl = document.querySelector('.power-bolt');
     if (triggerLabelEl && triggerBoltEl) {
-      if (me?.hasAcidBall) {
-        triggerBoltEl.textContent = '🧪';
-      } else if (me?.hasIronBall) {
-        triggerBoltEl.textContent = '⚔️';
-      } else if (me?.hasGrenade || me?.hasSpikeBall) {
-        triggerBoltEl.textContent = '💣';
-      } else {
-        triggerBoltEl.textContent = '⚡';
-      }
+      const catEntry = AMMO_CATALOG.find((a) => a.type === selectedAmmo);
+      triggerBoltEl.textContent = catEntry ? catEntry.bolt : '⚡';
       if (!isCharging) triggerLabelEl.textContent = 'Tirer !!';
     }
 
@@ -2267,7 +2339,8 @@ function fireCatapult() {
       firedCat.loaded = true;
     }, 900);
   }
-  socket.emit('fire', { angle: aim.angle, power: aim.power, side: myCatapultSide }, (res) => {
+  const me = roomState?.players?.find((p) => p.id === myId);
+  socket.emit('fire', { angle: aim.angle, power: aim.power, side: myCatapultSide, ammoType: me?.selectedAmmo || 'sand' }, (res) => {
     if (res && !res.ok && res.error) {
       renderer.popup(CATAPULT_X + 15, GROUND_Y - 20, `⚠️ ${res.error}`, '#f87171');
     }
@@ -2537,7 +2610,7 @@ function frame(now) {
 
   // Chronomètre
   const timerBox = $('timer-box');
-  if (roomState && (phase === 'build' || (phase === 'battle' && roomState.turn?.state === 'aim'))) {
+  if (roomState && (phase === 'build' || (phase === 'battle' && roomState.turn?.state === 'aim' && !roomState.turn?.infiniteAmmo))) {
     const ms = phase === 'build' ? roomState.remaining : roomState.turn.remaining;
     const sec = Math.ceil(ms / 1000);
     const m = Math.floor(sec / 60);
@@ -2582,13 +2655,14 @@ function frame(now) {
   const slingPull = null;
   const shooterPlayer = roomState?.players?.find((p) => p.id === (roomState?.turn?.shooterId || myId));
   const activeAmmoPlayer = isShooter ? mePlayer : shooterPlayer;
-  const ammoType = activeAmmoPlayer?.hasAcidBall
-    ? 'acid'
-    : (activeAmmoPlayer?.hasGrenade
-      ? 'grenade'
-      : (activeAmmoPlayer?.hasSpikeBall
-        ? 'heavySpikeBall'
-        : (activeAmmoPlayer?.hasIronBall ? 'iron' : 'sand')));
+  const ammoType = activeAmmoPlayer?.selectedAmmo
+    || (activeAmmoPlayer?.hasAcidBall
+      ? 'acid'
+      : (activeAmmoPlayer?.hasGrenade
+        ? 'grenade'
+        : (activeAmmoPlayer?.hasSpikeBall
+          ? 'heavySpikeBall'
+          : (activeAmmoPlayer?.hasIronBall ? 'iron' : 'sand'))));
 
   const isAimingShooter = isShooter && roomState?.turn?.state === 'aim';
   renderer.drawCatapult(
@@ -2628,8 +2702,8 @@ function frame(now) {
     const reserveShots = roomState.turn?.shooterId === activePid
       ? (roomState.turn.shotsLeft - 1)
       : (activePlayer.bonusAmmo || 0);
-    if (reserveShots > 0) {
-      activeBonuses.push({ icon: '☄️', label: `+${reserveShots} BOULET${reserveShots > 1 ? 'S' : ''} DE SABLE EN RÉSERVE`, color: '#fde047' });
+    if (reserveShots > 0 && !roomState.turn?.infiniteAmmo) {
+      activeBonuses.push({ icon: '☄️', label: `+${reserveShots} BOULET${reserveShots > 1 ? 'S' : ''} EN RÉSERVE`, color: '#fde047' });
     }
     if (activePlayer.defenseSpraysLeft > 0) {
       activeBonuses.push({ icon: '💦', label: `${activePlayer.defenseSpraysLeft} SPRAY${activePlayer.defenseSpraysLeft > 1 ? 'S' : ''} DE RENFORT`, color: '#38bdf8' });
@@ -2639,7 +2713,7 @@ function frame(now) {
   // En mode défense ou en visite sur son propre château pendant la bataille : afficher la jauge de sprays sous le château !
   const showSprayStockOnCastle = phase === 'battle' && activePlayer && (roomState.turn?.targetId === activePid || (inspectingOwnCastle && activePid === myId));
   if (showSprayStockOnCastle) {
-    renderer.drawDefenseSprayStock(activePlayer.defenseSpraysLeft, 3, sprayReadyFraction, now);
+    renderer.drawDefenseSprayStock(activePlayer.defenseSpraysLeft, 5, sprayReadyFraction, now);
   } else if (activeBonuses.length > 0) {
     renderer.drawActiveSandBonuses(activeBonuses, now);
   }

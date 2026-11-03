@@ -14,6 +14,8 @@ const MAX_PLAYERS = 8;
 const RESOLVE_MIN_MS = 400;
 const RESOLVE_MAX_MS = 9000;
 
+const VALID_AMMO_TYPES = ['sand', 'iron', 'acid', 'heavySpikeBall', 'grenade'];
+
 let nextId = 1;
 
 export class Room {
@@ -36,10 +38,52 @@ export class Room {
     this.drops = [];
     this.nextDropId = 1;
     this.lastDropSpawn = 0;
+    this.isTraining = false;
+    this.trainingMode = null; // 'build_defense' | 'shoot' | null
   }
 
   get channel() {
     return `room:${this.code}`;
+  }
+
+  ensureAmmoInventory(p) {
+    if (!p.ammoInventory || typeof p.ammoInventory !== 'object') {
+      p.ammoInventory = { sand: 0, iron: 0, acid: 0, heavySpikeBall: 0, grenade: 0 };
+    }
+    for (const k of VALID_AMMO_TYPES) {
+      if (typeof p.ammoInventory[k] !== 'number' || Number.isNaN(p.ammoInventory[k])) {
+        p.ammoInventory[k] = 0;
+      }
+    }
+    if (!p.selectedAmmo || !VALID_AMMO_TYPES.includes(p.selectedAmmo)) {
+      p.selectedAmmo = 'sand';
+    }
+    return p.ammoInventory;
+  }
+
+  totalAmmo(p) {
+    if (!p) return 0;
+    const inv = this.ensureAmmoInventory(p);
+    return inv.sand + inv.iron + inv.acid + inv.heavySpikeBall + inv.grenade;
+  }
+
+  pickAvailableAmmo(p) {
+    if (!p) return 'sand';
+    const inv = this.ensureAmmoInventory(p);
+    for (const k of ['grenade', 'heavySpikeBall', 'acid', 'iron', 'sand']) {
+      if (inv[k] > 0) return k;
+    }
+    return 'sand';
+  }
+
+  syncAmmoFlags(p) {
+    if (!p) return;
+    const inv = this.ensureAmmoInventory(p);
+    p.hasIronBall = inv.iron > 0;
+    p.hasAcidBall = inv.acid > 0;
+    p.hasSpikeBall = inv.heavySpikeBall > 0;
+    p.hasGrenade = inv.grenade > 0;
+    p.ammoStock = this.totalAmmo(p);
   }
 
   // ---------------------------------------------------------------- joueurs
@@ -64,6 +108,9 @@ export class Room {
       lastPlace: 0,
       lastSpray: 0,
       defenseSpraysLeft: DEFENSE_SPRAY_MAX,
+      ammoInventory: { sand: 0, iron: 0, acid: 0, heavySpikeBall: 0, grenade: 0 },
+      selectedAmmo: 'sand',
+      ammoStock: 0,
       placed: 0,
       plan: null,
       sentFast: -1,
@@ -239,6 +286,8 @@ export class Room {
     if (this.phase !== 'lobby' && this.phase !== 'over') throw new Error('Déjà en cours');
     if (byId && byId !== this.hostId) throw new Error("Seul l'hôte peut lancer la partie");
     if (this.players.size < 2) throw new Error('Il faut au moins 2 joueurs (ajoute un bot !)');
+    this.isTraining = false;
+    this.trainingMode = null;
     // Moules standards TOUJOURS disponibles :
     // - Pâté illimité (sculpture manuelle rapide)
     // - Seau classique (x2)
@@ -288,6 +337,8 @@ export class Room {
       p.lastPlace = 0;
       p.lastSpray = 0;
       p.defenseSpraysLeft = 0;
+      p.ammoInventory = { sand: 0, iron: 0, acid: 0, heavySpikeBall: 0, grenade: 0 };
+      p.selectedAmmo = 'sand';
       p.ammoStock = 0;
       p.sentFast = -1;
       p.sentSlow = -1;
@@ -307,6 +358,128 @@ export class Room {
     this.dirtyState = true;
     this.sendAllWorlds();
     this.io.to(this.channel).emit('fx', { type: 'phase', phase: 'build', intro: 'build' });
+  }
+
+  buildInstantCastle(p) {
+    p.world = new SandWorld((this.rng() * 2 ** 32) >>> 0);
+    const pedestalType = Math.floor(this.rng() * 5);
+    const kx = Math.round(210 + (this.rng() - 0.5) * 16);
+    p.world.initBeachDunes(pedestalType, kx);
+    const plan = makeBuildPlan(this.rng, BUILD_SECONDS * 1000, p.world.king?.x ?? kx);
+    for (const a of plan) {
+      if (a.shape === 'king') p.world.placeKing(a.x, a.y);
+      else if (a.shape === 'spray') p.world.spray(a.x, a.y);
+      else p.world.stamp(a.shape, a.x, a.y, false);
+    }
+    p.world.drying = false;
+    for (let k = 0; k < 25; k++) p.world.step();
+    p.world.drainEvents();
+    p.world.armed = true;
+    if (p.world.king) {
+      p.world.king.dead = false;
+      p.world.king.hits = 0;
+    }
+    p.alive = true;
+    p.sentFast = -1;
+    p.sentSlow = -1;
+  }
+
+  startTraining(byId, mode = 'build_defense') {
+    if (this.players.size < 2) {
+      this.addBot();
+    }
+    this.isTraining = true;
+    this.trainingMode = mode === 'shoot' ? 'shoot' : 'build_defense';
+
+    const stock = {
+      pate: 999,
+      seau: 99, arche: 99, tour: 99, mur: 99, rampe: 99, dalle: 99, dome: 99, cone: 99, cube: 99,
+      donjon: 99, escalier: 99, porte: 99, colonne: 99, barbacane: 99,
+      citadelle: 99, aqueduc: 99, bastion: 99, colosse: 99,
+    };
+    this.mouldStock = stock;
+    this.drops = [];
+    this.nextDropId = 1;
+    this.lastDropSpawn = 0;
+    this.winnerId = null;
+    this.turn = null;
+    this.round = 0;
+    this.log = [];
+
+    for (const p of this.players.values()) {
+      p.world = new SandWorld((this.rng() * 2 ** 32) >>> 0);
+      const pedestalType = Math.floor(this.rng() * 5);
+      const kx = Math.round(210 + (this.rng() - 0.5) * 16);
+      p.world.initBeachDunes(pedestalType, kx);
+      p.alive = true;
+      p.placed = 0;
+      p.lastPlace = 0;
+      p.lastSpray = 0;
+      p.defenseSpraysLeft = MAX_DEFENSE_SPRAYS;
+      p.ammoInventory = { sand: 0, iron: 0, acid: 0, heavySpikeBall: 0, grenade: 0 };
+      p.selectedAmmo = 'sand';
+      p.ammoStock = 0;
+      p.sentFast = -1;
+      p.sentSlow = -1;
+      p.moulds = { ...this.mouldStock };
+      p.hasSpikeBall = false;
+      p.hasGrenade = false;
+      p.hasIronBall = false;
+      p.hasAcidBall = false;
+      p.bonusAmmo = 0;
+      p.plan = null;
+    }
+
+    this.order = [...this.players.keys()];
+
+    if (this.trainingMode === 'shoot') {
+      for (const p of this.players.values()) {
+        if (p.isBot) this.buildInstantCastle(p);
+      }
+      this.startBattle();
+      this.say('🎯 Entraînement au Tir ! Boulets illimités : clique sur une icône sous la catapulte pour choisir ton boulet !');
+    } else {
+      for (const p of this.players.values()) {
+        if (p.isBot) p.plan = makeBuildPlan(this.rng, 45000, p.world.king?.x ?? 210);
+      }
+      this.phase = 'build';
+      this.phaseStart = Date.now();
+      this.endsAt = Date.now() + 300 * 1000; // 5 minutes de construction libre
+      this.say('🏗️ Entraînement Construction & Défense ! Bâtis ton château puis clique sur "Lancer l\'attaque IA" !');
+      this.dirtyState = true;
+      this.sendAllWorlds();
+      this.io.to(this.channel).emit('fx', { type: 'phase', phase: 'build', intro: 'build' });
+    }
+    this.broadcastState();
+  }
+
+  finishBuildTraining(playerId) {
+    if (!this.isTraining || this.phase !== 'build') return false;
+    for (const p of this.players.values()) {
+      if (p.isBot) {
+        this.buildInstantCastle(p);
+      }
+    }
+    this.startBattle();
+    this.say('⚔️ Assaut de l\'IA lancé ! Utilise tes sprays d\'eau pour défendre ton château !');
+    this.broadcastState();
+    return true;
+  }
+
+  resetTrainingTarget(playerId) {
+    if (!this.isTraining) return false;
+    const bot = [...this.players.values()].find((p) => p.isBot);
+    if (!bot) return false;
+    this.buildInstantCastle(bot);
+    if (this.turn) {
+      this.turn.targetId = bot.id;
+      this.turn.state = 'aim';
+    }
+    this.say('🔄 Nouveau château cible généré !');
+    this.dirtyState = true;
+    this.sendAllWorlds();
+    this.broadcastState();
+    return true;
   }
 
   endBuild() {
@@ -329,8 +502,10 @@ export class Room {
     for (const p of this.players.values()) {
       p.world.armed = true;
       p.world.drying = false; // Ne sèche que quand le château est affiché à l'écran (cible du tour)
-      p.defenseSpraysLeft = 0; // Gagnera +1 dose de spray dès son premier tour de défense
-      p.ammoStock = 0;         // Gagnera +2 boulets dès son premier tour d'attaque
+      p.defenseSpraysLeft = (this.isTraining && this.trainingMode === 'build_defense' && !p.isBot) ? MAX_DEFENSE_SPRAYS : 0;
+      p.ammoInventory = { sand: 0, iron: 0, acid: 0, heavySpikeBall: 0, grenade: 0 };
+      p.selectedAmmo = 'sand';
+      p.ammoStock = 0;
       if (p.world.king && !p.world.king.dead) p.world.king.hits = 0;
     }
     const alive = this.alivePlayers();
@@ -356,37 +531,82 @@ export class Room {
     if (alive.length <= 1) return this.finish(alive[0]?.id || null);
 
     // Conserver les boulets restants non tirés par le tireur précédent !
-    if (prevShooterId && this.turn) {
+    if (prevShooterId && this.turn && !(this.isTraining && this.trainingMode === 'shoot')) {
       const prevShooter = this.players.get(prevShooterId);
       if (prevShooter) {
-        prevShooter.ammoStock = this.turn.shotsLeft;
+        this.syncAmmoFlags(prevShooter);
       }
     }
 
-    let idx = prevShooterId ? this.order.indexOf(prevShooterId) : -1;
     let shooter = null;
-    for (let k = 1; k <= this.order.length; k++) {
-      const cand = this.players.get(this.order[(idx + k) % this.order.length]);
-      if (cand && cand.alive) {
-        if ((idx + k) >= this.order.length && prevShooterId) this.round++;
-        shooter = cand;
-        break;
+    let target = null;
+
+    if (this.isTraining && this.trainingMode === 'build_defense') {
+      // En mode entraînement construction/défense : seule l'IA attaque en continu !
+      const bot = alive.find((p) => p.isBot);
+      const human = alive.find((p) => !p.isBot);
+      if (bot && human) {
+        shooter = bot;
+        target = human;
+        if (prevShooterId) this.round++;
+      }
+    } else if (this.isTraining && this.trainingMode === 'shoot') {
+      // En mode entraînement au tir : seul le joueur humain tire avec munitions illimitées !
+      const human = alive.find((p) => !p.isBot);
+      let bot = alive.find((p) => p.isBot);
+      if (!bot) {
+        bot = [...this.players.values()].find((p) => p.isBot);
+        if (bot) this.buildInstantCastle(bot);
+      }
+      if (human && bot) {
+        shooter = human;
+        target = bot;
       }
     }
-    const target = this.defaultTarget(shooter.id);
+
+    if (!shooter) {
+      let idx = prevShooterId ? this.order.indexOf(prevShooterId) : -1;
+      for (let k = 1; k <= this.order.length; k++) {
+        const cand = this.players.get(this.order[(idx + k) % this.order.length]);
+        if (cand && cand.alive) {
+          if ((idx + k) >= this.order.length && prevShooterId) this.round++;
+          shooter = cand;
+          break;
+        }
+      }
+      target = this.defaultTarget(shooter.id);
+    }
     if (!target) return this.finish(shooter.id);
 
-    // Chaque tour de défense octroie +1 dose de spray en réserve (on garde les sprays non utilisés, max 3) !
+    // Chaque tour de défense octroie +1 dose de spray en réserve (on garde les sprays non utilisés, max 5) !
     target.defenseSpraysLeft = Math.min(MAX_DEFENSE_SPRAYS, (target.defenseSpraysLeft || 0) + 1);
 
     const wind = (this.rng() * 2 - 1) * CONFIG.windMax;
 
-    // Chaque tour d'attaque octroie +2 boulets de canon (on garde tous les boulets non tirés, max 3) !
-    shooter.ammoStock = Math.min(MAX_AMMO_RESERVE, (shooter.ammoStock || 0) + 2 + (shooter.bonusAmmo || 0));
-    shooter.bonusAmmo = 0;
-    const initialShots = shooter.ammoStock;
+    let initialShots = 2;
+    if (this.isTraining && this.trainingMode === 'shoot' && !shooter.isBot) {
+      shooter.ammoInventory = { sand: 99, iron: 99, acid: 99, heavySpikeBall: 99, grenade: 99 };
+      if (!shooter.selectedAmmo || !VALID_AMMO_TYPES.includes(shooter.selectedAmmo)) {
+        shooter.selectedAmmo = 'sand';
+      }
+      this.syncAmmoFlags(shooter);
+      initialShots = 999;
+    } else {
+      // Chaque tour d'attaque octroie +2 boulets de sable (on garde tous les boulets non tirés, max 5 au total) !
+      const inv = this.ensureAmmoInventory(shooter);
+      const curTotal = this.totalAmmo(shooter);
+      const addSand = Math.max(0, Math.min(MAX_AMMO_RESERVE - curTotal, SHOTS_PER_TURN + (shooter.bonusAmmo || 0)));
+      inv.sand += addSand;
+      shooter.bonusAmmo = 0;
+      if ((inv[shooter.selectedAmmo] || 0) <= 0) {
+        shooter.selectedAmmo = this.pickAvailableAmmo(shooter);
+      }
+      this.syncAmmoFlags(shooter);
+      initialShots = shooter.ammoStock;
+    }
 
-    const attackDuration = shooter.connected ? AIM_SECONDS * 1000 : 3000;
+    const isUnlimitedShoot = this.isTraining && this.trainingMode === 'shoot' && !shooter.isBot;
+    const attackDuration = isUnlimitedShoot ? 3600 * 1000 : (shooter.connected ? AIM_SECONDS * 1000 : 3000);
     const attackPhaseEndsAt = Date.now() + attackDuration;
     this.turn = {
       shooterId: shooter.id,
@@ -402,6 +622,7 @@ export class Room {
       shotsLeft: initialShots,
       shotsTotal: initialShots,
       catapultSide: 'left',
+      infiniteAmmo: isUnlimitedShoot,
     };
     // Relancer de nouveaux bonus parachutés pour ce tour de tir
     this.drops = [];
@@ -440,6 +661,19 @@ export class Room {
     this.io.to(this.channel).emit('fx', { type: 'catapultSide', side, pid: playerId });
   }
 
+  selectAmmo(playerId, type) {
+    if (!VALID_AMMO_TYPES.includes(type)) return false;
+    const p = this.players.get(playerId);
+    if (!p) return false;
+    const inv = this.ensureAmmoInventory(p);
+    const isUnlimitedShoot = this.isTraining && this.trainingMode === 'shoot' && !p.isBot;
+    if (!isUnlimitedShoot && (inv[type] || 0) <= 0) return false;
+    p.selectedAmmo = type;
+    this.dirtyState = true;
+    this.broadcastState();
+    return true;
+  }
+
   relayAim(playerId, aim) {
     const t = this.turn;
     if (this.phase !== 'battle' || !t || t.state !== 'aim' || t.shooterId !== playerId) return;
@@ -448,7 +682,11 @@ export class Room {
     this.io.to(this.channel).except(this.players.get(playerId)?.socket?.id || '').emit('aim', t.aim);
   }
 
-  fire(playerId, { angle, power, side }) {
+  fire(playerId, arg1 = {}, arg2, arg3) {
+    const opts = typeof arg1 === 'number'
+      ? { angle: arg1, power: arg2, side: arg3 }
+      : (arg1 || {});
+    const { angle, power, side, ammoType: requestedAmmo } = opts;
     const t = this.turn;
     if (this.phase !== 'battle' || !t || t.state !== 'aim' || t.shooterId !== playerId) return false;
     if (t.shotsLeft <= 0) return false;
@@ -456,32 +694,64 @@ export class Room {
     const catSide = t.catapultSide || 'left';
     const shooter = this.players.get(playerId);
     const target = this.players.get(t.targetId);
-    if (!target) return false;
+    if (!target || !shooter) return false;
     const a = Math.max(0.05, Math.min(1.52, Number(angle) || 0.7));
     const pw = Math.max(0.08, Math.min(1, Number(power) || 0.5));
     const w = target.world;
     w.wind = t.wind;
     w.ballScale = 1 + this.round * CONFIG.ballGrowthPerRound;
-    const isAcid = !!shooter?.hasAcidBall;
-    const isGrenade = !!shooter?.hasGrenade;
-    const isSpike = !!shooter?.hasSpikeBall;
-    const isIron = !!shooter?.hasIronBall;
-    if (shooter) {
-      shooter.hasAcidBall = false;
-      shooter.hasGrenade = false;
-      shooter.hasSpikeBall = false;
-      shooter.hasIronBall = false;
+
+    const inv = this.ensureAmmoInventory(shooter);
+    const isUnlimitedShoot = this.isTraining && this.trainingMode === 'shoot' && !shooter.isBot;
+
+    if (!isUnlimitedShoot) {
+      // Rétrocompatibilité si un test unitaire active directement hasGrenade / hasSpikeBall / etc. ou shotsLeft
+      if (shooter.hasGrenade && inv.grenade <= 0) { inv.grenade = 1; shooter.selectedAmmo = 'grenade'; }
+      if (shooter.hasSpikeBall && inv.heavySpikeBall <= 0) { inv.heavySpikeBall = 1; shooter.selectedAmmo = 'heavySpikeBall'; }
+      if (shooter.hasIronBall && inv.iron <= 0) { inv.iron = 1; shooter.selectedAmmo = 'iron'; }
+      if (shooter.hasAcidBall && inv.acid <= 0) { inv.acid = 1; shooter.selectedAmmo = 'acid'; }
+      const totalNow = this.totalAmmo(shooter);
+      if (totalNow < t.shotsLeft) {
+        inv.sand += (t.shotsLeft - totalNow);
+      }
     }
+
+    let chosenAmmo = shooter.selectedAmmo || 'sand';
+    if (requestedAmmo && VALID_AMMO_TYPES.includes(requestedAmmo)) {
+      if (isUnlimitedShoot || (inv[requestedAmmo] || 0) > 0) {
+        chosenAmmo = requestedAmmo;
+        shooter.selectedAmmo = requestedAmmo;
+      }
+    }
+    if (!isUnlimitedShoot && (inv[chosenAmmo] || 0) <= 0) {
+      chosenAmmo = this.pickAvailableAmmo(shooter);
+    }
+
+    const isAcid = chosenAmmo === 'acid';
+    const isGrenade = chosenAmmo === 'grenade';
+    const isSpike = chosenAmmo === 'heavySpikeBall';
+    const isIron = chosenAmmo === 'iron';
+
+    if (!isUnlimitedShoot) {
+      inv[chosenAmmo] = Math.max(0, (inv[chosenAmmo] || 0) - 1);
+      t.shotsLeft = Math.max(0, t.shotsLeft - 1);
+      this.syncAmmoFlags(shooter);
+      if ((inv[shooter.selectedAmmo] || 0) <= 0) {
+        shooter.selectedAmmo = this.pickAvailableAmmo(shooter);
+      }
+    } else {
+      t.shotsLeft = 999;
+      shooter.ammoStock = 999;
+    }
+
     const launchX = catSide === 'right' ? (GRID_W - LAUNCH_X) : LAUNCH_X;
     const v = launchVelocity(a, pw);
     if (catSide === 'right') v.vx = -v.vx; // Tire de droite à gauche !
     w.launch(launchX, LAUNCH_Y, v.vx, v.vy, isSpike, isGrenade, isIron, isAcid);
-    t.shotsLeft--;
-    shooter.ammoStock = t.shotsLeft;
     t.state = 'flight';
     t.firedAt = Date.now();
     t.aim = { angle: a, power: pw, side: catSide };
-    const ammoType = isAcid ? 'acid' : isGrenade ? 'grenade' : isSpike ? 'heavySpikeBall' : isIron ? 'iron' : 'sand';
+    const ammoType = chosenAmmo;
     this.io.to(this.channel).emit('fx', { type: 'fire', pid: target.id, angle: a, power: pw, side: catSide, isSpike, isGrenade, isIron, isAcid, ammoType });
     this.dirtyState = true;
     return true;
@@ -498,10 +768,12 @@ export class Room {
   }
 
   backToLobby(byId) {
-    if (this.phase !== 'over' && this.phase !== 'lobby') {
+    if (this.phase !== 'over' && this.phase !== 'lobby' && !this.isTraining) {
       // La partie est en cours : quitter individuellement sans interrompre la partie des autres
       return this.leavePlayer(byId);
     }
+    this.isTraining = false;
+    this.trainingMode = null;
     this.phase = 'lobby';
     this.turn = null;
     this.winnerId = null;
@@ -524,6 +796,8 @@ export class Room {
         p.lastPlace = 0;
         p.lastSpray = 0;
         p.defenseSpraysLeft = 1;
+        p.ammoInventory = { sand: 0, iron: 0, acid: 0, heavySpikeBall: 0, grenade: 0 };
+        p.selectedAmmo = 'sand';
         p.ammoStock = 0;
         p.sentFast = -1;
         p.sentSlow = -1;
@@ -737,16 +1011,22 @@ export class Room {
       for (const e of evs) {
         if (e.type === 'kingDead') {
           const how = { enseveli: 'enseveli sous son propre sable', touché: 'touché de plein fouet', chute: 'tombé de son château', explosion: 'pulvérisé par une grenade !' }[e.cause] || e.cause;
-          p.alive = false;
           this.dirtyState = true;
-          this.say(`😱 Le Roi de ${p.name} est ${how} !`);
-          const alive = this.alivePlayers();
-          if (alive.length <= 1) {
-            this.finish(alive[0]?.id || null);
-          } else if (this.phase === 'battle') {
-            this.turn?.deaths.push(p.id);
-            if (this.turn && (this.turn.targetId === p.id || this.turn.shooterId === p.id)) {
-              this.nextTurn(this.turn.shooterId);
+          if (this.isTraining && this.trainingMode === 'shoot' && p.isBot) {
+            this.say(`🎯 Roi cible ${how} ! Construction d'un nouveau château cible…`);
+            this.buildInstantCastle(p);
+            this.sendAllWorlds();
+          } else {
+            p.alive = false;
+            this.say(`😱 Le Roi de ${p.name} est ${how} !`);
+            const alive = this.alivePlayers();
+            if (alive.length <= 1) {
+              this.finish(alive[0]?.id || null);
+            } else if (this.phase === 'battle') {
+              this.turn?.deaths.push(p.id);
+              if (this.turn && (this.turn.targetId === p.id || this.turn.shooterId === p.id)) {
+                this.nextTurn(this.turn.shooterId);
+              }
             }
           }
         }
@@ -845,10 +1125,17 @@ export class Room {
 
       if (dt >= waitTime) {
         for (const p of this.players.values()) {
-          if (p.alive && p.world.king?.dead) p.alive = false;
+          if (p.alive && p.world.king?.dead) {
+            if (this.isTraining && this.trainingMode === 'shoot' && p.isBot) {
+              this.buildInstantCastle(p);
+              this.sendAllWorlds();
+            } else {
+              p.alive = false;
+            }
+          }
         }
         const alive = this.alivePlayers();
-        if (anyDead || alive.length <= 1) {
+        if ((!this.isTraining || this.trainingMode !== 'shoot') && (anyDead || alive.length <= 1)) {
           this.nextTurn(t.shooterId);
           return;
         }
@@ -856,7 +1143,9 @@ export class Room {
           t.state = 'aim';
           t.endsAt = t.attackPhaseEndsAt;
           this.dirtyState = true;
-          this.say(`☄️ Boulet armé ! Il te reste ${t.shotsLeft} tir(s) dans cette phase !`);
+          if (!t.infiniteAmmo) {
+            this.say(`☄️ Boulet armé ! Il te reste ${t.shotsLeft} tir(s) dans cette phase !`);
+          }
           if (shooter?.isBot) {
             t.botFireAt = now + 800 + this.rng() * 600;
           }
@@ -876,6 +1165,39 @@ export class Room {
     return this.applyBonus(playerId, d, chosenTargetId);
   }
 
+  addAmmoBonus(p, ammoKey) {
+    const inv = this.ensureAmmoInventory(p);
+    const isUnlimitedShoot = this.isTraining && this.trainingMode === 'shoot' && !p.isBot;
+    if (isUnlimitedShoot) {
+      inv[ammoKey] = 99;
+      p.selectedAmmo = ammoKey;
+      this.syncAmmoFlags(p);
+      return;
+    }
+    // Synchroniser si un test a modifié directement p.ammoStock
+    const specialTotal = inv.iron + inv.acid + inv.heavySpikeBall + inv.grenade;
+    if (typeof p.ammoStock === 'number' && this.totalAmmo(p) !== p.ammoStock) {
+      inv.sand = Math.max(0, p.ammoStock - specialTotal);
+    }
+    const curTotal = this.totalAmmo(p);
+    if (curTotal < MAX_AMMO_RESERVE) {
+      inv[ammoKey] = (inv[ammoKey] || 0) + 1;
+    } else if (ammoKey !== 'sand' && inv.sand > 0) {
+      // Si la réserve est pleine (5/5) avec du sable standard, convertir 1 sable en ce boulet spécial
+      inv.sand--;
+      inv[ammoKey] = (inv[ammoKey] || 0) + 1;
+    }
+    if ((inv[ammoKey] || 0) > 0) {
+      // Sélectionner automatiquement le dernier bonus de boulet récupéré !
+      p.selectedAmmo = ammoKey;
+    }
+    this.syncAmmoFlags(p);
+    if (this.turn && this.turn.shooterId === p.id) {
+      this.turn.shotsLeft = this.totalAmmo(p);
+      this.turn.shotsTotal = Math.max(this.turn.shotsTotal, this.turn.shotsLeft);
+    }
+  }
+
   applyBonus(playerId, d, chosenTargetId) {
     d.collected = true;
     this.dirtyState = true;
@@ -883,14 +1205,11 @@ export class Room {
     const t = this.turn;
 
     if (d.type === 'ammo') {
+      this.addAmmoBonus(p, 'sand');
       if (t && t.shooterId === playerId) {
-        t.shotsLeft = Math.min(MAX_AMMO_RESERVE, t.shotsLeft + 1);
-        t.shotsTotal = Math.max(t.shotsTotal, t.shotsLeft);
-        p.ammoStock = Math.min(MAX_AMMO_RESERVE, (p.ammoStock || 0) + 1);
-        this.say(`🎯 ${p.name} récolte : +1 BOULET D'ATTAQUE IMMÉDIAT !`);
+        this.say(`🎯 ${p.name} récolte : +1 BOULET DE SABLE IMMÉDIAT !`);
       } else {
-        p.bonusAmmo = Math.min(MAX_AMMO_RESERVE, (p.bonusAmmo || 0) + 1);
-        this.say(`🎯 ${p.name} récolte : +1 BOULET D'ATTAQUE pour son prochain tour !`);
+        this.say(`🎯 ${p.name} récolte : +1 BOULET DE SABLE en réserve !`);
       }
     } else if (d.type === 'spray') {
       p.defenseSpraysLeft = Math.min(MAX_DEFENSE_SPRAYS, (p.defenseSpraysLeft || 0) + 1);
@@ -903,19 +1222,19 @@ export class Room {
       this.say(`🌊 DÉLUGE BÉNI ! Le château de ${p.name} est totalement arrosé et durci !`);
       this.io.to(this.channel).emit('fx', { type: 'wetAll', pid: p.id, defenseSpraysLeft: p.defenseSpraysLeft });
     } else if (d.type === 'heavySpikeBall') {
-      p.hasSpikeBall = true;
+      this.addAmmoBonus(p, 'heavySpikeBall');
       this.say(`💣 ARSENAL ! ${p.name} prépare un BOULET D'ACIER À POINTES ultra destructeur !`);
       this.io.to(this.channel).emit('fx', { type: 'heavySpikeBall', pid: p.id });
     } else if (d.type === 'iron' || d.type === 'ironBall') {
-      p.hasIronBall = true;
-      this.say(`⚔️ ARSENAL ! ${p.name} arme un BOULET EN FER MASSIF (impact net sans ajout de sable) !`);
+      this.addAmmoBonus(p, 'iron');
+      this.say(`⚔️ ARSENAL ! ${p.name} arme un BOULET EN FER MASSIF (impact sur sable mouillé) !`);
       this.io.to(this.channel).emit('fx', { type: 'ironBallEquipped', pid: p.id });
     } else if (d.type === 'acid' || d.type === 'acidBall') {
-      p.hasAcidBall = true;
+      this.addAmmoBonus(p, 'acid');
       this.say(`🧪 CHIMIE ROYALE ! ${p.name} arme une FIOLE D'ACIDE CORROSIF !`);
       this.io.to(this.channel).emit('fx', { type: 'acidEquipped', pid: p.id });
     } else if (d.type === 'grenade') {
-      p.hasGrenade = true;
+      this.addAmmoBonus(p, 'grenade');
       this.say(`🧨 ARSENAL LOURD ! ${p.name} arme une GRENADE À RETARDEMENT DE 2 SECONDES !`);
       this.io.to(this.channel).emit('fx', { type: 'grenadeEquipped', pid: p.id });
     } else if (d.type === 'dryOpponent') {
@@ -1115,6 +1434,8 @@ export class Room {
       code: this.code,
       phase: this.phase,
       hostId: this.hostId,
+      isTraining: !!this.isTraining,
+      trainingMode: this.trainingMode || null,
       mouldStock: this.mouldStock || null,
       remaining: this.endsAt ? Math.max(0, this.endsAt - now) : 0,
       players: this.order.length
@@ -1136,6 +1457,7 @@ export class Room {
           shotsLeft: this.turn.shotsLeft,
           shotsTotal: this.turn.shotsTotal,
           catapultSide: this.turn.catapultSide || 'left',
+          infiniteAmmo: !!this.turn.infiniteAmmo,
         }
         : null,
       winnerId: this.winnerId,
@@ -1154,6 +1476,7 @@ export class Room {
 
   publicPlayer(p, now = Date.now()) {
     const k = p.world.king;
+    const inv = this.ensureAmmoInventory(p);
     return {
       id: p.id,
       name: p.name,
@@ -1168,10 +1491,13 @@ export class Room {
       sprayReadyIn: Math.max(0, (p.lastSpray + SPRAY_COOLDOWN_MS) - now),
       defenseSpraysLeft: p.defenseSpraysLeft ?? 0,
       moulds: p.moulds || null,
-      hasSpikeBall: !!p.hasSpikeBall,
-      hasGrenade: !!p.hasGrenade,
-      hasIronBall: !!p.hasIronBall,
-      hasAcidBall: !!p.hasAcidBall,
+      ammoInventory: { ...inv },
+      selectedAmmo: p.selectedAmmo || 'sand',
+      ammoStock: p.ammoStock || 0,
+      hasSpikeBall: !!p.hasSpikeBall || inv.heavySpikeBall > 0,
+      hasGrenade: !!p.hasGrenade || inv.grenade > 0,
+      hasIronBall: !!p.hasIronBall || inv.iron > 0,
+      hasAcidBall: !!p.hasAcidBall || inv.acid > 0,
       bonusAmmo: p.bonusAmmo || 0,
     };
   }

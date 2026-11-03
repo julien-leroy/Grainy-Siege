@@ -2841,6 +2841,151 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   box-shadow: 0 0 12px rgba(245, 158, 11, 0.45);
 }
 
+/* ==================== Ligne Partie Rapide + S'entraîner ==================== */
+.quick-play-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+}
 
+.quick-play-row .btn {
+  padding-left: 12px;
+  padding-right: 12px;
+  font-size: 0.96rem;
+  white-space: nowrap;
+}
 
+.btn-train {
+  background: linear-gradient(135deg, #0ea5e9, #0284c7);
+  color: #ffffff;
+  border: 2px solid #7dd3fc;
+  box-shadow: 0 4px 0 #0369a1, 0 6px 14px rgba(2, 132, 199, 0.35);
+}
 
+.btn-train:hover {
+  background: linear-gradient(135deg, #38bdf8, #0369a1);
+  transform: translateY(-2px);
+}
+
+/* ==================== Modale de choix d'entraînement ==================== */
+.training-choice-card {
+  max-width: 560px;
+  text-align: center;
+  border-color: #38bdf8;
+}
+
+.training-modes-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.training-mode-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 14px;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.78);
+  border: 2px solid rgba(56, 189, 248, 0.45);
+  color: #f8fafc;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.18s ease;
+  font-family: inherit;
+}
+
+.training-mode-card:hover {
+  background: rgba(14, 116, 144, 0.45);
+  border-color: #fde047;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(56, 189, 248, 0.3);
+}
+
+.training-mode-icon {
+  font-size: 2.1rem;
+  line-height: 1.1;
+}
+
+.training-mode-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #fde047;
+}
+
+.training-mode-desc {
+  font-size: 0.78rem;
+  color: #cbd5e1;
+  line-height: 1.35;
+}
+
+/* ==================== Contrôles d'entraînement dans le HUD ==================== */
+.train-hud-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.train-action-pill {
+  background: linear-gradient(135deg, #ea580c, #c2410c) !important;
+  color: #fff !important;
+  border: 1.5px solid #fde047 !important;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(234, 88, 12, 0.45);
+}
+
+.train-action-pill:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.train-switch-pill {
+  background: rgba(2, 132, 199, 0.88) !important;
+  color: #fff !important;
+  border: 1.5px solid #7dd3fc !important;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+/* ==================== Boutons de sélection de boulet par type sous la catapulte ==================== */
+.shot-ball.ammo-type-btn {
+  position: relative;
+  width: auto;
+  min-width: 54px;
+  height: 38px;
+  padding: 0 10px 0 8px;
+  border-radius: 999px;
+  gap: 5px;
+  cursor: pointer;
+  background: rgba(15, 23, 42, 0.65);
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  transform: scale(1);
+  transition: all 0.16s ease;
+}
+
+.shot-ball.ammo-type-btn:hover {
+  border-color: #fde047;
+  background: rgba(250, 204, 21, 0.22);
+  transform: translateY(-2px);
+}
+
+.shot-ball.ammo-type-btn.selected {
+  border-color: #facc15;
+  background: linear-gradient(135deg, rgba(250, 204, 21, 0.42), rgba(234, 88, 12, 0.45));
+  box-shadow: 0 0 14px rgba(250, 204, 21, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transform: scale(1.07);
+}
+
+.ammo-count-badge {
+  font-size: 0.78rem;
+  font-weight: 900;
+  color: #fef08a;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  font-family: 'Fredoka', 'Nunito', sans-serif;
+  line-height: 1;
+}

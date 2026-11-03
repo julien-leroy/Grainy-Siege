@@ -53,8 +53,8 @@ export const BUILD_PLACE_COOLDOWN_MS = 3000;
 export const PATE_COOLDOWN_MS = 800;
 export const PATTERN_PATE_COOLDOWN_MS = 500; // Cooldown spécifique au pâté après la pose d'un patron
 export const DEFENSE_SPRAY_MAX = 1;
-export const MAX_AMMO_RESERVE = 3;
-export const MAX_DEFENSE_SPRAYS = 3;
+export const MAX_AMMO_RESERVE = 5;
+export const MAX_DEFENSE_SPRAYS = 5;
 export const TICK_RATE = 60;
 
 // Balistique de la catapulte (cellules / tick)
