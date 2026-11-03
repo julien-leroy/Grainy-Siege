@@ -233,6 +233,7 @@ export class Renderer {
     const SW = GRID_W * SUB;
     data.fill(0);
     sh.fill(0);
+    const acidCells = [];
     for (let y = 0; y < GROUND_Y; y++) {
       for (let x = 0; x < GRID_W; x++) {
         const i = y * GRID_W + x;
@@ -268,6 +269,9 @@ export class Renderer {
         }
 
         const up = y > 0 ? cells[i - GRID_W] & TYPE_MASK : 0;
+        if (t === T.ACID && (up === T.EMPTY || up !== T.ACID)) {
+          acidCells.push({ x, y });
+        }
         const down = cells[i + GRID_W] & TYPE_MASK;
         const left = x > 0 ? cells[i - 1] & TYPE_MASK : 1;
         const right = x < GRID_W - 1 ? cells[i + 1] & TYPE_MASK : 1;
@@ -307,6 +311,7 @@ export class Renderer {
         sh[i * 4 + 3] = 75;
       }
     }
+    world._acidCells = acidCells;
     this.sandCtx.putImageData(this.sandImg, 0, 0);
     this.shadowCtx.putImageData(this.shadowImg, 0, 0);
   }
@@ -1005,6 +1010,14 @@ export class Renderer {
     ctx.drawImage(this.shadow, ox + 1.6 * s, oy + 0.9 * s, GRID_W * s, GRID_H * s);
     ctx.drawImage(this.sand, ox, oy, GRID_W * s, GRID_H * s);
 
+    // Légère fumée toxique douce qui se dégage au-dessus des grains d'acide actifs
+    if (world._acidCells && world._acidCells.length > 0 && Math.random() < 0.42) {
+      const pick = world._acidCells[(Math.random() * world._acidCells.length) | 0];
+      if (pick) {
+        this.acidSmoke(pick.x + (Math.random() - 0.5) * 1.5, pick.y - 0.8, 1);
+      }
+    }
+
     // Safe zone élargie et protégée du Roi pendant la phase de construction
     if (showSafeZone && world.king && !world.king.dead) {
       const k = world.king;
@@ -1674,6 +1687,22 @@ export class Renderer {
     }
   }
 
+  acidSmoke(x, y, count = 2) {
+    for (let k = 0; k < count; k++) {
+      this.fx.push({
+        x: x + (Math.random() - 0.5) * 3,
+        y: y - Math.random() * 1.5,
+        vx: (Math.random() - 0.5) * 0.04,
+        vy: -0.045 - Math.random() * 0.05,
+        r: 1.8 + Math.random() * 2.2,
+        life: 0.72 + Math.random() * 0.25,
+        decay: 0.018 + Math.random() * 0.012,
+        color: Math.random() > 0.35 ? '187, 247, 208' : '134, 239, 172',
+        isMist: true,
+      });
+    }
+  }
+
   waterMist(x, y, radius = SPRAY_RADIUS) {
     // 1) Grand nuage de brume vaporeuse
     this.fx.push({
@@ -2253,7 +2282,7 @@ export class Renderer {
       case 'ironBall':
         return {
           icon: '⚔️',
-          title: 'BOULET EN FER (IMPACT NET)',
+          title: 'BOULET EN FER (BRISE LE SABLE MOUILLÉ)',
           color: '#cbd5e1',
           bgColor: 'rgba(51, 65, 85, 0.95)',
         };

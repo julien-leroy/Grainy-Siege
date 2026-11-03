@@ -165,6 +165,8 @@ export class SandWorld {
     this.bodyTag = 1;
     this.support = new Uint8Array(N);
     this.acidCount = 0;
+    this.grounded = new Uint8Array(N);
+    this.floatingActive = false;
     this.isBridge = new Uint8Array(N);
     this.queue = new Int32Array(N);
     this.bodies = [];
@@ -573,7 +575,7 @@ export class SandWorld {
 
   // ------------------------------------------------------------------ boucle
   get sleeping() {
-    return this.quietTicks > 180 && !this.ball && this.particles.length === 0 && !this.structDirty && !this.drying && this.acidCount === 0;
+    return this.quietTicks > 180 && !this.ball && this.particles.length === 0 && !this.structDirty && !this.floatingActive && !this.drying && this.acidCount === 0;
   }
 
   step() {
@@ -588,7 +590,7 @@ export class SandWorld {
       activity++;
     }
     activity += this.stepKing();
-    if (this.structDirty && this.tick % CONFIG.structureInterval === 0) {
+    if (this.floatingActive || (this.structDirty && this.tick % CONFIG.structureInterval === 0)) {
       const failed = this.analyzeStructure();
       activity += failed;
     }
@@ -671,7 +673,7 @@ export class SandWorld {
   }
 
   get settled() {
-    return this.quietTicks > 20 && !this.ball && this.particles.length === 0 && this.acidCount === 0;
+    return this.quietTicks > 20 && !this.ball && this.particles.length === 0 && !this.floatingActive && this.acidCount === 0;
   }
 
   moveCell(from, to, v) {
@@ -784,6 +786,9 @@ export class SandWorld {
     if (this.acidCount === 0) return 0;
     const { type, vel, damage, moist, rng } = this;
     let activity = 0;
+    let corrodedThisTick = 0;
+    let fizzX = 0;
+    let fizzY = 0;
     // On parcourt la grille pour trouver les grains d'acide vert
     for (let y = H - 2; y >= 0; y--) {
       const row = y * W;
@@ -798,8 +803,8 @@ export class SandWorld {
         }
 
         // Le timer est arrivé à 0 : consommer 1 grain de sable jaune le plus proche !
-        // Réarme le timer entre 0.1s et 0.3s (6 à 18 ticks à 60 TPS)
-        damage[i] = 6 + Math.floor(rng() * 13);
+        // Réarme le timer entre ~0.18s et ~0.45s (11 à 27 ticks à 60 TPS) pour une réaction durable
+        damage[i] = 11 + Math.floor(rng() * 17);
 
         // Recherche du grain de sable jaune le plus proche (voisins r=1, puis r=2)
         let targetIdx = -1;
@@ -869,14 +874,17 @@ export class SandWorld {
           moist[targetIdx] = 0;
           this.structDirty = true;
           activity++;
+          corrodedThisTick++;
+          fizzX = x;
+          fizzY = y;
           // Décrémente le quota de grains restants pour ce grain d'acide
           moist[i]--;
         } else if (targetIdx === -1) {
-          // Pas de sable jaune autour : s'épuise progressivement
-          moist[i]--;
+          // Pas de sable jaune autour : s'épuise plus lentement
+          if (rng() < 0.45) moist[i]--;
         }
 
-        // Si ce grain d'acide a consumé son quota (entre 1 et 3 grains), il disparaît
+        // Si ce grain d'acide a consumé son quota, il disparaît
         if (moist[i] <= 0) {
           type[i] = EMPTY;
           vel[i] = 0;
@@ -887,6 +895,9 @@ export class SandWorld {
           activity++;
         }
       }
+    }
+    if (corrodedThisTick > 0 && this.tick % 16 === 0) {
+      this.events.push({ type: 'acidFizz', x: fizzX, y: fizzY, count: corrodedThisTick });
     }
     return activity;
   }
@@ -1017,33 +1028,32 @@ export class SandWorld {
         }
 
         if (b.acid) {
-          // Boule d'acide : se déverse de la même manière que se déverse le sable avec un boulet normal,
-          // sauf que les grains sont de vrais grains de sable physiques verts dans la grille,
-          // et tous les 0.1 à 0.3 secondes ils consument 1 grain de sable jaune le plus proche (1 à 3 au total) !
+          // Boule d'acide : déverse une grande quantité de vrais grains de sable physiques verts dans la grille,
+          // qui durent plus longtemps et rongent progressivement le sable jaune en contact !
           const speed = Math.hypot(b.vx, b.vy);
           const nx = b.vx / (speed || 1);
           const ny = b.vy / (speed || 1);
-          const lump = 18 + Math.floor(this.rng() * 5); // petite quantité (~18-22 grains)
+          const lump = 64 + Math.floor(this.rng() * 18); // grande quantité (~64-81 grains d'acide)
           for (let k = 0; k < lump; k++) {
             const a = this.rng() * Math.PI * 2;
-            const rr = Math.sqrt(this.rng()) * (b.r * 0.85);
-            let gx = Math.round(b.x - nx * b.r * 0.4 + Math.cos(a) * rr);
-            let gy = Math.round(b.y - ny * b.r * 0.4 + Math.sin(a) * rr);
+            const rr = Math.sqrt(this.rng()) * (b.r * 1.45);
+            let gx = Math.round(b.x - nx * b.r * 0.5 + Math.cos(a) * rr);
+            let gy = Math.round(b.y - ny * b.r * 0.5 + Math.sin(a) * rr);
             if (gx < 0) gx = 0; if (gx >= W) gx = W - 1;
             if (gy < 0) gy = 0; if (gy >= H - 1) gy = H - 2;
 
             // Trouve une case libre pour déposer le grain de sable vert
             let cur = gy * W + gx;
             let guard = 0;
-            while (cur >= 0 && this.type[cur] !== EMPTY && guard++ < 35) {
+            while (cur >= 0 && this.type[cur] !== EMPTY && guard++ < 40) {
               cur -= W;
               gy--;
             }
             if (cur >= 0 && this.type[cur] === EMPTY) {
               this.type[cur] = ACID;
-              this.vel[cur] = 0.4 + this.rng() * 1.2;
-              this.damage[cur] = 6 + Math.floor(this.rng() * 13); // 6..18 ticks (0.1..0.3s)
-              this.moist[cur] = 1 + Math.floor(this.rng() * 3);  // 1..3 grains jaunes à consumer
+              this.vel[cur] = 0.5 + this.rng() * 1.4;
+              this.damage[cur] = 8 + Math.floor(this.rng() * 20); // 8..27 ticks avant 1ère corrosion
+              this.moist[cur] = 2 + Math.floor(this.rng() * 3);   // 2..4 grains jaunes à consumer par grain vert
               this.acidCount++;
             }
           }
@@ -1101,9 +1111,9 @@ export class SandWorld {
   impact(x, y, vx, vy, ballR, isSpike = false, isIron = false, isSandBall = true) {
     const { type, damage, rng } = this;
     const speed = Math.hypot(vx, vy);
-    const spikeRMult = isSpike ? 1.20 : 1.0;
+    const spikeRMult = isSpike ? 1.20 : (isIron ? 1.16 : 1.0);
     const R = Math.min(CONFIG.craterMax * 1.5, (CONFIG.craterBase + speed * CONFIG.craterPerSpeed) * spikeRMult) * this.ballScale;
-    const R2 = R * (isSpike ? CONFIG.shockFactor * 1.08 : CONFIG.shockFactor);
+    const R2 = R * (isSpike ? CONFIG.shockFactor * 1.08 : (isIron ? CONFIG.shockFactor * 1.18 : CONFIG.shockFactor));
     const x0 = Math.max(0, Math.floor(x - R2));
     const x1 = Math.min(W - 1, Math.ceil(x + R2));
     const y0 = Math.max(0, Math.floor(y - R2));
@@ -1111,7 +1121,7 @@ export class SandWorld {
     const nx = vx / (speed || 1);
     const ny = vy / (speed || 1);
 
-    if (isSpike && this.king) {
+    if ((isSpike || isIron) && this.king) {
       const kDist = Math.hypot(this.king.x + KING_W / 2 - x, this.king.y + KING_H / 2 - y);
       if (kDist <= R * 1.05) {
         this.killKing('touché');
@@ -1128,54 +1138,68 @@ export class SandWorld {
         const dy = cy + 0.5 - y;
         const d = Math.hypot(dx, dy);
         if (d > R2) continue;
-        // Le boulet à pointes pénètre le sable durci (HARD) avec un rayon modéré
-        const craterRadius = isSpike
-          ? (t === HARD ? R * 0.75 : R * 0.98)
-          : (t === HARD ? R * 0.62 : R);
+        const isDry = this.moist[i] < 60; // Sable structuré asséché vs sable mouillé
+        // Le boulet en fer (isIron) fait des dégâts massifs au SABLE MOUILLÉ surtout (!isDry) !
+        const craterRadius = isIron
+          ? (!isDry ? R * 1.25 : R * 0.65)
+          : isSpike
+            ? (t === HARD ? R * 0.75 : R * 0.98)
+            : (t === HARD ? R * 0.62 : R);
         if (d <= craterRadius * (0.85 + rng() * 0.3)) {
+          if (t === ACID && this.acidCount > 0) this.acidCount--;
           type[i] = EMPTY;
           this.vel[i] = 0;
           damage[i] = 0;
-          if (rng() < (isSpike ? 0.75 : CONFIG.ejectaRatio)) {
+          if (rng() < (isSpike ? 0.75 : isIron ? 0.80 : CONFIG.ejectaRatio)) {
             const inv = 1 / (d || 1);
-            const kick = (0.6 + rng() * 1.6) * (0.5 + speed * 0.35) * (isSpike ? 1.15 : 1.0);
+            const kick = (0.6 + rng() * 1.6) * (0.5 + speed * 0.35) * (isSpike || isIron ? 1.18 : 1.0);
             this.spawnParticle(
               cx + 0.5, cy + 0.5,
               dx * inv * kick + nx * speed * 0.3 + (rng() - 0.5) * 0.6,
               dy * inv * kick * 0.6 - (0.8 + rng() * 1.5) + ny * speed * 0.15,
-              rng() < 0.3 ? LOOSE : DRY,
+              isIron && !isDry ? LOOSE : (rng() < 0.3 ? LOOSE : DRY),
             );
           }
         } else if (isStructural(t)) {
           const f = Math.max(0, 1 - (d - craterRadius) / (R2 - craterRadius));
-          const resist = isSpike ? 0.85 : (t === HARD ? 0.48 : 1);
-          const isDry = this.moist[i] < 60; // Sable structuré asséché
-          const dryMult = isDry ? 2.6 : 1.0;
-          const spikeDmgMult = isSpike ? 1.4 : 1.0;
-          damage[i] = Math.min(255, damage[i] + f * CONFIG.shockDamage * resist * dryMult * spikeDmgMult * (0.6 + rng() * 0.8));
-          if (t === HARD && (damage[i] > 175 || (isSpike && rng() < 0.35))) {
+          // Pour isIron : l'onde de choc hydraulique dévaste le sable mouillé/durci (!isDry)
+          const resist = isIron
+            ? (!isDry ? 1.45 : 0.55)
+            : isSpike
+              ? 0.85
+              : (t === HARD ? 0.48 : 1);
+          const moistureDmgMult = isIron
+            ? (!isDry ? 2.8 : 0.75)
+            : (isDry ? 2.6 : 1.0);
+          const specialMult = isSpike ? 1.4 : (isIron ? 1.35 : 1.0);
+          damage[i] = Math.min(255, damage[i] + f * CONFIG.shockDamage * resist * moistureDmgMult * specialMult * (0.6 + rng() * 0.8));
+          if (t === HARD && (damage[i] > 160 || (isIron && !isDry && rng() < 0.75) || (isSpike && rng() < 0.35))) {
             type[i] = WET;
           }
-          const looseChance = isSpike
-            ? Math.min(0.85, f * 1.15)
-            : (isDry ? Math.min(0.96, f * 0.96) : (f * CONFIG.shockLooseChance * resist));
+          const looseChance = isIron
+            ? (!isDry ? Math.min(0.92, f * 1.25) : f * 0.30)
+            : isSpike
+              ? Math.min(0.85, f * 1.15)
+              : (isDry ? Math.min(0.96, f * 0.96) : (f * CONFIG.shockLooseChance * resist));
           if (rng() < looseChance) {
-            type[i] = isDry && rng() < 0.55 ? DRY : LOOSE;
+            type[i] = (isDry && !isIron && rng() < 0.55) ? DRY : LOOSE;
             this.vel[i] = 0;
 
-            // Poussée latérale directe par le boulet de canon : éjecte le sable sec vers le côté
-            if (isDry && Math.abs(nx) > 0.2) {
+            // Poussée latérale directe par le boulet : éjecte le sable ciblé (sec pour normal, mouillé pour fer)
+            const canPush = isIron ? !isDry : isDry;
+            if (canPush && Math.abs(nx) > 0.2) {
               const pushX = cx + (nx > 0 ? 1 : -1);
-              if (pushX >= 0 && pushX < W && type[cy * W + pushX] === EMPTY && rng() < 0.7) {
-                type[cy * W + pushX] = rng() < 0.5 ? DRY : LOOSE;
-                this.vel[cy * W + pushX] = Math.abs(vx) * 0.45;
+              if (pushX >= 0 && pushX < W && type[cy * W + pushX] === EMPTY && rng() < 0.75) {
+                type[cy * W + pushX] = isIron ? LOOSE : (rng() < 0.5 ? DRY : LOOSE);
+                this.vel[cy * W + pushX] = Math.abs(vx) * 0.5;
                 type[i] = EMPTY;
               }
             }
 
-            // Fissuration profonde et rupture de cohésion (amplifiée pour le boulet à pointes)
-            if ((isDry || isSpike) && rng() < (isSpike ? 0.90 : 0.75)) {
-              const fissureLen = (isSpike ? 6 : 4) + Math.floor(rng() * 5);
+            // Fissuration profonde (sur sable mouillé pour le boulet de fer, sur sable sec/pointes sinon)
+            const canFissure = isIron ? !isDry : (isDry || isSpike);
+            if (canFissure && rng() < (isSpike || isIron ? 0.90 : 0.75)) {
+              const fissureLen = (isSpike || isIron ? 6 : 4) + Math.floor(rng() * 5);
               const dirY = rng() < 0.35 ? 1 : -1;
               const dirX = nx > 0 ? 1 : (nx < 0 ? -1 : (rng() < 0.5 ? -1 : 1));
               let fy = cy + dirY;
@@ -1184,18 +1208,20 @@ export class SandWorld {
                 if (rng() < 0.4) fx += (rng() < 0.5 ? -1 : 1);
                 const fi = fy * W + fx;
                 if (isStructural(type[fi])) {
-                  damage[fi] = Math.min(255, damage[fi] + (isSpike ? 150 : 115));
+                  if (isIron && this.moist[fi] < 60) continue; // Le fer fissure en priorité le sable mouillé
+                  damage[fi] = Math.min(255, damage[fi] + (isSpike || isIron ? 155 : 115));
                   if (rng() < 0.85) {
-                    type[fi] = rng() < 0.5 ? DRY : LOOSE;
-                    this.vel[fi] = 0.5;
+                    type[fi] = isIron ? LOOSE : (rng() < 0.5 ? DRY : LOOSE);
+                    this.vel[fi] = 0.6;
                   }
                 }
               }
             }
           }
         } else if (rng() < 0.25 * (1 - d / R2)) {
+          if (t === ACID && this.acidCount > 0) this.acidCount--;
           type[i] = EMPTY;
-          this.spawnParticle(cx + 0.5, cy + 0.5, dx * 0.15 + (rng() - 0.5), -0.5 - rng() * 1.5, t);
+          this.spawnParticle(cx + 0.5, cy + 0.5, dx * 0.15 + (rng() - 0.5), -0.5 - rng() * 1.5, t === ACID ? LOOSE : t);
         }
       }
     }
@@ -1362,23 +1388,67 @@ export class SandWorld {
 
   // ------------------------------------------------------------------ structure
   analyzeStructure() {
-    const { type, vel, dist, damage, run } = this;
+    const { type, vel, dist, damage, run, grounded, queue, bodyId, moist } = this;
     const c = CONFIG;
     const isBuilding = !this.drying;
     const strength = Math.max(1, c.strength | 0);
     const INF = 65535;
     dist.fill(INF);
+
+    // 0) Détection physique de la vraie connexion au sol (GROUND) :
+    // Toute île/bloc de sable qui n'a aucun chemin continu jusqu'au sol flotte dans les airs !
+    grounded.fill(0);
+    let gHead = 0;
+    let gTail = 0;
+    const bottomRow = (GROUND_Y - 1) * W;
+    for (let x = 0; x < W; x++) {
+      const idx = bottomRow + x;
+      const t = type[idx];
+      if (isSand(t) && (isStructural(t) || vel[idx] === 0)) {
+        grounded[idx] = 1;
+        queue[gTail++] = idx;
+      }
+    }
+    while (gHead < gTail) {
+      const cur = queue[gHead++];
+      const cx = cur % W;
+      const cy = (cur / W) | 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        const ny = cy + dy;
+        if (ny < 0 || ny >= GROUND_Y) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          const nx = cx + dx;
+          if (nx < 0 || nx >= W) continue;
+          const nb = ny * W + nx;
+          if (grounded[nb]) continue;
+          const nt = type[nb];
+          if (isSand(nt) && (isStructural(nt) || vel[nb] === 0)) {
+            grounded[nb] = 1;
+            queue[gTail++] = nb;
+          }
+        }
+      }
+    }
+
+    // Réveiller les grains granulaires (DRY/LOOSE) qui étaient faussement au repos sur un bloc flottant
+    for (let i = 0; i < N - W; i++) {
+      if (isGranular(type[i]) && !grounded[i] && vel[i] === 0) {
+        vel[i] = 0.5;
+      }
+    }
+
     const buckets = this.buckets;
     for (let d = 0; d <= strength; d++) {
       if (!buckets[d]) buckets[d] = [];
       else buckets[d].length = 0;
     }
-    // sources : sable mouillé/durci posé sur le sol ou du sable granulaire compacté au repos (le Roi ne supporte pas de sable !)
+    // sources : uniquement du sable mouillé/durci RELIÉ AU SOL (grounded) posé sur GROUND ou sur du sable granulaire lui-même relié au sol
     for (let i = 0; i < N - W; i++) {
-      if (!isStructural(type[i])) continue;
+      if (!isStructural(type[i]) || !grounded[i]) continue;
       const b = i + W;
       const bt = type[b];
-      if (bt === GROUND || (isGranular(bt) && vel[b] === 0)) {
+      if (bt === GROUND || (isGranular(bt) && vel[b] === 0 && grounded[b])) {
         const d0 = damage[i] >> 1;
         if (d0 <= strength && d0 < dist[i]) {
           dist[i] = d0;
@@ -1442,7 +1512,7 @@ export class SandWorld {
 
     const relax = (j, baseCost, prevDist) => {
       const tj = type[j];
-      if (!isStructural(tj)) return;
+      if (!isStructural(tj) || !grounded[j]) return;
       let effectiveBaseCost = baseCost;
       if (baseCost === costS) {
         effectiveBaseCost = isBridge[j] ? (isBuilding ? 1 : 3) : (isBuilding ? Math.min(baseCost, 8) : baseCost);
@@ -1524,9 +1594,9 @@ export class SandWorld {
     }
 
     let compTag = (this.bodyTag = ((this.bodyTag + 1) & 0x7fff) || 1);
-    const { bodyId, queue, moist } = this;
     const failsSet = new Uint8Array(N);
     for (let k = 0; k < fails.length; k++) failsSet[fails[k]] = 1;
+    let anyFloating = false;
 
     for (let k = 0; k < fails.length; k++) {
       const start = fails[k];
@@ -1573,7 +1643,8 @@ export class SandWorld {
               this.damage[cur] = 0;
               this.structDirty = true;
               continue;
-            } else {
+            } else if (grounded[belowIdx]) {
+              // Bloqué uniquement si la cellule en dessous est réellement reliée au sol !
               blockedBelow = true;
             }
           }
@@ -1601,57 +1672,109 @@ export class SandWorld {
         // Le bloc de sable mouillé s'écrase sur le Roi : il éclate en mottes (LOOSE) et inflige de lourds dégâts d'impact
         for (let c = 0; c < compCells.length; c++) {
           const idx = compCells[c];
+          if (type[idx] === EMPTY) continue;
           type[idx] = LOOSE;
-          vel[idx] = 1.0;
+          vel[idx] = 1.2;
           damage[idx] = 0;
         }
       } else if (touchesSupported) {
         // Rupture de cisaillement d'un porte-à-faux dans le vide : se détache en mottes de sable mouillé (LOOSE)
-        // Ne se transforme JAMAIS en sable sec spontané !
         for (let c = 0; c < compCells.length; c++) {
           const idx = compCells[c];
           type[idx] = LOOSE;
-          vel[idx] = 0;
+          vel[idx] = 0.6;
           damage[idx] = 0;
         }
       } else if (blockedBelow) {
-        // Atterrissage au sol ou sur une structure : reste du sable mouillé solide !
+        // Atterrissage au sol ou sur une structure reliée au sol :
         for (let c = 0; c < compCells.length; c++) {
           const idx = compCells[c];
           if (type[idx] === EMPTY) continue;
+          const impactVel = vel[idx];
           vel[idx] = 0;
-          damage[idx] = 0;
+          if (!isBuilding && impactVel > 1.2) {
+            // Choc d'impact arcade à l'atterrissage d'un bloc tombé de haut en bataille
+            const belowIdx = idx + W;
+            const isBottomEdge = belowIdx < N && !failsSet[belowIdx];
+            if (isBottomEdge && this.rng() < 0.45) {
+              type[idx] = LOOSE;
+              vel[idx] = 0.5;
+              damage[idx] = 0;
+            } else {
+              damage[idx] = Math.min(255, damage[idx] + Math.round(impactVel * 18));
+            }
+          } else {
+            damage[idx] = 0;
+          }
         }
       } else {
-        if (!isBuilding) {
-          // Pendant le combat : un bloc de construction non maintenu par du sable au sol tombe avec la physique du sable !
+        // BLOC COMPLET FLOTTANT DANS LES AIRS (aucun lien avec le sol) :
+        // Il chute physiquement vers le bas de manière cohérente et arcade !
+        anyFloating = true;
+        if (!isBuilding && compCells.length <= 8) {
+          // Très petit fragment isolé : s'effrite directement en grains
           for (let c = 0; c < compCells.length; c++) {
             const idx = compCells[c];
             type[idx] = (this.moist[idx] < 60) ? DRY : LOOSE;
-            vel[idx] = 0.6 + this.rng() * 0.9;
+            vel[idx] = 0.8 + this.rng() * 0.8;
             damage[idx] = 0;
           }
         } else {
-          // À la construction : chute libre d'un seul bloc (atterrissage intact)
+          // Chute collective du bloc complet vers le bas (avec léger effritement sur les bords en bataille)
           compCells.sort((a, b) => b - a);
-          for (let c = 0; c < compCells.length; c++) {
-            const idx = compCells[c];
-            const dest = idx + W;
-            type[dest] = type[idx];
-            vel[dest] = 0;
-            damage[dest] = damage[idx];
-            moist[dest] = moist[idx];
+          const firstVel = vel[compCells[0]] || 0;
+          const nextVel = isBuilding ? 1.0 : Math.min(3.0, Math.max(1.0, firstVel + 0.35));
+          const maxSteps = isBuilding ? 1 : Math.min(2, Math.max(1, Math.floor(nextVel)));
 
-            type[idx] = EMPTY;
-            vel[idx] = 0;
-            damage[idx] = 0;
-            moist[idx] = 0;
+          for (let step = 0; step < maxSteps; step++) {
+            // Vérifie si le bloc peut descendre d'1 case supplémentaire sans heurter le sol/Roi/structure grounded
+            let canDropMore = true;
+            for (let c = 0; c < compCells.length; c++) {
+              const idx = compCells[c];
+              if (type[idx] === EMPTY) continue;
+              const dest = idx + W;
+              if (dest >= GROUND_Y * W) { canDropMore = false; break; }
+              const dt = type[dest];
+              if (dt === KING || (dt !== EMPTY && !failsSet[dest] && grounded[dest])) {
+                canDropMore = false;
+                break;
+              }
+            }
+            if (!canDropMore) break;
+
+            for (let c = 0; c < compCells.length; c++) {
+              const idx = compCells[c];
+              if (type[idx] === EMPTY) continue;
+              const dest = idx + W;
+
+              // En bataille, quelques grains sur la frange basse se détachent en mottes pendant la chute
+              if (!isBuilding && step === 0 && !failsSet[dest] && this.rng() < 0.08) {
+                type[dest] = (this.moist[idx] < 60) ? DRY : LOOSE;
+                vel[dest] = nextVel + 0.4;
+                damage[dest] = 0;
+                moist[dest] = moist[idx];
+              } else {
+                type[dest] = type[idx];
+                vel[dest] = nextVel;
+                damage[dest] = damage[idx];
+                moist[dest] = moist[idx];
+                failsSet[dest] = 1;
+              }
+
+              type[idx] = EMPTY;
+              vel[idx] = 0;
+              damage[idx] = 0;
+              moist[idx] = 0;
+              failsSet[idx] = 0;
+              compCells[c] = dest;
+            }
           }
         }
         this.structDirty = true;
         this.version++;
       }
     }
+    this.floatingActive = anyFloating;
     for (const i of crush) {
       let j = i;
       for (let k = 0; k < 6 && j >= 0; k++, j -= W) {
@@ -1667,7 +1790,7 @@ export class SandWorld {
     if (failed > 18 && !isBuilding) {
       this.events.push({ type: 'collapse', count: failed });
     }
-    this.structDirty = failed > 0 || this.particles.length > 0;
+    this.structDirty = failed > 0 || anyFloating || this.particles.length > 0;
     return failed;
   }
 

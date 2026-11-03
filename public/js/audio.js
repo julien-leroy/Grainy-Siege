@@ -474,6 +474,21 @@ export const sfx = {
     noise(0.55, { type: 'bandpass', freq: 1200, freqEnd: 280, gain: 0.16 });
     tone(240, 0.25, { type: 'sine', freqEnd: 110, gain: 0.12 });
   },
+  acidSplash() {
+    // Bris de fiole + éclaboussure d'acide effervescent
+    tone(1450, 0.06, { type: 'triangle', freqEnd: 620, gain: 0.22 });
+    noise(0.55, { type: 'bandpass', freq: 3200, freqEnd: 1400, q: 1.5, gain: 0.36, attack: 0.01 });
+    for (let i = 0; i < 4; i++) {
+      const f = 780 + Math.random() * 850;
+      tone(f, 0.07, { type: 'sine', freqEnd: f * 1.45, gain: 0.08, delay: 0.03 + i * 0.06 });
+    }
+  },
+  acidFizz() {
+    // Léger crépitement / grésillement chimique quand l'acide ronge le sable
+    noise(0.28, { type: 'bandpass', freq: 3800, freqEnd: 2200, q: 1.8, gain: 0.15, attack: 0.015 });
+    const f = 920 + Math.random() * 680;
+    tone(f, 0.055, { type: 'sine', freqEnd: f * 1.35, gain: 0.045, delay: 0.02 });
+  },
 
   // 12. Fin de partie et jingles
   win() {

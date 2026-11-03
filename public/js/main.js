@@ -23,6 +23,7 @@ let roomState = null;
 let myId = sessionStorage.getItem('sc-pid') || null;
 let myCode = sessionStorage.getItem('sc-code') || null;
 let viewedPid = null; // quel château affiche-t-on en grand ?
+let inspectingOwnCastle = false; // Le joueur inspecte-t-il son propre château en bataille pour mettre un spray ?
 let isWatchingGame = false; // Le spectateur a-t-il cliqué sur "Regarder la partie" ?
 
 let activeTool = 'pate'; // par défaut le pâté de sable maniable pour sculpter librement !
@@ -47,7 +48,7 @@ function updateCatapultSwitchButton() {
   const switchBtn = $('catapult-switch-btn');
   if (!switchBtn) return;
   const inBattle = roomState?.phase === 'battle';
-  const isShooter = inBattle && roomState?.turn?.shooterId === myId && roomState.turn.state === 'aim';
+  const isShooter = inBattle && roomState?.turn?.shooterId === myId && roomState.turn.state === 'aim' && !inspectingOwnCastle;
   switchBtn.classList.toggle('hidden', !inBattle || !isShooter);
 
   // Le bouton pour changer de catapulte est placé de l'autre côté de l'écran
@@ -625,8 +626,32 @@ $('spray-quick-btn').addEventListener('click', () => {
   if (roomState?.phase === 'build') {
     selectTool('spray');
     toast('💦 Outil Spray sélectionné : clique sur ton château pour le durcir !');
+  } else if (roomState?.phase === 'battle') {
+    if ((viewedPid || myId) !== myId) {
+      inspectingOwnCastle = true;
+      sfx.ratchet(780);
+      syncUI();
+      toast('🏰 Retour à ton château : clique dessus pour appliquer un Spray 💦 !');
+    } else {
+      toast('💦 Clique directement sur ton château pour arroser et durcir le sable !');
+    }
+  }
+});
+
+$('my-castle-btn')?.addEventListener('click', () => {
+  unlock();
+  if (roomState?.phase !== 'battle') return;
+  if (roomState.turn?.targetId === myId) {
+    toast('🏰 Tu es déjà sur ton château ! Clique dessus pour appliquer un Spray 💦.');
+    return;
+  }
+  inspectingOwnCastle = !inspectingOwnCastle;
+  sfx.ratchet(inspectingOwnCastle ? 820 : 620);
+  syncUI();
+  if (inspectingOwnCastle) {
+    toast('🏰 Vue sur ton château : clique sur ton sable pour appliquer un Spray 💦 !');
   } else {
-    toast('💦 Clique directement sur ton château pour arroser et durcir le sable !');
+    toast('⚔️ Retour au duel en cours !');
   }
 });
 
@@ -664,6 +689,7 @@ function resetAllGameData() {
   renderer.drawnKey = null;
   renderer.trail = null;
   renderer.popups = [];
+  inspectingOwnCastle = false;
   lastMouldPlaceAttempt = 0;
   nextMouldAllowedAt = 0;
   lastPatePlaceAttempt = 0;
@@ -790,6 +816,7 @@ socket.on('room', (state) => {
     const turnKey = `${state.round || 0}_${state.turn.shooterId}_${state.turn.targetId}_${state.turn.attackPhaseEndsAt || ''}`;
     if (turnKey !== lastDuelTurnKey) {
       lastDuelTurnKey = turnKey;
+      inspectingOwnCastle = false;
       const shooter = state.players.find((p) => p.id === state.turn.shooterId);
       const target = state.players.find((p) => p.id === state.turn.targetId);
       if (shooter && target) {
@@ -798,6 +825,7 @@ socket.on('room', (state) => {
     }
   } else if (state.phase !== 'battle') {
     lastDuelTurnKey = null;
+    inspectingOwnCastle = false;
     dismissDuelIntro();
   }
 
@@ -998,12 +1026,7 @@ socket.on('aim', (a) => {
 });
 
 socket.on('log', (msg) => {
-  toast(msg);
   addLogMessage(msg);
-});
-
-socket.on('chat', (entry) => {
-  addChatMessage(entry);
 });
 
 socket.on('fx', (e) => {
@@ -1089,14 +1112,14 @@ socket.on('fx', (e) => {
   } else if (e.type === 'impact') {
     const isSpike = Boolean(e.isSpike);
     const isIron = Boolean(e.isIron);
-    sfx.impact(Math.min(2.0, ((e.speed || 2) / 2.5) * (isSpike ? 1.5 : isIron ? 1.3 : 1)));
-    sfx.sandSlide(Math.min(2.0, ((e.r || 5) / 4.5) * (isSpike ? 1.4 : isIron ? 1.2 : 1)));
-    renderer.shake = Math.min(26, (5 + (e.r || 5) * 1.3) * (isSpike ? 1.4 : isIron ? 1.25 : 1));
-    renderer.puff(e.x, e.y, e.r || 6, isSpike ? 42 : isIron ? 28 : 24, isSpike ? '200, 150, 90' : isIron ? '148, 163, 184' : '235, 215, 170');
+    sfx.impact(Math.min(2.0, ((e.speed || 2) / 2.5) * (isSpike ? 1.5 : isIron ? 1.35 : 1)));
+    sfx.sandSlide(Math.min(2.0, ((e.r || 5) / 4.5) * (isSpike ? 1.4 : isIron ? 1.25 : 1)));
+    renderer.shake = Math.min(26, (5 + (e.r || 5) * 1.3) * (isSpike ? 1.4 : isIron ? 1.3 : 1));
+    renderer.puff(e.x, e.y, e.r || 6, isSpike ? 42 : isIron ? 32 : 24, isSpike ? '200, 150, 90' : isIron ? '148, 163, 184' : '235, 215, 170');
     if (isSpike) {
       renderer.popup(e.x, e.y - 12, '💥 BOULET À POINTES : IMPACT MASSIF !', '#f87171');
     } else if (isIron) {
-      renderer.popup(e.x, e.y - 12, '⚔️ BOULET EN FER : IMPACT NET !', '#cbd5e1');
+      renderer.popup(e.x, e.y - 12, '⚔️ BOULET EN FER : BRISE LE SABLE MOUILLÉ !', '#cbd5e1');
     }
   } else if (e.type === 'miss') {
     sfx.miss();
@@ -1119,10 +1142,15 @@ socket.on('fx', (e) => {
   } else if (e.type === 'acidEquipped') {
     renderer.popup(CATAPULT_X + 15, GROUND_Y - 20, '🧪 FIOLE D\'ACIDE ÉQUIPÉE !', '#4ade80');
   } else if (e.type === 'acidSplash') {
-    sfx.spray();
-    renderer.waterMist(e.x, e.y, 10);
-    renderer.puff(e.x, e.y, 12, 28, '34, 197, 94');
-    renderer.popup(e.x, e.y - 10, '🧪 SPLASH D\'ACIDE CORROSIF !', '#22c55e');
+    sfx.acidSplash();
+    renderer.acidSmoke(e.x, e.y, 8);
+    renderer.puff(e.x, e.y, 12, 34, '34, 197, 94');
+    renderer.popup(e.x, e.y - 10, '🧪 ACIDE CORROSIF DÉVERSÉ !', '#22c55e');
+  } else if (e.type === 'acidFizz') {
+    if (e.pid === activePid) {
+      sfx.acidFizz();
+      renderer.acidSmoke(e.x, e.y, 3);
+    }
   } else if (e.type === 'kingDead') {
     sfx.kingDead();
     renderer.shake = 18;
@@ -1196,9 +1224,30 @@ function syncUI() {
   const me = s.players.find((p) => p.id === myId);
   const isSpectator = !!me?.isSpectator || (me && !me.alive && s.phase !== 'over');
 
-  // Bouton Spray dans le HUD (visible en build et en défense uniquement pour les joueurs actifs)
-  const canSpray = !isSpectator && (s.phase === 'build' || (s.phase === 'battle' && s.turn?.targetId === myId));
+  // Bouton Spray dans le HUD (toujours disponible en build et en bataille pour les joueurs vivants)
+  const canSpray = !isSpectator && Boolean(me?.alive) && (s.phase === 'build' || s.phase === 'battle');
   $('spray-quick-btn').classList.toggle('hidden', !canSpray);
+
+  // Bouton dédié pour retourner à tout moment sur son château en bataille et y mettre un spray
+  const myCastleBtn = $('my-castle-btn');
+  if (myCastleBtn) {
+    const showMyCastleBtn = !isSpectator && Boolean(me?.alive) && s.phase === 'battle' && Boolean(s.turn);
+    myCastleBtn.classList.toggle('hidden', !showMyCastleBtn);
+    if (showMyCastleBtn) {
+      const spraysLeft = me?.defenseSpraysLeft ?? 0;
+      if (s.turn.targetId === myId) {
+        inspectingOwnCastle = false;
+        myCastleBtn.classList.remove('active-return');
+        myCastleBtn.innerHTML = `🏰 Sur ton Château (${spraysLeft} 💦)`;
+      } else if (inspectingOwnCastle) {
+        myCastleBtn.classList.add('active-return');
+        myCastleBtn.innerHTML = `⚔️ Retour au duel`;
+      } else {
+        myCastleBtn.classList.remove('active-return');
+        myCastleBtn.innerHTML = `🏰 Mon Château (${spraysLeft} 💦)`;
+      }
+    }
+  }
 
   // Modale Lobby & Spectateur
   if (s.phase === 'lobby') {
@@ -1274,36 +1323,60 @@ function syncUI() {
       viewedPid = myId || s.players[0]?.id;
     }
   } else if (s.phase === 'battle' && s.turn) {
-    viewedPid = s.turn.targetId;
+    viewedPid = (inspectingOwnCastle && me?.alive) ? myId : s.turn.targetId;
   }
 
-  // Bandeau d'instruction (tooltip détachée au-dessus de la scène)
-  const banner = $('banner-msg');
-  if (banner) {
-    banner.classList.toggle('in-battle', s.phase === 'battle');
+  // Mise à jour de la bannière de statut épinglée dans le Centre de Notifications (en haut à droite)
+  const notifBanner = $('notif-status-banner');
+  const notifIcon = $('notif-status-icon');
+  const notifText = $('notif-status-text');
+  if (notifBanner && notifIcon && notifText) {
+    notifBanner.className = 'notif-status-banner';
     if (s.phase === 'build') {
       if (!me?.alive) {
-        banner.textContent = '💀 Ton Roi a été enseveli pendant la construction !';
+        notifBanner.classList.add('status-danger');
+        notifIcon.textContent = '💀';
+        notifText.innerHTML = '<strong>Ton Roi a été enseveli</strong> pendant la construction !';
       } else {
-        banner.textContent = '🧱 Bâtis autour de ton Roi 👑 et durcis ton sable au Spray 💦 !';
+        notifBanner.classList.add('status-defense');
+        notifIcon.textContent = '🧱';
+        notifText.innerHTML = 'Bâtis autour de ton <strong>Roi 👑</strong> et durcis le sable au <strong>Spray 💦</strong> !';
       }
     } else if (s.phase === 'settle') {
-      banner.textContent = '⏳ Voyons si les châteaux résistent à la gravité…';
+      notifIcon.textContent = '⏳';
+      notifText.innerHTML = 'Voyons si les châteaux résistent à la gravité…';
     } else if (s.phase === 'battle' && s.turn) {
       const shooter = s.players.find((p) => p.id === s.turn.shooterId);
       const target = s.players.find((p) => p.id === s.turn.targetId);
-      if (s.turn.shooterId === myId) {
-        banner.textContent = `🎯 À ton tour ! Tire sur le château de ${target?.name || ''}`;
+      const leftSprays = me?.defenseSpraysLeft ?? 0;
+      if (inspectingOwnCastle && s.turn.targetId !== myId) {
+        notifBanner.classList.add('status-inspect');
+        notifIcon.textContent = '🏰';
+        notifText.innerHTML = `<strong>Sur ton château !</strong> Clique dessus pour <strong>arroser au Spray 💦 (${leftSprays})</strong> puis retourne au duel.`;
+      } else if (s.turn.shooterId === myId) {
+        notifBanner.classList.add('status-attack');
+        notifIcon.textContent = '🎯';
+        notifText.innerHTML = `<strong>À ton tour !</strong> Tire sur le château de <strong>${escapeHtml(target?.name || '?')}</strong> (${s.turn.shotsLeft ?? 1} boulet(s)).`;
       } else if (s.turn.targetId === myId) {
-        banner.textContent = `🛡️ ${shooter?.name || '?'} te vise ! Clique sur ton château pour arroser et durcir le sable 💦 !`;
+        notifBanner.classList.add('status-defense');
+        notifIcon.textContent = '🛡️';
+        notifText.innerHTML = leftSprays > 0
+          ? `<strong>${escapeHtml(shooter?.name || '?')} te vise !</strong> Clique sur ton château ou [E] pour <strong>durcir au Spray 💦 (${leftSprays} dispo)</strong> !`
+          : `<strong>${escapeHtml(shooter?.name || '?')} te vise !</strong> Spray épuisé (touche un colis 🎁 au canon).`;
       } else {
-        banner.textContent = `👀 ${shooter?.name || '?'} vise le château de ${target?.name || '?'}`;
+        notifIcon.textContent = '👀';
+        notifText.innerHTML = `<strong>${escapeHtml(shooter?.name || '?')}</strong> vise le château de <strong>${escapeHtml(target?.name || '?')}</strong>.`;
       }
     } else if (s.phase === 'over') {
       const w = s.players.find((p) => p.id === s.winnerId);
-      banner.textContent = w ? `🏆 ${w.name} remporte la partie !` : 'Match nul !';
+      notifIcon.textContent = '🏆';
+      notifText.innerHTML = w ? `<strong>${escapeHtml(w.name)}</strong> remporte la partie !` : 'Match nul !';
     }
   }
+
+  // Garder les anciens bandeaux masqués pour ne jamais chevaucher la plage ni la jauge de sprays
+  $('banner-msg')?.classList.add('hidden');
+  $('defender-controls')?.classList.add('hidden');
 
   // Docks de construction (atelier à gauche et inventaire en bas)
   $('build-dock')?.classList.toggle('hidden', s.phase !== 'build');
@@ -1333,11 +1406,9 @@ function syncUI() {
 
   // Contrôles de bataille directement sur la catapulte et bouton de switch latéral
   const inBattle = s.phase === 'battle' && s.turn;
-  const isMyTurn = inBattle && s.turn.shooterId === myId && s.turn.state === 'aim';
-  const isDefending = inBattle && s.turn.targetId === myId;
+  const isMyTurn = inBattle && s.turn.shooterId === myId && s.turn.state === 'aim' && !inspectingOwnCastle;
 
   $('catapult-hud')?.classList.toggle('hidden', !isMyTurn);
-  $('defender-controls').classList.toggle('hidden', !inBattle || isMyTurn || !isDefending);
   $('wind-pill').classList.toggle('hidden', !inBattle);
 
   // Bouton latéral de bascule de catapulte (au centre sur le bord où se trouve la catapulte opposée)
@@ -1397,12 +1468,6 @@ function syncUI() {
       if (!isCharging) triggerLabelEl.textContent = 'Tirer !!';
     }
 
-    if (isDefending) {
-      const leftSprays = me?.defenseSpraysLeft ?? 0;
-      $('spectator-msg').innerHTML = leftSprays > 0
-        ? `🛡️ <strong>Tu te défends !</strong> Clique sur ton château ou [E] pour <strong>arroser et durcir ton sable 💦</strong> (${leftSprays} spray disponible) !`
-        : '🛡️ <strong>Spray épuisé pour ce tour !</strong> Protège ton Roi !';
-    }
     const shooter = s.players.find((p) => p.id === s.turn.shooterId);
     if (shooter) renderer.catapult.color = shooter.color;
 
@@ -1627,7 +1692,14 @@ canvas.addEventListener('pointerdown', (e) => {
     viewedPid = myId;
     tryPlaceAtPointer();
   } else if (roomState?.phase === 'battle') {
-    // Si on est le tireur en phase de visée : interaction directe sur la catapulte active (gauche ou droite)
+    const viewingOwnCastle = (viewedPid || myId) === myId && (roomState.turn?.targetId === myId || inspectingOwnCastle);
+    if (viewingOwnCastle) {
+      // Sur notre propre château (en défense ou en visite via "Mon Château") : clic = Spray d'eau durcisseur !
+      trySprayAt(cell.x, cell.y);
+      return;
+    }
+
+    // Si on est le tireur en phase de visée sur le duel : interaction directe sur la catapulte active (gauche ou droite)
     if (roomState.turn?.shooterId === myId && roomState.turn?.state === 'aim') {
       const isRight = (roomState.turn.catapultSide || myCatapultSide) === 'right';
       const catX = isRight ? (GRID_W - (CATAPULT_X + 6)) : (CATAPULT_X + 6);
@@ -1647,9 +1719,6 @@ canvas.addEventListener('pointerdown', (e) => {
         aim.draggingCatapult = true;
         setAngleFromCoords(cell.x, cell.y, catX, catY, isRight);
       }
-    } else if (roomState.turn?.targetId === myId) {
-      // Si on SE DÉFEND pendant que l'adversaire nous vise ou tire : clic = Spray d'eau durcisseur !
-      trySprayAt(cell.x, cell.y);
     }
   } else if (!roomState || roomState.phase === 'lobby') {
     renderer.popup(cell.x, cell.y - 6, '🏰 Clique sur "Jouer" pour commencer la construction !', '#fde047');
@@ -1666,21 +1735,23 @@ window.addEventListener('pointerup', () => {
 function trySprayAt(cx, cy) {
   const now = performance.now();
   if (roomState?.phase === 'battle') {
-    // Accessible UNIQUEMENT quand on se défend !
-    if (roomState.turn?.shooterId === myId) {
-      renderer.popup(cx, cy - 4, '⚔️ Tu es en attaque ! Le spray est réservé à la défense.', '#f87171');
+    const me = roomState?.players.find((p) => p.id === myId);
+    if (!me || !me.alive) return;
+
+    // Si le joueur n'affiche pas encore son propre château, basculer dessus immédiatement
+    if ((viewedPid || myId) !== myId) {
+      inspectingOwnCastle = true;
+      syncUI();
+      renderer.popup(cx, cy - 4, '🏰 Voici ton château ! Clique dessus pour arroser 💦', '#38bdf8');
       return;
     }
-    if (roomState.turn?.targetId !== myId) {
-      return;
-    }
+
     // Accessible UNIQUEMENT dans la zone de construction / château !
     if (cx < BUILD_MIN_X || cx > BUILD_MAX_X || cy > GROUND_Y) {
       renderer.popup(cx, cy - 4, '🛡️ Le spray doit être appliqué sur le château !', '#fde047');
       return;
     }
-    const me = roomState?.players.find((p) => p.id === myId);
-    if (me && me.defenseSpraysLeft <= 0) {
+    if (me.defenseSpraysLeft <= 0) {
       renderer.popup(cx, cy - 4, '🛡️ Plus de spray disponible ! (touche un colis 🎁 au canon)', '#f87171');
       return;
     }
@@ -2254,7 +2325,17 @@ window.addEventListener('keydown', (e) => {
   } else if (e.key.toLowerCase() === 'x') {
     selectTool('retirer');
   } else if (e.key.toLowerCase() === 'e') {
-    selectTool('spray');
+    if (roomState?.phase === 'battle') {
+      if (roomState.turn?.targetId !== myId) {
+        inspectingOwnCastle = !inspectingOwnCastle;
+        sfx.ratchet(inspectingOwnCastle ? 820 : 620);
+        syncUI();
+      } else {
+        trySprayAt(pointer.x, pointer.y);
+      }
+    } else {
+      selectTool('spray');
+    }
   } else if (e.key.toLowerCase() === 'r') {
     toggleMouldFlip();
   } else if (e.key.toLowerCase() === 'c') {
@@ -2287,21 +2368,15 @@ window.addEventListener('keyup', (e) => {
   }
 });
 
-// ------------------------------------------------------------------ Notifications rapides
+// ------------------------------------------------------------------ Centre de Notifications unifié (sans chat)
 function toast(msg) {
-  const box = $('toast-log');
-  const item = document.createElement('div');
-  item.className = 'toast-item';
-  item.textContent = msg;
-  box.appendChild(item);
-  setTimeout(() => item.remove(), 4600);
+  addLogMessage(msg);
 }
 
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-// ------------------------------------------------------------------ Chat translucide & Historique de combat
 let unreadChatCount = 0;
 function incrementUnread() {
   unreadChatCount++;
@@ -2321,29 +2396,40 @@ function clearUnread() {
   }
 }
 
+let lastNotifText = '';
+let lastNotifTime = 0;
 function addLogMessage(msg) {
   const container = $('chat-messages');
-  if (!container) return;
-  const el = document.createElement('div');
-  const isBonus = msg.includes('colis') || msg.includes('BOULET') || msg.includes('GRENADE') || msg.includes('récolte') || msg.includes('SÉCHERESSE') || msg.includes('BÉNÉDICTION');
-  el.className = `chat-msg ${isBonus ? 'bonus' : 'system'}`;
-  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  el.innerHTML = `<span class="chat-msg-time">${time}</span> <span class="chat-msg-text">${escapeHtml(msg)}</span>`;
-  container.appendChild(el);
-  container.scrollTop = container.scrollHeight;
-  if ($('game-chat-dock')?.classList.contains('collapsed')) {
-    incrementUnread();
-  }
-}
+  if (!container || !msg) return;
+  const nowMs = Date.now();
+  if (msg === lastNotifText && nowMs - lastNotifTime < 800) return;
+  lastNotifText = msg;
+  lastNotifTime = nowMs;
 
-function addChatMessage({ name, color, text, t }) {
-  const container = $('chat-messages');
-  if (!container) return;
   const el = document.createElement('div');
-  el.className = 'chat-msg';
-  const time = new Date(t || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  el.innerHTML = `<span class="chat-msg-time">${time}</span> <span class="chat-msg-name" style="color:${color || '#38bdf8'}">${escapeHtml(name)}:</span> <span class="chat-msg-text">${escapeHtml(text)}</span>`;
+  let category = 'system';
+  let badgeIcon = '🔔';
+  if (msg.includes('💀') || msg.includes('😱') || msg.includes('enseveli') || msg.includes('pulvérisé')) {
+    category = 'danger';
+    badgeIcon = '💀';
+  } else if (msg.includes('colis') || msg.includes('BOULET') || msg.includes('GRENADE') || msg.includes('ACIDE') || msg.includes('récolte') || msg.includes('SÉCHERESSE') || msg.includes('DÉLUGE') || msg.includes('BÉNÉDICTION')) {
+    category = 'bonus';
+    badgeIcon = '🎁';
+  } else if (msg.includes('Spray') || msg.includes('💦') || msg.includes('🛡️') || msg.includes('château')) {
+    category = 'defense';
+    badgeIcon = '💦';
+  } else if (msg.includes('⚔️') || msg.includes('☄️') || msg.includes('🎯') || msg.includes('tir')) {
+    category = 'combat';
+    badgeIcon = '⚔️';
+  }
+
+  el.className = `chat-msg ${category}`;
+  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  el.innerHTML = `<span class="notif-badge-icon">${badgeIcon}</span><span class="chat-msg-text">${escapeHtml(msg)}</span><span class="chat-msg-time">${time}</span>`;
   container.appendChild(el);
+  while (container.children.length > 30) {
+    container.firstElementChild?.remove();
+  }
   container.scrollTop = container.scrollHeight;
   if ($('game-chat-dock')?.classList.contains('collapsed')) {
     incrementUnread();
@@ -2354,8 +2440,6 @@ function setupChat() {
   const dock = $('game-chat-dock');
   const toggleBtn = $('chat-toggle-size-btn');
   const header = $('chat-header');
-  const form = $('chat-form');
-  const input = $('chat-input');
 
   if (!dock) return;
 
@@ -2371,14 +2455,6 @@ function setupChat() {
     toggle();
   });
   toggleBtn?.addEventListener('click', toggle);
-
-  form?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const val = input.value.trim();
-    if (!val) return;
-    socket.emit('chat', { message: val });
-    input.value = '';
-  });
 }
 
 // ------------------------------------------------------------------ Boucle de rendu (60 FPS)
@@ -2560,8 +2636,9 @@ function frame(now) {
     }
   }
 
-  // En mode défense pendant la bataille : afficher la jauge bien visible de recharges de spray sous le château !
-  if (phase === 'battle' && roomState.turn?.targetId === activePid && activePlayer) {
+  // En mode défense ou en visite sur son propre château pendant la bataille : afficher la jauge de sprays sous le château !
+  const showSprayStockOnCastle = phase === 'battle' && activePlayer && (roomState.turn?.targetId === activePid || (inspectingOwnCastle && activePid === myId));
+  if (showSprayStockOnCastle) {
     renderer.drawDefenseSprayStock(activePlayer.defenseSpraysLeft, 3, sprayReadyFraction, now);
   } else if (activeBonuses.length > 0) {
     renderer.drawActiveSandBonuses(activeBonuses, now);
@@ -2617,13 +2694,13 @@ function frame(now) {
     }
   }
 
-  // Curseur de Spray quand on SE DÉFEND en phase de bataille
-  if (phase === 'battle' && pointer.inside && roomState?.turn?.targetId === myId) {
+  // Curseur de Spray quand on est sur son château en phase de bataille (en défense ou via "Mon Château")
+  if (phase === 'battle' && pointer.inside && activePid === myId && (roomState?.turn?.targetId === myId || inspectingOwnCastle)) {
     renderer.drawSprayCursor(pointer.x, pointer.y, sprayReadyFraction);
   }
 
   // Aperçu de trajectoire en phase de bataille (gauche ou droite)
-  if (phase === 'battle' && roomState?.turn?.state === 'aim') {
+  if (phase === 'battle' && roomState?.turn?.state === 'aim' && !inspectingOwnCastle) {
     if (roomState.turn.shooterId === myId) {
       renderer.drawTrajectory(aim.angle, aim.power, 0.45, 0, myCatapultSide);
     } else if (remoteAim) {

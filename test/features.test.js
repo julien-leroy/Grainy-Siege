@@ -618,8 +618,8 @@ test('sandsim: la boule d acide genere de vrais grains de sable verts physiques 
   const countsDuring = w.countTypes();
   assert.ok(countsDuring.wet < sandCountBefore, 'les grains verts ont rongé du sable jaune');
 
-  // Continuer la simulation : tous les grains verts ont fini de consumer leur quota (1 à 3 grains) et ont disparu
-  for (let t = 0; t < 300; t++) w.step();
+  // Continuer la simulation : tous les grains verts ont fini de consumer leur quota (2 à 4 grains) et ont disparu
+  for (let t = 0; t < 600; t++) w.step();
   const finalCounts = w.countTypes();
   assert.equal(finalCounts.acid, 0, 'tous les grains verts se sont consumés et ont disparu');
   assert.equal(w.acidCount, 0, 'compteur acidCount revenu à 0');
@@ -726,5 +726,98 @@ test('game: bonus boulet de fer et acide sérialisés, armés sur catapulte et t
   assert.equal(target.world.ball.type, 'acid', 'le type du boulet est acid');
 });
 
+test('sandsim: le boulet de fer inflige beaucoup plus de degats au sable mouille qu au sable sec', () => {
+  const wWet = new SandWorld(101);
+  const wDry = new SandWorld(101);
 
+  // Créer un gros massif de sable mouillé dans wWet et de sable sec dans wDry
+  for (let y = GROUND_Y - 28; y < GROUND_Y; y++) {
+    for (let x = 160; x <= 200; x++) {
+      const i = y * GRID_W + x;
+      wWet.type[i] = T.WET;
+      wWet.moist[i] = 220;
+      wDry.type[i] = T.DRY;
+      wDry.moist[i] = 0;
+    }
+  }
 
+  const wetBefore = wWet.countTypes().wet;
+  const dryBefore = wDry.countTypes().dry;
+
+  // Impact identique d'un boulet de fer au cœur du massif
+  wWet.impact(180, GROUND_Y - 14, 1.5, 2.5, 5, false, true);
+  wDry.impact(180, GROUND_Y - 14, 1.5, 2.5, 5, false, true);
+
+  const wetRemainingIntact = wWet.countTypes().wet;
+  const dryRemainingIntact = wDry.countTypes().dry;
+
+  const wetDestroyedOrDislocated = wetBefore - wetRemainingIntact;
+  const dryDestroyed = dryBefore - dryRemainingIntact;
+
+  assert.ok(
+    wetDestroyedOrDislocated > dryDestroyed * 1.8,
+    `le boulet de fer détruit/disloque bien plus de sable mouillé (${wetDestroyedOrDislocated}) que de sable sec (${dryDestroyed})`
+  );
+});
+
+test('sandsim: un bloc complet flottant non relie au sol chute meme avec des grains poses dessus', () => {
+  const w = new SandWorld(202);
+  // Créer un bloc de sable mouillé flottant à y = 80..92 (bien au-dessus de GROUND_Y = 150)
+  for (let y = 80; y <= 92; y++) {
+    for (let x = 170; x <= 190; x++) {
+      const i = y * GRID_W + x;
+      w.type[i] = T.WET;
+      w.moist[i] = 210;
+    }
+  }
+  // Poser quelques grains secs/meubles au repos sur le dessus du bloc flottant (ancien bug Münchhausen)
+  for (let x = 174; x <= 186; x++) {
+    const i = 79 * GRID_W + x;
+    w.type[i] = T.DRY;
+    w.vel[i] = 0;
+  }
+
+  // Calculer le centre de gravité moyen Y avant simulation
+  const avgY = () => {
+    let sumY = 0;
+    let count = 0;
+    for (let y = 0; y < GROUND_Y; y++) {
+      for (let x = 0; x < GRID_W; x++) {
+        if (w.type[y * GRID_W + x] !== T.EMPTY) {
+          sumY += y;
+          count++;
+        }
+      }
+    }
+    return count ? sumY / count : 0;
+  };
+
+  const yStart = avgY();
+  for (let t = 0; t < 45; t++) w.step();
+  const yAfter = avgY();
+
+  assert.ok(yAfter > yStart + 25, `le bloc complet flottant a chuté vers le sol (y moyen passé de ${yStart.toFixed(1)} à ${yAfter.toFixed(1)})`);
+});
+
+test('game: tout joueur vivant peut utiliser un spray sur son propre chateau a tout moment pendant la bataille', () => {
+  const room = new Room('ANYTIME_SPRAY', createFakeIo());
+  const p1 = room.addPlayer({ name: 'Alice' });
+  const p2 = room.addPlayer({ name: 'Bob' });
+  p1.connected = true;
+  p2.connected = true;
+
+  room.start();
+  room.endBuild();
+  room.startBattle();
+
+  const shooterId = room.turn.shooterId;
+  const shooter = room.players.get(shooterId);
+  shooter.defenseSpraysLeft = 2;
+  shooter.lastSpray = 0;
+
+  // Même si shooterId n'est PAS la cible actuelle du tour (turn.targetId !== shooterId), il peut arroser son château
+  assert.notEqual(room.turn.targetId, shooterId);
+  const res = room.spray(shooterId, { x: 180, y: GROUND_Y - 15 });
+  assert.ok(res && res.ok, 'le joueur peut arroser son propre château même pendant le tour d attaque');
+  assert.equal(shooter.defenseSpraysLeft, 1, 'un spray a été consommé');
+});

@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&family=Pixelify+Sans:wght@500;600;700&family=Silkscreen:wght@400;700&family=Quicksand:wght@600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/style.css?v=4" />
+  <link rel="stylesheet" href="/css/style.css?v=5" />
 </head>
 <body>
   <!-- Arrière-plan animé du site avec Parallax léger (Ciel, Mer, Nuages & Oiseaux) -->
@@ -26,6 +26,9 @@
       <button id="room-pill" class="pill pill-btn" title="Cliquer pour copier le lien d'invitation">🏖️ PLAGE ----</button>
       <span id="phase-pill" class="pill phase-pill">SALON</span>
       <span id="wind-pill" class="pill wind-pill hidden">💨 Vent : calme</span>
+      <button id="my-castle-btn" class="pill my-castle-pill hidden" type="button" title="Aller voir ton château pour y mettre un spray [Touche E]">
+        🏰 Mon Château & Spray
+      </button>
     </div>
 
     <div class="hud-center">
@@ -36,7 +39,7 @@
     </div>
 
     <div class="hud-right">
-      <button id="spray-quick-btn" class="pill spray-pill hidden" title="Arroser le sable pour le durcir [Touche E]">
+      <button id="spray-quick-btn" class="pill spray-pill hidden" title="Arroser ton château au spray pour le durcir [Touche E]">
         💦 Spray : <strong id="spray-status-txt">PRÊT</strong>
       </button>
       <button id="mute-btn" class="icon-btn" title="Activer / couper les effets sonores">🔊</button>
@@ -44,8 +47,8 @@
       <button id="quit-game-btn" class="icon-btn hud-quit-btn hidden" type="button" title="Quitter la partie" aria-label="Quitter la partie">❌</button>
     </div>
 
-    <!-- Info-bulle / Bannière d'instruction détachée : n'affecte jamais l'emplacement des boutons -->
-    <div id="banner-msg" class="banner-msg">En attente des joueurs…</div>
+    <!-- Bannière déportée dans le centre de notifications -->
+    <div id="banner-msg" class="banner-msg hidden">En attente des joueurs…</div>
   </header>
 
   <!-- Timeline de bataille : duels de Rois en icônes épurées -->
@@ -377,32 +380,32 @@
     </div>
   </div>
 
-  <!-- Journal discret des événements en bas à gauche -->
-  <div id="toast-log" class="toast-log"></div>
+  <!-- Journal discret fusionné dans le centre de notifications -->
+  <div id="toast-log" class="toast-log hidden"></div>
 
-  <!-- Panneau translucide Chat & Historique de combat (visibilité transparente en jeu) -->
-  <aside id="game-chat-dock" class="game-chat-dock hidden" aria-label="Chat et historique de combat">
+  <!-- Centre de Notifications & Statut (remplace le chat et regroupe toutes les alertes sans chevaucher les actions) -->
+  <aside id="game-chat-dock" class="game-chat-dock hidden" aria-label="Notifications et statut de bataille">
     <div class="chat-header" id="chat-header">
       <div class="chat-header-title">
-        <span class="chat-icon">💬</span>
-        <span class="chat-title-text">Bataille & Chat</span>
+        <span class="chat-icon">🔔</span>
+        <span class="chat-title-text">Notifications</span>
         <span class="chat-unread-badge hidden" id="chat-unread-badge">0</span>
       </div>
       <button id="chat-toggle-size-btn" class="chat-header-btn" type="button" title="Réduire / Déplier" aria-label="Réduire">▼</button>
     </div>
     <div id="chat-body" class="chat-body">
+      <div id="notif-status-banner" class="notif-status-banner">
+        <span class="notif-status-icon" id="notif-status-icon">🏖️</span>
+        <div class="notif-status-text" id="notif-status-text">En attente des joueurs…</div>
+      </div>
       <div id="chat-messages" class="chat-messages" role="log" aria-live="polite"></div>
-      <form id="chat-form" class="chat-form">
-        <input id="chat-input" class="chat-input" type="text" placeholder="Message aux joueurs... [Entrée]" maxlength="120" autocomplete="off" />
-        <button id="chat-send-btn" class="chat-send-btn" type="submit" title="Envoyer">✉️</button>
-      </form>
     </div>
   </aside>
 
   <script src="/vendor/confetti/confetti.browser.js"></script>
   <script src="/socket.io/socket.io.js"></script>
-  <script type="module" src="/js/site-bg.js?v=4"></script>
-  <script type="module" src="/js/tutorial.js?v=4"></script>
-  <script type="module" src="/js/main.js?v=4"></script>
+  <script type="module" src="/js/site-bg.js?v=5"></script>
+  <script type="module" src="/js/tutorial.js?v=5"></script>
+  <script type="module" src="/js/main.js?v=5"></script>
 </body>
 </html>

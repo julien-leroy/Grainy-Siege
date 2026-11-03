@@ -652,8 +652,8 @@ export class Room {
 
   /**
    * Spray d'eau durcisseur :
-   * Utilisable pendant la phase de construction ('build') OU pendant la bataille ('battle')
-   * (En bataille : UNIQUEMENT pour le défenseur ciblé, et UNIQUEMENT sur le château).
+   * Utilisable pendant la phase de construction ('build') OU à tout moment pendant la bataille ('battle')
+   * sur son propre château tant qu'il reste des sprays disponibles.
    */
   spray(playerId, { x, y }) {
     if (this.phase !== 'build' && this.phase !== 'battle' && this.phase !== 'settle') return null;
@@ -663,10 +663,6 @@ export class Room {
     const ny = Number(y);
 
     if (this.phase === 'battle') {
-      // Accessible UNIQUEMENT pendant que le joueur se défend !
-      if (!this.turn || this.turn.targetId !== playerId) {
-        return { ok: false, error: 'Spray disponible uniquement quand tu te défends !' };
-      }
       // Accessible UNIQUEMENT dans la zone de construction / château !
       if (nx < BUILD_MIN_X || nx > BUILD_MAX_X || ny > GROUND_Y) {
         return { ok: false, error: 'Le spray doit être appliqué sur le château !' };
@@ -689,6 +685,9 @@ export class Room {
     const res = p.world.spray(nx, ny);
     p.lastSpray = now;
     this.dirtyState = true;
+    this.io.to(this.channel).emit('world', this.worldPayload(p));
+    p.sentFast = p.world.version;
+    p.sentSlow = p.world.version;
     this.io.to(this.channel).emit('fx', {
       type: 'spray',
       pid: p.id,
