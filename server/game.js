@@ -240,6 +240,61 @@ export class Room {
     this.broadcastState();
   }
 
+  forfeitToSpectator(id) {
+    const p = this.players.get(id);
+    if (!p) return { ok: false, error: 'Joueur introuvable' };
+
+    if (this.phase === 'lobby') {
+      this.removePlayer(id);
+      return { ok: true };
+    }
+
+    // Le joueur quitte la partie active (Roi éliminé) mais RESTE dans la room en spectateur
+    p.alive = false;
+    p.isSpectator = true;
+    if (p.world && p.world.king) {
+      p.world.king.dead = true;
+      p.world.king.cause = 'abandon';
+    }
+
+    this.dirtyState = true;
+    this.say(`🏳️ ${p.name} capitule et observe la suite de la bataille en spectateur.`);
+    this.io.to(this.channel).emit('fx', { type: 'kingHit', pid: p.id, hits: 8, dead: true, reason: 'abandon' });
+
+    // Vérifier les survivants
+    const alive = this.alivePlayers();
+    if (alive.length <= 1) {
+      this.finish(alive[0]?.id || null);
+      return { ok: true };
+    }
+
+    // Réajustement du tour si le joueur était impliqué
+    if (this.phase === 'battle' && this.turn) {
+      const wasShooter = this.turn.shooterId === id;
+      const wasTarget = this.turn.targetId === id;
+      if (wasShooter) {
+        const prevOrderIdx = this.order.indexOf(id);
+        const prevShooter = this.order.length > 0
+          ? this.order[(prevOrderIdx - 1 + this.order.length) % this.order.length]
+          : null;
+        this.nextTurn(prevShooter);
+      } else if (wasTarget) {
+        const newTarget = this.defaultTarget(this.turn.shooterId);
+        if (newTarget) {
+          this.turn.targetId = newTarget.id;
+          this.dirtyState = true;
+          this.forceFocusSend();
+          this.say(`🎯 Cible réajustée : ${newTarget.name} !`);
+        } else {
+          this.nextTurn(this.turn.shooterId);
+        }
+      }
+    }
+
+    this.broadcastState();
+    return { ok: true };
+  }
+
   removePlayer(id) {
     if (this.phase !== 'lobby') {
       return this.leavePlayer(id);
@@ -271,8 +326,12 @@ export class Room {
     }
   }
 
+  get humanCount() {
+    return [...this.players.values()].filter((p) => !p.isBot && p.connected).length;
+  }
+
   get humansConnected() {
-    return [...this.players.values()].some((p) => !p.isBot && p.connected);
+    return this.humanCount > 0;
   }
 
   alivePlayers() {
@@ -1469,6 +1528,8 @@ export class Room {
         }
         : null,
       winnerId: this.winnerId,
+      humansConnected: this.humansConnected,
+      humanCount: [...this.players.values()].filter((p) => !p.isBot && p.connected).length,
       drops: this.drops.filter((d) => !d.collected && !d.sunk).map((d) => ({
         id: d.id,
         type: d.type,

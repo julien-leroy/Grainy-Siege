@@ -1004,3 +1004,48 @@ test('bot: 3 niveaux de difficulté (5 ans, 12 ans, 36 ans Ingénieur Vinci)', (
   assert.ok(shot12.angle > 0 && shot12.power > 0);
 });
 
+test('spectateur libre & abandon en restant dans la room (forfeitToSpectator)', () => {
+  const room = new Room('SPEC', createFakeIo());
+  const joinedRooms1 = [];
+  const fakeSocket1 = { id: 's1', emit: () => {}, join: (ch) => joinedRooms1.push(ch), on: () => {} };
+  const fakeSocket2 = { id: 's2', emit: () => {}, join: () => {}, on: () => {} };
+  const fakeSocket3 = { id: 's3', emit: () => {}, join: () => {}, on: () => {} };
+
+  const p1 = room.addPlayer({ name: 'Joueur1', socket: fakeSocket1 });
+  const p2 = room.addPlayer({ name: 'Joueur2', socket: fakeSocket2 });
+  assert.equal(room.humanCount, 2);
+  assert.equal(room.humansConnected, true);
+
+  // Lancement de la partie
+  room.start(p1.id);
+  assert.equal(room.phase, 'build');
+
+  // 1. Rejoindre la salle en cours de partie -> entre directement comme spectateur
+  const spec = room.addPlayer({ name: 'Observateur', socket: fakeSocket3 });
+  assert.ok(spec, 'spectateur accepté dans la salle');
+  assert.equal(spec.isSpectator, true, 'doit être marqué spectateur');
+  assert.equal(spec.alive, false, 'le spectateur n a pas de roi vivant');
+  assert.equal(room.humanCount, 3);
+  assert.equal(room.humansConnected, true);
+
+  // 2. Abandon pendant la partie (Croix rouge) -> reste dans la room mais devient spectateur
+  const resForfeit = room.forfeitToSpectator(p1.id);
+  assert.ok(resForfeit.ok);
+  assert.equal(p1.alive, false, 'p1 ne doit plus être en vie');
+  assert.equal(p1.isSpectator, true, 'p1 devient spectateur');
+  assert.equal(p1.connected, true, 'p1 reste connecté dans la salle');
+  assert.equal(p1.socket, fakeSocket1, 'la socket reste attachée');
+
+  // Puisque Joueur1 a capitulé et qu'il ne reste que Joueur2 vivant, la partie doit se terminer avec Joueur2 gagnant
+  assert.equal(room.phase, 'over', 'la manche se conclut car il ne reste qu un survivant');
+  assert.equal(room.winnerId, p2.id, 'Joueur2 est déclaré vainqueur');
+
+  // 3. Déconnexion
+  room.leavePlayer(p2.id);
+  assert.equal(room.humanCount, 2, 'il reste p1 et spec connectés');
+  assert.equal(room.humansConnected, true);
+  assert.equal(room.describe().humansConnected, true);
+  assert.equal(room.describe().humanCount, 2);
+});
+
+

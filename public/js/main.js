@@ -25,6 +25,7 @@ let myCode = sessionStorage.getItem('sc-code') || null;
 let viewedPid = null; // quel château affiche-t-on en grand ?
 let inspectingOwnCastle = false; // Le joueur inspecte-t-il son propre château en bataille pour mettre un spray ?
 let isWatchingGame = false; // Le spectateur a-t-il cliqué sur "Regarder la partie" ?
+let wasAliveLastTick = true; // Détecte la transition vers la mort du Roi en cours de partie
 
 // Remontée automatique des bugs client vers les logs serveur
 window.addEventListener('error', (evt) => {
@@ -486,7 +487,7 @@ $('create-btn').addEventListener('click', () => {
   showLobbyError(null);
   socket.emit('create', { name: getPlayerName() }, (res) => {
     if (!res?.ok) return showLobbyError(res?.error || 'Erreur');
-    onJoinedRoom(res.code, res.playerId);
+    onJoinedRoom(res.code, res.playerId, 'lobby', false);
   });
 });
 
@@ -498,7 +499,23 @@ $('join-btn').addEventListener('click', () => {
   if (!code) return showLobbyError('Entre le code à 4 lettres de la plage');
   socket.emit('join', { code, name: getPlayerName() }, (res) => {
     if (!res?.ok) return showLobbyError(res?.error || 'Salle introuvable');
-    onJoinedRoom(res.code, res.playerId);
+    onJoinedRoom(res.code, res.playerId, res.phase, res.isSpectator);
+  });
+});
+
+$('rejoin-prev-room-btn')?.addEventListener('click', () => {
+  unlock();
+  resetAllGameData();
+  showLobbyError(null);
+  const lastCode = (localStorage.getItem('sc-last-room') || sessionStorage.getItem('sc-code') || '').toUpperCase().trim();
+  if (!lastCode) return;
+  socket.emit('join', { code: lastCode, name: getPlayerName() }, (res) => {
+    if (!res?.ok) {
+      showLobbyError(res?.error || 'Salle introuvable ou fermée');
+      checkPreviousRoom();
+      return;
+    }
+    onJoinedRoom(res.code, res.playerId, res.phase, res.isSpectator);
   });
 });
 
@@ -508,7 +525,7 @@ $('solo-btn').addEventListener('click', () => {
   showLobbyError(null);
   socket.emit('create', { name: getPlayerName() }, (res) => {
     if (!res?.ok) return showLobbyError(res?.error || 'Erreur');
-    onJoinedRoom(res.code, res.playerId);
+    onJoinedRoom(res.code, res.playerId, 'lobby', false);
     socket.emit('addBot', { difficulty: '12yo' }, () => {
       socket.emit('start', {});
     });
@@ -675,6 +692,39 @@ function leaveRoom() {
   $('room-view').classList.add('hidden');
   $('welcome-view').classList.remove('hidden');
   $('lobby-modal')?.classList.remove('hidden');
+  checkPreviousRoom();
+}
+
+async function checkPreviousRoom() {
+  const btn = $('rejoin-prev-room-btn');
+  if (!btn) return;
+  const lastCode = (localStorage.getItem('sc-last-room') || sessionStorage.getItem('sc-code') || '').toUpperCase().trim();
+  if (!lastCode || lastCode.length !== 4) {
+    btn.classList.add('hidden');
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/rooms/${lastCode}`);
+    if (!res.ok) {
+      btn.classList.add('hidden');
+      return;
+    }
+    const r = await res.json();
+    const hasHumans = Boolean(r.humansConnected || (r.players && r.players.some((p) => !p.isBot && p.connected)));
+    if (hasHumans) {
+      $('prev-room-code').textContent = lastCode;
+      const descEl = $('prev-room-desc');
+      if (descEl) {
+        descEl.textContent = r.phase === 'battle' ? 'bataille en cours' : (r.phase === 'build' ? 'construction' : 'au salon');
+      }
+      btn.classList.remove('hidden');
+    } else {
+      btn.classList.add('hidden');
+    }
+  } catch (_) {
+    btn.classList.add('hidden');
+  }
 }
 
 const leaveBtn = $('leave-room-btn');
@@ -820,18 +870,33 @@ function resetAllGameData() {
   if (strip) strip.innerHTML = '';
 }
 
-async function onJoinedRoom(code, playerId) {
+async function onJoinedRoom(code, playerId, phase = 'lobby', isSpectator = false) {
   resetAllGameData();
   stopGameLoop();
-  isWatchingGame = false;
-  $('hud').classList.add('hidden');
   myId = playerId;
   myCode = code;
   sessionStorage.setItem('sc-pid', playerId);
   sessionStorage.setItem('sc-code', code);
+  localStorage.setItem('sc-last-room', code);
+
   $('welcome-view').classList.add('hidden');
-  $('room-view').classList.remove('hidden');
   $('lobby-code').textContent = code;
+
+  if (phase && phase !== 'lobby') {
+    // Si la partie est déjà lancée, entrer directement sur la scène de jeu en spectateur !
+    isWatchingGame = true;
+    $('room-view').classList.add('hidden');
+    $('lobby-modal')?.classList.add('hidden');
+    $('scene')?.classList.remove('hidden');
+    $('hud')?.classList.remove('hidden');
+    startGameLoop();
+    toast('👀 Partie déjà lancée sur cette plage ! Tu observes le combat en spectateur.');
+  } else {
+    isWatchingGame = false;
+    $('hud').classList.add('hidden');
+    $('room-view').classList.remove('hidden');
+    $('lobby-modal')?.classList.remove('hidden');
+  }
 
   try {
     const r = await fetch(`/api/join-info?code=${encodeURIComponent(code)}`);
@@ -843,12 +908,15 @@ async function onJoinedRoom(code, playerId) {
 socket.on('connect', () => {
   if (myCode && myId) {
     socket.emit('join', { code: myCode, playerId: myId, name: getPlayerName() }, (res) => {
-      if (res?.ok) onJoinedRoom(res.code, res.playerId);
+      if (res?.ok) onJoinedRoom(res.code, res.playerId, res.phase, res.isSpectator);
       else {
         sessionStorage.removeItem('sc-pid');
         sessionStorage.removeItem('sc-code');
+        checkPreviousRoom();
       }
     });
+  } else {
+    checkPreviousRoom();
   }
 });
 
@@ -1656,28 +1724,28 @@ function syncUI() {
     }
   }
 
-  // Modale de fin de partie / Élimination immédiate
-  const isEliminated = me && !me.alive && (s.phase === 'build' || s.phase === 'settle' || s.phase === 'battle');
+  // Modale de fin de partie / Spectateur automatique à la mort
   const isGameOver = s.phase === 'over';
-  $('over-modal').classList.toggle('hidden', !isGameOver && !isEliminated);
-  if (isGameOver || isEliminated) {
-    if (isGameOver) {
-      const w = s.players.find((p) => p.id === s.winnerId);
-      const isWinner = s.winnerId === myId;
-      $('winner-title').textContent = isWinner
-        ? '🏆 VICTOIRE ! Tu règnes sur la plage !'
-        : (w ? `💀 DÉFAITE ! ${w.name} remporte la partie !` : 'Match nul !');
-      $('winner-subtitle').textContent = isWinner
-        ? 'Ton Roi a survécu à tous les tirs et ton château a triomphé !'
-        : (w ? `${w.name} a vaincu ton château de sable.` : 'Tous les Rois ont été ensevelis sous le sable.');
-      $('replay-btn').classList.toggle('hidden', !isHost);
-      $('back-lobby-btn').classList.remove('hidden');
-    } else if (isEliminated) {
-      $('winner-title').textContent = '💀 TON ROI A PÉRI ! DÉFAITE';
-      $('winner-subtitle').textContent = 'Ton Roi a été enseveli sous le sable ou détruit. La partie est terminée pour toi !';
-      $('replay-btn').classList.add('hidden');
-      $('back-lobby-btn').classList.remove('hidden');
-    }
+  $('over-modal').classList.toggle('hidden', !isGameOver);
+  if (isGameOver) {
+    const w = s.players.find((p) => p.id === s.winnerId);
+    const isWinner = s.winnerId === myId;
+    $('winner-title').textContent = isWinner
+      ? '🏆 VICTOIRE ! Tu règnes sur la plage !'
+      : (w ? `💀 DÉFAITE ! ${w.name} remporte la partie !` : 'Match nul !');
+    $('winner-subtitle').textContent = isWinner
+      ? 'Ton Roi a survécu à tous les tirs et ton château a triomphé !'
+      : (w ? `${w.name} a vaincu ton château de sable.` : 'Tous les Rois ont été ensevelis sous le sable.');
+    $('replay-btn').classList.toggle('hidden', !isHost);
+    $('back-lobby-btn').classList.remove('hidden');
+  } else if (me && !me.alive && wasAliveLastTick) {
+    wasAliveLastTick = false;
+    isWatchingGame = true;
+    inspectingOwnCastle = false;
+    toast('💀 Ton Roi a été terrassé ! Tu passes en mode spectateur pour observer la fin de la bataille 👀');
+  }
+  if (me && me.alive) {
+    wasAliveLastTick = true;
   }
 
   // Fresque illustrée de bataille & Ordre des tours avec icônes Catapulte / Roi colorées
@@ -2461,8 +2529,26 @@ if (quitGameBtn) {
   quitGameBtn.addEventListener('click', (e) => {
     e.preventDefault();
     unlock();
-    if (confirm('❌ Quitter la partie et retourner au menu ?\n(La partie continuera pour les autres joueurs)')) {
-      leaveRoom();
+    const s = roomState;
+    if (!s || s.phase === 'lobby') {
+      if (confirm('🚪 Quitter le salon et retourner à l\'accueil ?')) {
+        leaveRoom();
+      }
+      return;
+    }
+    const me = s.players.find((p) => p.id === myId);
+    if (!me || !me.alive || me.isSpectator) {
+      if (confirm('🚪 Quitter définitivement la salle et retourner à l\'accueil ?')) {
+        leaveRoom();
+      }
+      return;
+    }
+    if (confirm('❌ Abandonner ton château et passer en mode spectateur ?\n(Tu resteras dans la salle pour continuer à observer la bataille)')) {
+      socket.emit('forfeit', {});
+      isWatchingGame = true;
+      inspectingOwnCastle = false;
+      toast('👀 Tu as capitulé. Tu es maintenant spectateur de la bataille.');
+      syncUI();
     }
   });
 }
@@ -2905,3 +2991,10 @@ initTools();
 setupChat();
 syncAimSliders();
 stopGameLoop();
+
+window.addEventListener('beforeunload', () => {
+  try {
+    socket.emit('leave', {});
+  } catch (_) {}
+});
+checkPreviousRoom();

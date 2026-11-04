@@ -91,6 +91,11 @@
             </div>
 
             <div class="welcome-actions">
+              <!-- Bouton de retour dans la salle précédente si encore ouverte -->
+              <button id="rejoin-prev-room-btn" class="btn btn-rejoin btn-lg hidden" type="button">
+                ↩️ Retourner sur la plage <strong id="prev-room-code">----</strong> (<span id="prev-room-desc">en cours</span>)
+              </button>
+
               <div class="quick-play-row">
                 <button id="solo-btn" class="btn btn-primary btn-lg pulse-glow">⚡ Partie rapide</button>
                 <button id="train-btn" class="btn btn-train btn-lg" type="button">🎯 S'entraîner</button>

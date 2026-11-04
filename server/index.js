@@ -205,6 +205,11 @@ io.on('connection', (socket) => {
     cb?.({ ok: true });
   }));
 
+  socket.on('forfeit', guard('forfeit', (_, cb) => {
+    room?.forfeitToSpectator(me?.id);
+    cb?.({ ok: true });
+  }));
+
   socket.on('place', guard('place', (d, cb) => {
     const res = !!room?.place(me?.id, d);
     cb?.({ ok: res });
