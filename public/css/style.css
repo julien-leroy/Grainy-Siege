@@ -655,6 +655,10 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   box-shadow: 0 4px 0 #9e2408;
 }
 
+.mobile-tuto-btn {
+  display: none;
+}
+
 .error-msg {
   margin-top: 10px;
   color: var(--coral-dark);
@@ -3350,109 +3354,339 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
     font-size: 0.65rem;
   }
 
-  /* Salon d'accueil & Lobby */
+  /* ==================== Salon d'accueil & Salle d'attente (Hors-jeu sur Smartphone) ==================== */
   .lobby-hub-card {
-    padding: 16px 12px;
-    max-width: 96vw;
-    width: 96vw;
-    max-height: 94vh;
+    padding: 16px 14px max(14px, env(safe-area-inset-bottom, 14px));
+    max-width: 410px;
+    width: min(94vw, 410px);
+    max-height: calc(100dvh - max(24px, env(safe-area-inset-top, 12px) + env(safe-area-inset-bottom, 12px)));
+    border-radius: 22px;
+    border-width: 2.5px;
+    box-shadow: 0 16px 44px rgba(44, 30, 18, 0.38);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
+  /* En-tête de marque compact horizontal sur smartphone (prend 56px de haut au lieu de 160px) */
   .brand {
-    flex-direction: column;
-    text-align: center;
-    gap: 8px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    text-align: left;
+    gap: 12px;
     margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1.5px solid rgba(217, 185, 130, 0.45);
   }
 
   .brand-logo {
-    max-width: 75px;
-    max-height: 75px;
+    width: 52px;
+    height: 52px;
+    max-width: 52px;
+    max-height: 52px;
+    border-radius: 12px;
+    filter: drop-shadow(0 4px 10px rgba(44, 30, 18, 0.25));
+  }
+
+  .brand-text-block {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 
   .brand-title {
-    font-size: 1.95rem;
-    margin-bottom: 2px;
-    word-break: break-word;
+    font-size: 1.75rem;
+    line-height: 1.05;
+    margin: 0 0 2px;
+    word-break: normal;
   }
 
   .brand-subtitle {
-    font-size: 0.80rem;
-    line-height: 1.25;
+    font-size: 0.72rem;
+    line-height: 1.2;
+    color: #78350f;
+  }
+
+  /* Écran d'accueil (Welcome-view) */
+  .field-block {
+    margin-bottom: 10px;
   }
 
   .field-label {
-    font-size: 0.78rem;
+    font-size: 0.76rem;
+    font-weight: 800;
+    color: #634932;
     margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
   }
 
-  .text-input {
-    padding: 10px 12px;
-    font-size: 0.92rem;
-    border-radius: 10px;
+  #name-input {
+    width: 100%;
+    height: 48px;
+    padding: 0 14px;
+    font-size: 16px !important; /* CRUCIAL IOS SAFARI : EMPÊCHE LE ZOOM FORCÉ */
+    font-weight: 800;
+    text-align: center;
+    border-radius: 12px;
+    border: 2px solid var(--sand-border);
+    background: #ffffff;
+    color: var(--wood-dark);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+
+  .welcome-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
 
   .quick-play-row {
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 8px;
     width: 100%;
   }
 
-  .btn-lg {
-    padding: 12px 14px;
-    font-size: 0.98rem;
+  .quick-play-row .btn {
+    height: 48px;
     min-height: 48px;
+    padding: 0 8px;
+    font-size: 0.90rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+  }
+
+  #create-btn {
+    width: 100%;
+    height: 46px;
+    min-height: 46px;
+    font-size: 0.92rem;
+    border-radius: 12px;
+  }
+
+  .divider {
+    margin: 4px 0;
+    font-size: 0.72rem;
+    color: var(--wood-soft);
+  }
+
+  .join-row {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+  }
+
+  #code-input {
+    width: 105px;
+    height: 46px;
+    font-size: 16px !important;
+    font-weight: 900;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    text-align: center;
+    border-radius: 12px;
+  }
+
+  #join-btn {
+    flex: 1;
+    height: 46px;
+    min-height: 46px;
+    font-size: 0.92rem;
+    border-radius: 12px;
   }
 
   .rules-chips {
-    gap: 4px;
+    display: flex;
+    flex-wrap: wrap;
     justify-content: center;
-    margin-top: 10px;
+    gap: 4px;
+    margin-top: 8px;
   }
 
   .rule-chip {
-    font-size: 0.70rem;
+    font-size: 0.68rem;
     padding: 3px 7px;
     border-radius: 6px;
   }
 
-  /* Salle d'attente / Room */
+  /* Bouton accordéon pour déplier le tutoriel uniquement sur mobile si souhaité */
+  .mobile-tuto-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    height: 40px;
+    padding: 0 12px;
+    font-size: 0.80rem;
+    font-weight: 800;
+    color: #78350f;
+    background: rgba(243, 227, 195, 0.65);
+    border: 1.5px solid var(--sand-border);
+    border-radius: 12px;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: all 0.15s ease;
+  }
+
+  .mobile-tuto-btn:active {
+    background: rgba(243, 227, 195, 0.95);
+    transform: scale(0.98);
+  }
+
+  /* Salle d'attente (Room-view) sur Smartphone */
   .room-header {
-    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 2px solid var(--sand-border);
+    border-radius: 14px;
+    margin-bottom: 10px;
+  }
+
+  .room-code-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   .room-code-big {
-    font-size: 1.8rem;
-    letter-spacing: 2px;
+    font-size: 1.95rem;
+    letter-spacing: 3px;
+    color: var(--sea-blue);
+    line-height: 1;
   }
 
+  /* Le QR-code est masqué sur mobile (inutile de scanner son propre écran) */
   .qr-box {
-    width: 50px;
-    height: 50px;
+    display: none !important;
+  }
+
+  .copy-icon-btn {
+    width: 38px;
+    height: 38px;
+    font-size: 1.2rem;
+    border-radius: 10px;
+  }
+
+  .roster-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    padding: 0 2px;
+  }
+
+  .roster-title {
+    font-size: 0.88rem;
+    font-weight: 800;
+  }
+
+  .roster-badge {
+    font-size: 0.78rem;
+    padding: 2px 8px;
   }
 
   .add-bot-panel {
-    gap: 6px;
-    flex-wrap: wrap;
+    display: flex;
+    align-items: center;
     justify-content: space-between;
+    gap: 6px;
+    padding: 6px 10px;
+    margin-bottom: 10px;
+    border-radius: 10px;
+    background: rgba(248, 250, 252, 0.9);
+  }
+
+  .bot-select-wrap {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+  }
+
+  .bot-select-label {
+    font-size: 0.76rem;
+    font-weight: 800;
   }
 
   .bot-difficulty-select {
-    font-size: 0.80rem;
-    padding: 5px 8px;
+    font-size: 0.78rem;
+    height: 36px;
+    padding: 4px 6px;
+    border-radius: 8px;
+    flex: 1;
   }
 
   .btn-add-bot {
-    font-size: 0.80rem;
-    padding: 6px 10px;
+    height: 36px;
+    padding: 0 10px;
+    font-size: 0.78rem;
+    border-radius: 8px;
+    flex-shrink: 0;
   }
 
   .roster-list {
-    max-height: 170px;
+    max-height: 160px;
     overflow-y: auto;
+    margin-bottom: 12px;
+    gap: 5px;
   }
 
-  /* Tutoriel GIF */
+  .roster-item {
+    padding: 7px 10px;
+    font-size: 0.85rem;
+    border-radius: 10px;
+  }
+
+  .lobby-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  #start-btn {
+    width: 100%;
+    height: 52px;
+    min-height: 52px;
+    font-size: 1.15rem;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    border-radius: 14px;
+  }
+
+  #leave-room-btn {
+    width: 100%;
+    height: 38px;
+    min-height: 38px;
+    font-size: 0.84rem;
+    border-radius: 10px;
+    margin-top: 0 !important;
+  }
+
+  /* Gestion du Tutoriel GIF sur Smartphone */
+  .lobby-tuto-column {
+    display: none;
+    margin-top: 10px;
+  }
+
+  .lobby-tuto-column.open-mobile {
+    display: flex !important;
+  }
+
+  /* Quand on est dans la room, le tuto est strictement masqué sur mobile */
+  #room-view:not(.hidden) ~ .lobby-tuto-column,
+  .lobby-action-column:has(#room-view:not(.hidden)) ~ .lobby-tuto-column {
+    display: none !important;
+  }
+
   .tuto-card {
     padding: 10px 10px 12px;
   }

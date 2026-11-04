@@ -560,6 +560,19 @@ $('train-btn')?.addEventListener('click', () => {
   $('training-modal')?.classList.remove('hidden');
 });
 
+$('mobile-tuto-btn')?.addEventListener('click', () => {
+  unlock();
+  const tutoCol = document.querySelector('.lobby-tuto-column');
+  const btn = $('mobile-tuto-btn');
+  if (!tutoCol || !btn) return;
+  tutoCol.classList.toggle('open-mobile');
+  const isOpen = tutoCol.classList.contains('open-mobile');
+  btn.textContent = isOpen ? '📖 Fermer les règles ▲' : '📖 Règles du jeu & Tuto animé ▼';
+  if (isOpen && window.tutoInstance) {
+    window.tutoInstance.setActive(true);
+  }
+});
+
 $('train-switch-mode-btn')?.addEventListener('click', () => {
   unlock();
   $('training-modal')?.classList.remove('hidden');
@@ -886,6 +899,10 @@ async function onJoinedRoom(code, playerId, phase = 'lobby', isSpectator = false
 
   $('welcome-view').classList.add('hidden');
   $('lobby-code').textContent = code;
+  const tutoCol = document.querySelector('.lobby-tuto-column');
+  if (tutoCol) tutoCol.classList.remove('open-mobile');
+  const mobileTutoBtn = $('mobile-tuto-btn');
+  if (mobileTutoBtn) mobileTutoBtn.textContent = '📖 Règles du jeu & Tuto animé ▼';
 
   if (phase && phase !== 'lobby') {
     // Si la partie est déjà lancée, entrer directement sur la scène de jeu en spectateur !
