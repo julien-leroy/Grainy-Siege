@@ -241,9 +241,13 @@ function initTools() {
   const toggleBtn = $('toggle-atelier-sidebar') || $('toggle-build-sidebar');
   if (toggleBtn && !toggleBtn._init) {
     toggleBtn._init = true;
+    const dock = $('atelier-dock') || $('build-dock');
+    if (window.innerWidth <= 768 && dock) {
+      dock.classList.add('collapsed');
+      toggleBtn.textContent = '▶';
+    }
     toggleBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const dock = $('atelier-dock') || $('build-dock');
       dock.classList.toggle('collapsed');
       const isCollapsed = dock.classList.contains('collapsed');
       toggleBtn.textContent = isCollapsed ? '▶' : '◀';
@@ -2510,6 +2514,10 @@ function releaseAndFire() {
   }, 450);
 }
 
+let triggerTouchStartX = 0;
+let triggerTouchStartY = 0;
+let triggerDragCancelled = false;
+
 if (fireTriggerBtn) {
   fireTriggerBtn.addEventListener('pointerdown', (e) => {
     if (e.button === 2) {
@@ -2518,11 +2526,23 @@ if (fireTriggerBtn) {
     }
     e.preventDefault();
     unlock();
+    triggerTouchStartX = e.clientX;
+    triggerTouchStartY = e.clientY;
+    triggerDragCancelled = false;
     try { fireTriggerBtn.setPointerCapture(e.pointerId); } catch (_) {}
     startCharging();
   });
+  fireTriggerBtn.addEventListener('pointermove', (e) => {
+    if (!isCharging || triggerDragCancelled) return;
+    const dist = Math.hypot(e.clientX - triggerTouchStartX, e.clientY - triggerTouchStartY);
+    if (dist > 75 || (triggerTouchStartY - e.clientY) > 60) {
+      triggerDragCancelled = true;
+      cancelCharging();
+      renderer?.popup?.(GRID_W / 2, GROUND_Y - 30, '❌ Tir annulé', '#facc15');
+    }
+  });
   fireTriggerBtn.addEventListener('pointerup', (e) => {
-    if (e.button === 2) {
+    if (e.button === 2 || triggerDragCancelled) {
       cancelCharging();
       return;
     }
@@ -2530,7 +2550,11 @@ if (fireTriggerBtn) {
     releaseAndFire();
   });
   fireTriggerBtn.addEventListener('pointercancel', () => {
-    releaseAndFire();
+    if (triggerDragCancelled) {
+      cancelCharging();
+    } else {
+      releaseAndFire();
+    }
   });
 }
 
@@ -2891,6 +2915,11 @@ function setupChat() {
   const header = $('chat-header');
 
   if (!dock) return;
+
+  if (window.innerWidth <= 768) {
+    dock.classList.add('collapsed');
+    if (toggleBtn) toggleBtn.textContent = '▲';
+  }
 
   const toggle = () => {
     dock.classList.toggle('collapsed');

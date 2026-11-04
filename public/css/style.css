@@ -23,6 +23,11 @@
   padding: 0;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button, input, select, textarea, .btn, .pill, .tool-btn, .shot-ball {
+  touch-action: manipulation;
 }
 
 html, body {
@@ -1679,28 +1684,7 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   letter-spacing: 0.02em;
 }
 
-@media (max-width: 680px) {
-  .catapult-icon-switch-btn {
-    width: 86px;
-    height: 86px;
-  }
-  .cat-switch-icon {
-    font-size: 2rem;
-  }
-  .cat-switch-tag {
-    font-size: 0.78rem;
-  }
-  .combatant-icon-wrapper {
-    width: 70px;
-    height: 70px;
-  }
-  .combatant-avatar {
-    font-size: 2.2rem;
-  }
-  .duel-summary {
-    font-size: 0.95rem;
-  }
-}
+
 
 /* 2. Râtelier de boulets posé dans le sable */
 .sand-ammo-rack {
@@ -2193,51 +2177,7 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   transition: width 0.08s linear;
 }
 
-@media (max-width: 680px) {
-  .banner-msg, .toast-log, .dock-tip {
-    display: none;
-  }
-
-  .sand-inventory-footer {
-    bottom: 6px;
-    padding: 4px 6px;
-    gap: 4px;
-    border-radius: 12px;
-  }
-
-  .sand-inventory-footer .tool-btn {
-    width: 54px;
-    min-width: 48px;
-    height: 52px;
-    padding: 2px;
-  }
-
-  .sand-inventory-footer .tool-btn canvas {
-    width: 46px;
-    height: 34px;
-  }
-
-  .tool-btn {
-    width: 48px;
-    min-width: 44px;
-    height: 48px;
-    padding: 2px 2px 1px;
-  }
-
-  .tool-btn canvas {
-    width: 26px;
-    height: 18px;
-  }
-
-  .tool-label {
-    font-size: 0.54rem;
-    max-width: 42px;
-  }
-
-  .tool-key {
-    font-size: 0.48rem;
-  }
-}
+/* Note: Responsive mobile & smartphone styles are unified in the responsive section at the bottom */
 
 /* ==================== Timeline de Bataille (Duels d'icônes épurées) ==================== */
 .battle-timeline {
@@ -3248,3 +3188,872 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   transform: translateY(-2px);
   box-shadow: 0 6px 0 #b91c1c, 0 8px 18px rgba(220, 38, 38, 0.45);
 }
+
+/* ==========================================================================
+   ADAPTATION RESPONSIVE SMARTPHONE & MOBILE COMPLÈTE
+   (Préserve 100% de l'expérience PC tout en offrant une ergonomie tactile parfaite)
+   ========================================================================== */
+
+/* 1. Écrans Tablettes & Petits Ordinateurs (max 860px) */
+@media (max-width: 860px) {
+  .lobby-hub-card {
+    padding: 20px 16px;
+    max-width: 540px;
+    width: 95vw;
+  }
+  .lobby-hub-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .lobby-tuto-column .tuto-card {
+    margin-top: 4px;
+  }
+}
+
+/* 2. Smartphones & Écrans Tactiles Mobiles (max 768px) */
+@media (max-width: 768px) {
+  /* Safe area & espacements généraux */
+  body {
+    padding-left: env(safe-area-inset-left, 0);
+    padding-right: env(safe-area-inset-right, 0);
+  }
+
+  /* Modale Backdrop avec padding sûr */
+  .modal-backdrop {
+    padding: max(10px, env(safe-area-inset-top, 0)) max(10px, env(safe-area-inset-right, 0)) max(10px, env(safe-area-inset-bottom, 0)) max(10px, env(safe-area-inset-left, 0));
+  }
+
+  .modal-card {
+    padding: 18px 14px;
+    border-radius: var(--radius-md, 16px);
+    max-width: 96vw;
+    width: 96vw;
+    max-height: 92vh;
+  }
+
+  /* Bandeau Supérieur (HUD) */
+  #hud {
+    top: max(6px, env(safe-area-inset-top, 0));
+    left: max(8px, env(safe-area-inset-left, 0));
+    right: max(8px, env(safe-area-inset-right, 0));
+    min-height: auto;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: space-between;
+  }
+
+  .hud-left {
+    gap: 5px;
+    flex-wrap: wrap;
+    flex-shrink: 1;
+  }
+
+  .hud-right {
+    gap: 5px;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Le timer sur mobile ne doit pas être en absolu centré qui écrase les boutons */
+  .hud-center {
+    position: static;
+    transform: none;
+    order: 0;
+    margin: 0;
+  }
+
+  .pill {
+    padding: 5px 9px;
+    font-size: 0.74rem;
+    border-radius: 999px;
+    border-width: 1.5px;
+  }
+
+  .icon-btn {
+    width: 34px;
+    height: 34px;
+    font-size: 0.95rem;
+    border-width: 1.5px;
+  }
+
+  .timer-box {
+    padding: 4px 10px;
+    font-size: 0.95rem;
+  }
+
+  .banner-msg {
+    top: max(50px, calc(env(safe-area-inset-top, 0) + 44px));
+    font-size: 0.76rem;
+    padding: 4px 12px;
+    max-width: 92vw;
+    white-space: normal;
+    line-height: 1.25;
+  }
+
+  .banner-msg.in-battle {
+    top: max(84px, calc(env(safe-area-inset-top, 0) + 74px));
+  }
+
+  /* Timeline de bataille */
+  .battle-timeline {
+    top: max(46px, calc(env(safe-area-inset-top, 0) + 40px));
+    padding: 3px 8px;
+    max-width: 94vw;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .battle-timeline::-webkit-scrollbar {
+    display: none;
+  }
+  .king-badge {
+    width: 24px;
+    height: 24px;
+    font-size: 0.9rem;
+  }
+  .king-badge.next {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* Miniatures des joueurs */
+  .players-strip {
+    top: max(48px, calc(env(safe-area-inset-top, 0) + 42px));
+    left: 8px;
+    right: 8px;
+    gap: 6px;
+    max-height: 70px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    -webkit-overflow-scrolling: touch;
+  }
+  .players-strip::-webkit-scrollbar {
+    display: none;
+  }
+  .player-card {
+    padding: 4px 7px;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .player-thumb {
+    width: 44px;
+    height: 25px;
+  }
+  .player-name {
+    font-size: 0.74rem;
+  }
+  .player-status {
+    font-size: 0.65rem;
+  }
+
+  /* Salon d'accueil & Lobby */
+  .lobby-hub-card {
+    padding: 16px 12px;
+    max-width: 96vw;
+    width: 96vw;
+    max-height: 94vh;
+  }
+
+  .brand {
+    flex-direction: column;
+    text-align: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .brand-logo {
+    max-width: 75px;
+    max-height: 75px;
+  }
+
+  .brand-title {
+    font-size: 1.95rem;
+    margin-bottom: 2px;
+    word-break: break-word;
+  }
+
+  .brand-subtitle {
+    font-size: 0.80rem;
+    line-height: 1.25;
+  }
+
+  .field-label {
+    font-size: 0.78rem;
+    margin-bottom: 4px;
+  }
+
+  .text-input {
+    padding: 10px 12px;
+    font-size: 0.92rem;
+    border-radius: 10px;
+  }
+
+  .quick-play-row {
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .btn-lg {
+    padding: 12px 14px;
+    font-size: 0.98rem;
+    min-height: 48px;
+  }
+
+  .rules-chips {
+    gap: 4px;
+    justify-content: center;
+    margin-top: 10px;
+  }
+
+  .rule-chip {
+    font-size: 0.70rem;
+    padding: 3px 7px;
+    border-radius: 6px;
+  }
+
+  /* Salle d'attente / Room */
+  .room-header {
+    margin-bottom: 8px;
+  }
+
+  .room-code-big {
+    font-size: 1.8rem;
+    letter-spacing: 2px;
+  }
+
+  .qr-box {
+    width: 50px;
+    height: 50px;
+  }
+
+  .add-bot-panel {
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+
+  .bot-difficulty-select {
+    font-size: 0.80rem;
+    padding: 5px 8px;
+  }
+
+  .btn-add-bot {
+    font-size: 0.80rem;
+    padding: 6px 10px;
+  }
+
+  .roster-list {
+    max-height: 170px;
+    overflow-y: auto;
+  }
+
+  /* Tutoriel GIF */
+  .tuto-card {
+    padding: 10px 10px 12px;
+  }
+
+  .tuto-screen {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .tuto-canvas {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 480 / 175;
+    display: block;
+  }
+
+  .tuto-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 4px;
+    padding-bottom: 2px;
+  }
+  .tuto-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tuto-tab-btn {
+    white-space: nowrap;
+    font-size: 0.72rem;
+    padding: 4px 8px;
+    flex-shrink: 0;
+  }
+
+  .tuto-caption-title {
+    font-size: 0.88rem;
+  }
+
+  .tuto-caption-text {
+    font-size: 0.76rem;
+    line-height: 1.35;
+  }
+
+  /* Atelier de construction & modelage à gauche */
+  .atelier-sidebar {
+    width: 185px;
+    max-width: 80vw;
+    top: max(52px, calc(env(safe-area-inset-top, 0) + 44px));
+    left: max(6px, env(safe-area-inset-left, 0));
+    padding: 8px 10px 10px;
+    border-radius: 16px;
+    max-height: calc(100vh - 70px);
+  }
+
+  .atelier-sidebar.collapsed {
+    transform: translateX(calc(-100% + 40px));
+  }
+
+  .sidebar-header {
+    padding-bottom: 4px;
+  }
+
+  .sidebar-icon {
+    font-size: 1.15rem;
+  }
+
+  .sidebar-title {
+    font-size: 0.82rem;
+  }
+
+  .sidebar-badge {
+    font-size: 0.62rem;
+  }
+
+  .sidebar-toggle-btn {
+    width: 30px;
+    height: 30px;
+    font-size: 0.95rem;
+  }
+
+  .sidebar-section-label {
+    font-size: 0.64rem;
+    margin: 4px 0 2px;
+  }
+
+  .atelier-tools-row {
+    gap: 5px;
+  }
+
+  .atelier-tools-row .tool-btn {
+    width: 44px;
+    min-width: 42px;
+    height: 44px;
+    border-radius: 10px;
+    padding: 2px;
+  }
+
+  .sidebar-bucket-status {
+    padding: 4px 6px;
+    gap: 6px;
+  }
+
+  .atelier-bucket-canvas {
+    width: 34px;
+    height: 34px;
+  }
+
+  .bucket-status-label {
+    font-size: 0.70rem;
+  }
+
+  /* Barre d'inventaire des patrons dans le sable */
+  .sand-inventory-footer {
+    bottom: max(8px, env(safe-area-inset-bottom, 0));
+    padding: 4px 6px;
+    gap: 5px;
+    max-width: 96vw;
+    border-radius: 14px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sand-inventory-footer .tool-btn {
+    width: 50px;
+    min-width: 46px;
+    height: 48px;
+    border-radius: 10px;
+    padding: 2px;
+  }
+
+  .sand-inventory-footer .tool-btn canvas {
+    width: 40px;
+    height: 30px;
+  }
+
+  .sand-inventory-footer .tool-btn .tool-stock {
+    font-size: 0.60rem;
+    min-width: 15px;
+    height: 14px;
+    line-height: 14px;
+    top: 1px;
+    right: 1px;
+    padding: 0 4px;
+  }
+
+  /* Bouton icône pour changer de catapulte */
+  .catapult-icon-switch-btn {
+    width: 60px;
+    height: 60px;
+    top: 45%;
+    border-width: 3px;
+  }
+
+  .catapult-icon-switch-btn.pos-right {
+    right: max(8px, env(safe-area-inset-right, 0));
+    left: auto;
+  }
+
+  .catapult-icon-switch-btn.pos-left {
+    left: max(8px, env(safe-area-inset-left, 0));
+    right: auto;
+  }
+
+  .cat-switch-icon {
+    font-size: 1.8rem;
+  }
+
+  .cat-switch-tag {
+    font-size: 0.68rem;
+    margin-top: 1px;
+  }
+
+  /* Commandes de tir et boulets dans le sable */
+  .sand-catapult-hud {
+    bottom: max(10px, env(safe-area-inset-bottom, 0));
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%);
+    flex-direction: row !important;
+    gap: 6px;
+    max-width: 98vw;
+    justify-content: center;
+    padding: 0 4px;
+  }
+
+  .sand-ammo-rack {
+    height: 44px;
+    padding: 0 6px;
+    gap: 4px;
+    max-width: 56vw;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    flex-shrink: 1;
+    border-radius: 999px;
+  }
+  .sand-ammo-rack::-webkit-scrollbar {
+    display: none;
+  }
+
+  .shots-balls {
+    gap: 4px;
+  }
+
+  .shot-ball.ammo-type-btn {
+    min-width: 42px;
+    height: 34px;
+    padding: 0 6px;
+    gap: 3px;
+    border-radius: 999px;
+  }
+
+  .shot-ball-img {
+    width: 18px;
+    height: 18px;
+  }
+
+  .ammo-count-badge {
+    font-size: 0.72rem;
+  }
+
+  .sand-power-trigger-btn {
+    min-width: 110px;
+    max-width: 150px;
+    height: 44px;
+    padding: 0 10px;
+    flex-shrink: 0;
+  }
+
+  .sand-power-inner {
+    gap: 4px;
+  }
+
+  .sand-power-heading {
+    font-size: 0.76rem;
+  }
+
+  .sand-power-inner .power-bolt {
+    font-size: 1rem;
+  }
+
+  .sand-power-sub {
+    font-size: 0.72rem;
+    min-width: 28px;
+  }
+
+  /* Bannière Défense & Spectateur Flottante */
+  .defender-floating-pill {
+    bottom: max(12px, env(safe-area-inset-bottom, 0));
+    padding: 6px 14px;
+    max-width: 94vw;
+  }
+
+  .defender-icon {
+    font-size: 1.1rem;
+  }
+
+  .defender-text {
+    font-size: 0.76rem;
+    line-height: 1.25;
+  }
+
+  /* Centre de Notifications & Statut */
+  .game-chat-dock {
+    top: max(50px, calc(env(safe-area-inset-top, 0) + 42px));
+    right: max(8px, env(safe-area-inset-right, 0));
+    width: min(285px, calc(100vw - 16px));
+    max-height: calc(100vh - 120px);
+    border-radius: 12px;
+  }
+
+  .game-chat-dock.collapsed {
+    min-width: 135px;
+    width: auto;
+  }
+
+  .chat-header {
+    padding: 6px 10px;
+  }
+
+  .chat-title-text {
+    font-size: 0.74rem;
+  }
+
+  .chat-body {
+    max-height: 190px;
+  }
+
+  .chat-messages {
+    max-height: 140px;
+    font-size: 0.76rem;
+  }
+
+  /* Modale Camp d'entraînement */
+  .training-choice-card {
+    padding: 16px 12px;
+    max-width: 94vw;
+  }
+
+  .training-choice-card h2 {
+    font-size: 1.35rem;
+  }
+
+  .training-difficulty-box {
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 10px;
+    margin-bottom: 12px;
+  }
+
+  .training-difficulty-label {
+    font-size: 0.82rem;
+  }
+
+  .train-difficulty-select {
+    width: 100%;
+    padding: 6px 10px;
+    font-size: 0.82rem;
+  }
+
+  .training-modes-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .training-mode-card {
+    padding: 12px 10px;
+    gap: 4px;
+  }
+
+  .training-mode-icon {
+    font-size: 1.8rem;
+  }
+
+  .training-mode-title {
+    font-size: 0.92rem;
+  }
+
+  .training-mode-desc {
+    font-size: 0.76rem;
+    line-height: 1.35;
+  }
+
+  /* Modale Menu Pause */
+  .pause-modal-card {
+    padding: 18px 14px;
+    max-width: 92vw;
+  }
+
+  .pause-icon {
+    font-size: 2.2rem;
+  }
+
+  .pause-modal-card h2 {
+    font-size: 1.45rem;
+  }
+
+  .pause-subtitle {
+    font-size: 0.85rem;
+    margin-bottom: 14px;
+  }
+
+  .pause-actions-list .btn {
+    padding: 11px 14px;
+    font-size: 0.92rem;
+    min-height: 44px;
+  }
+
+  /* Modale Victoire */
+  .over-card {
+    padding: 18px 14px;
+    max-width: 92vw;
+  }
+
+  .crown-icon {
+    font-size: 2.5rem;
+  }
+
+  #winner-title {
+    font-size: 1.55rem;
+  }
+
+  #winner-subtitle {
+    font-size: 0.88rem;
+  }
+
+  .over-actions .btn {
+    min-height: 44px;
+    padding: 10px 14px;
+    font-size: 0.92rem;
+  }
+
+  .bonus-choice-card {
+    padding: 18px 14px;
+    max-width: 94vw;
+  }
+
+  /* Overlay duel */
+  .duel-intro-card {
+    padding: 16px 12px;
+    max-width: 92vw;
+    border-radius: 18px;
+  }
+
+  .duel-badge-top {
+    font-size: 0.72rem;
+    padding: 3px 12px;
+    margin-bottom: 12px;
+  }
+
+  .duel-matchup {
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .combatant-icon-wrapper {
+    width: 54px;
+    height: 54px;
+  }
+
+  .combatant-avatar {
+    font-size: 1.7rem;
+  }
+
+  .combatant-role {
+    font-size: 0.65rem;
+  }
+
+  .combatant-name {
+    font-size: 0.85rem;
+  }
+
+  .duel-vs {
+    font-size: 1.1rem;
+  }
+
+  .duel-summary {
+    font-size: 0.82rem;
+    line-height: 1.3;
+  }
+
+  .duel-subhint {
+    font-size: 0.72rem;
+  }
+
+  /* Overlay intro */
+  .intro-card {
+    padding: 18px 12px;
+    max-width: 90vw;
+  }
+
+  .intro-title {
+    font-size: 1.5rem;
+  }
+
+  .intro-subtitle {
+    font-size: 0.82rem;
+  }
+
+  .intro-bucket-svg {
+    width: 80px;
+    height: 80px;
+  }
+}
+
+/* 3. Très petits smartphones (iPhone SE, Galaxy A, écrans <= 480px) */
+@media (max-width: 480px) {
+  #room-pill {
+    max-width: 95px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 4px 6px;
+  }
+
+  .my-castle-pill,
+  .spray-pill {
+    font-size: 0.70rem;
+    padding: 4px 6px;
+  }
+
+  .catapult-icon-switch-btn {
+    width: 54px;
+    height: 54px;
+  }
+
+  .cat-switch-icon {
+    font-size: 1.6rem;
+  }
+
+  .cat-switch-tag {
+    font-size: 0.62rem;
+  }
+
+  .sand-power-trigger-btn {
+    min-width: 100px;
+    max-width: 135px;
+    padding: 0 8px;
+  }
+
+  .sand-power-heading {
+    font-size: 0.72rem;
+  }
+}
+
+/* 4. Format Paysage sur Smartphone (hauteur <= 520px et orientation paysage) */
+@media (max-height: 520px) and (orientation: landscape) {
+  #hud {
+    top: max(4px, env(safe-area-inset-top, 0));
+    min-height: 32px;
+    gap: 4px;
+  }
+
+  .pill {
+    padding: 3px 6px;
+    font-size: 0.70rem;
+  }
+
+  .icon-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 0.85rem;
+  }
+
+  .timer-box {
+    padding: 3px 8px;
+    font-size: 0.85rem;
+  }
+
+  .modal-card {
+    max-height: 96vh;
+    padding: 10px 14px;
+  }
+
+  .brand {
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .brand-logo {
+    max-width: 48px;
+    max-height: 48px;
+  }
+
+  .brand-title {
+    font-size: 1.45rem;
+  }
+
+  .brand-subtitle {
+    font-size: 0.72rem;
+  }
+
+  .atelier-sidebar {
+    max-height: calc(100vh - 44px);
+    top: 36px;
+  }
+
+  .sand-inventory-footer {
+    bottom: max(4px, env(safe-area-inset-bottom, 0));
+    padding: 3px 6px;
+  }
+
+  .sand-catapult-hud {
+    bottom: max(6px, env(safe-area-inset-bottom, 0));
+  }
+
+  .catapult-icon-switch-btn {
+    width: 50px;
+    height: 50px;
+  }
+
+  .cat-switch-icon {
+    font-size: 1.4rem;
+  }
+
+  .cat-switch-tag {
+    font-size: 0.62rem;
+  }
+
+  .duel-intro-card {
+    padding: 10px 14px;
+  }
+
+  .combatant-icon-wrapper {
+    width: 42px;
+    height: 42px;
+  }
+
+  .combatant-avatar {
+    font-size: 1.35rem;
+  }
+
+  .duel-matchup {
+    margin-bottom: 6px;
+  }
+
+  .duel-summary {
+    font-size: 0.76rem;
+    padding: 4px 8px;
+  }
+}
+

@@ -105,6 +105,7 @@ export class Renderer {
     };
     this.resize();
     window.addEventListener('resize', () => this.resize());
+    window.addEventListener('orientationchange', () => setTimeout(() => this.resize(), 120));
   }
 
   _loadSprite(src) {
