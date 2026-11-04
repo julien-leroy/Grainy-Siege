@@ -175,19 +175,69 @@ export class Renderer {
     this.camera.targetZoom = targetZoom;
   }
 
-  updateCamera(dt) {
+  updateCamera(dt = 16, options = {}) {
+    this.lastCameraOptions = options;
     const cw = this.canvas.width;
     const ch = this.canvas.height;
-    // Sable rehaussé : réserve un plateau élégant de 86px en bas pour les commandes et munitions
-    const bottomDeckHeight = 86 * this.dpr;
-    const topMargin = 50 * this.dpr;
-    const fitW = cw / (GRID_W * 1.02);
-    const fitH = (ch - bottomDeckHeight - topMargin) / (GRID_H * 1.04);
-    const baseS = Math.min(fitW, fitH);
-    const s = baseS;
-    const ox = (cw - GRID_W * s) / 2;
-    const oy = (ch - bottomDeckHeight) - GROUND_Y * s;
-    this.view = { s, ox, oy };
+    const isMobile = window.innerWidth <= 768 || window.innerWidth < window.innerHeight;
+    const bottomDeckHeight = (isMobile ? 66 : 86) * this.dpr;
+    const topMargin = (isMobile ? 42 : 50) * this.dpr;
+    const phase = options.phase || 'build';
+    const catapultSide = options.catapultSide || this.catapultSide || 'left';
+
+    let targetS;
+    let targetOx;
+    let targetOy;
+
+    if (!isMobile) {
+      // Sur PC / écran large de bureau : vue complète de l'île (les deux catapultes et le château)
+      const fitW = cw / (GRID_W * 1.02);
+      const fitH = (ch - bottomDeckHeight - topMargin) / (GRID_H * 1.04);
+      targetS = Math.min(fitW, fitH);
+      targetOx = (cw - GRID_W * targetS) / 2;
+      targetOy = (ch - bottomDeckHeight) - GROUND_Y * targetS;
+    } else {
+      // Sur smartphone / écran tactile mobile :
+      if (phase === 'build') {
+        // En phase de construction : cadrage serré sur le château (de BUILD_MIN_X à BUILD_MAX_X) sur toute la largeur
+        const castleSpan = 236; // Largeur château avec marges confortables (centre à 210)
+        const fitW = cw / (castleSpan * 1.01);
+        const fitH = (ch - bottomDeckHeight - topMargin) / (GROUND_Y * 0.96);
+        targetS = Math.min(fitW, fitH);
+        targetOx = (cw / 2) - 210 * targetS;
+        targetOy = (ch - bottomDeckHeight) - GROUND_Y * targetS;
+      } else {
+        // En bataille (défense ou attaque) : centrer sur la catapulte sélectionnée et le château
+        if (catapultSide === 'right') {
+          // Catapulte droite et château (zone x=94 à 384, largeur=290, centre=239)
+          const spanW = 290;
+          const fitW = cw / (spanW * 1.02);
+          const fitH = (ch - bottomDeckHeight - topMargin) / (GRID_H * 1.03);
+          targetS = Math.min(fitW, fitH);
+          targetOx = (cw / 2) - 239 * targetS;
+          targetOy = (ch - bottomDeckHeight) - GROUND_Y * targetS;
+        } else {
+          // Catapulte gauche et château (zone x=36 à 326, largeur=290, centre=181)
+          const spanW = 290;
+          const fitW = cw / (spanW * 1.02);
+          const fitH = (ch - bottomDeckHeight - topMargin) / (GRID_H * 1.03);
+          targetS = Math.min(fitW, fitH);
+          targetOx = (cw / 2) - 181 * targetS;
+          targetOy = (ch - bottomDeckHeight) - GROUND_Y * targetS;
+        }
+      }
+    }
+
+    if (!this.view || !this.viewInitialized) {
+      this.view = { s: targetS, ox: targetOx, oy: targetOy };
+      this.viewInitialized = true;
+    } else {
+      // Transition douce (lerp)
+      const lerp = Math.min(1.0, (Math.max(1, dt) / 1000) * 8.5);
+      this.view.s += (targetS - this.view.s) * lerp;
+      this.view.ox += (targetOx - this.view.ox) * lerp;
+      this.view.oy += (targetOy - this.view.oy) * lerp;
+    }
   }
 
   resize() {
@@ -199,17 +249,8 @@ export class Renderer {
     this.canvas.style.width = `${w}px`;
     this.canvas.style.height = `${h}px`;
     this.dpr = dpr;
-    const cw = this.canvas.width;
-    const ch = this.canvas.height;
-    const bottomDeckHeight = 86 * this.dpr;
-    const topMargin = 50 * this.dpr;
-    const fitW = cw / (GRID_W * 1.02);
-    const fitH = (ch - bottomDeckHeight - topMargin) / (GRID_H * 1.04);
-    const baseS = Math.min(fitW, fitH);
-    const s = baseS;
-    const ox = (cw - GRID_W * s) / 2;
-    const oy = (ch - bottomDeckHeight) - GROUND_Y * s;
-    this.view = { s, ox, oy };
+    this.viewInitialized = false;
+    this.updateCamera(1000, this.lastCameraOptions || {});
     this.drawnKey = null;
   }
 
@@ -2655,60 +2696,101 @@ export class Renderer {
       return;
     }
 
-    const isCooling = cooldownRatio < 1.0;
-    ctx.fillStyle = !ok
-      ? 'rgba(239, 68, 68, 0.5)'
-      : isCooling
-        ? 'rgba(234, 179, 8, 0.35)'
-        : 'rgba(255, 255, 255, 0.48)';
     const { w, h, mask } = shape;
-    for (let y = 0; y < h; y++) {
-      let run = -1;
-      for (let x = 0; x <= w; x++) {
-        const on = x < w && mask[y * w + x];
-        if (on && run < 0) run = x;
-        if (!on && run >= 0) {
-          ctx.fillRect(ox + (pos.left + run) * s, oy + (pos.top + y) * s, (x - run) * s, s + 0.5);
-          run = -1;
+    const isCooling = cooldownRatio < 1.0 && !isPate && shape?.id !== 'pate';
+    const ratio = Math.max(0, Math.min(1.0, cooldownRatio));
+
+    if (!isCooling) {
+      // 1. Motif 100% rempli et prêt : rendu blanc pur lumineux
+      ctx.fillStyle = !ok ? 'rgba(239, 68, 68, 0.55)' : 'rgba(255, 255, 255, 0.68)';
+      for (let y = 0; y < h; y++) {
+        let run = -1;
+        for (let x = 0; x <= w; x++) {
+          const on = x < w && mask[y * w + x];
+          if (on && run < 0) run = x;
+          if (!on && run >= 0) {
+            ctx.fillRect(ox + (pos.left + run) * s, oy + (pos.top + y) * s, (x - run) * s, s + 0.5);
+            run = -1;
+          }
         }
       }
-    }
+    } else {
+      // 2. Motif en cours de remplissage : monte de l'intérieur de bas en haut en jaune avec contour pointillé !
+      const splitY = h * (1.0 - ratio); // Niveau de remplissage (y >= splitY = déjà rempli)
 
-    // Animation du seau qui se remplit au-dessus du motif (UNIQUEMENT pour les patrons, jamais pour le pâté !)
-    if (isCooling && !isPate && shape?.id !== 'pate') {
-      const bx = ox + (pos.left + w / 2) * s;
-      const by = oy + (pos.top - 14) * s;
-      const bw = 16 * this.dpr;
-      const bh = 14 * this.dpr;
+      // Partie supérieure non encore remplie (légère silhouette translucide)
+      ctx.fillStyle = !ok ? 'rgba(239, 68, 68, 0.15)' : 'rgba(255, 255, 255, 0.12)';
+      for (let y = 0; y < h; y++) {
+        if (y >= splitY) continue;
+        let run = -1;
+        for (let x = 0; x <= w; x++) {
+          const on = x < w && mask[y * w + x];
+          if (on && run < 0) run = x;
+          if (!on && run >= 0) {
+            ctx.fillRect(ox + (pos.left + run) * s, oy + (pos.top + y) * s, (x - run) * s, s + 0.5);
+            run = -1;
+          }
+        }
+      }
 
+      // Partie inférieure remplie de bas en haut en jaune sable doré vibrant
+      ctx.fillStyle = !ok ? 'rgba(239, 68, 68, 0.70)' : 'rgba(250, 204, 21, 0.85)';
+      for (let y = 0; y < h; y++) {
+        if (y < splitY) continue;
+        let run = -1;
+        for (let x = 0; x <= w; x++) {
+          const on = x < w && mask[y * w + x];
+          if (on && run < 0) run = x;
+          if (!on && run >= 0) {
+            ctx.fillRect(ox + (pos.left + run) * s, oy + (pos.top + y) * s, (x - run) * s, s + 0.5);
+            run = -1;
+          }
+        }
+      }
+
+      // Ligne de surface dorée scintillante qui monte
+      if (ok && ratio > 0.02 && ratio < 0.98) {
+        ctx.fillStyle = '#fef08a';
+        const lineY = oy + (pos.top + splitY) * s;
+        const cy = Math.floor(splitY);
+        for (let x = 0; x < w; x++) {
+          if (cy >= 0 && cy < h && mask[cy * w + x]) {
+            ctx.fillRect(ox + (pos.left + x) * s, lineY - 1 * this.dpr, s, 2 * this.dpr);
+          }
+        }
+      }
+
+      // Contour du patron en pointillés animés tout autour
       ctx.save();
-      // Cadre seau
-      ctx.fillStyle = 'rgba(2, 132, 199, 0.85)';
-      ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 1.5 * this.dpr;
+      ctx.setLineDash([3.5 * this.dpr, 3 * this.dpr]);
+      ctx.lineDashOffset = -(performance.now() / 48) % (6.5 * this.dpr);
+      ctx.strokeStyle = !ok ? 'rgba(239, 68, 68, 0.95)' : 'rgba(250, 204, 21, 0.95)';
+      ctx.lineWidth = 1.8 * this.dpr;
       ctx.beginPath();
-      ctx.moveTo(bx - bw / 2, by - bh / 2);
-      ctx.lineTo(bx + bw / 2, by - bh / 2);
-      ctx.lineTo(bx + bw * 0.35, by + bh / 2);
-      ctx.lineTo(bx - bw * 0.35, by + bh / 2);
-      ctx.closePath();
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          if (!mask[y * w + x]) continue;
+          const px = ox + (pos.left + x) * s;
+          const py = oy + (pos.top + y) * s;
+          if (y === 0 || !mask[(y - 1) * w + x]) {
+            ctx.moveTo(px, py);
+            ctx.lineTo(px + s, py);
+          }
+          if (y === h - 1 || !mask[(y + 1) * w + x]) {
+            ctx.moveTo(px, py + s);
+            ctx.lineTo(px + s, py + s);
+          }
+          if (x === 0 || !mask[y * w + x - 1]) {
+            ctx.moveTo(px, py);
+            ctx.lineTo(px, py + s);
+          }
+          if (x === w - 1 || !mask[y * w + x + 1]) {
+            ctx.moveTo(px + s, py);
+            ctx.lineTo(px + s, py + s);
+          }
+        }
+      }
       ctx.stroke();
-
-      // Sable qui monte à l'intérieur
-      ctx.save();
-      ctx.clip();
-      const fillH = bh * cooldownRatio;
-      ctx.fillStyle = '#facc15';
-      ctx.fillRect(bx - bw / 2, by + bh / 2 - fillH, bw, fillH);
-      ctx.restore();
-
-      // Anse du seau
-      ctx.strokeStyle = '#cbd5e1';
-      ctx.lineWidth = 1.2 * this.dpr;
-      ctx.beginPath();
-      ctx.arc(bx, by - bh / 2, bw * 0.4, Math.PI, 0);
-      ctx.stroke();
-
       ctx.restore();
     }
 

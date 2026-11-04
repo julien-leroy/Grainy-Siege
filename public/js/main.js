@@ -2516,41 +2516,38 @@ function releaseAndFire() {
 
 let triggerTouchStartX = 0;
 let triggerTouchStartY = 0;
-let triggerDragCancelled = false;
+let triggerCancelled = false;
 
 if (fireTriggerBtn) {
+  fireTriggerBtn.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+  });
+
   fireTriggerBtn.addEventListener('pointerdown', (e) => {
-    if (e.button === 2) {
-      cancelCharging();
+    // Sur PC uniquement : si vrai clic droit de souris, ignorer
+    if (e.pointerType === 'mouse' && e.button === 2) {
       return;
     }
     e.preventDefault();
     unlock();
     triggerTouchStartX = e.clientX;
     triggerTouchStartY = e.clientY;
-    triggerDragCancelled = false;
+    triggerCancelled = false;
     try { fireTriggerBtn.setPointerCapture(e.pointerId); } catch (_) {}
     startCharging();
   });
-  fireTriggerBtn.addEventListener('pointermove', (e) => {
-    if (!isCharging || triggerDragCancelled) return;
-    const dist = Math.hypot(e.clientX - triggerTouchStartX, e.clientY - triggerTouchStartY);
-    if (dist > 75 || (triggerTouchStartY - e.clientY) > 60) {
-      triggerDragCancelled = true;
-      cancelCharging();
-      renderer?.popup?.(GRID_W / 2, GROUND_Y - 30, '❌ Tir annulé', '#facc15');
-    }
-  });
+
   fireTriggerBtn.addEventListener('pointerup', (e) => {
-    if (e.button === 2 || triggerDragCancelled) {
+    e.preventDefault();
+    if (triggerCancelled) {
       cancelCharging();
       return;
     }
-    e.preventDefault();
     releaseAndFire();
   });
+
   fireTriggerBtn.addEventListener('pointercancel', () => {
-    if (triggerDragCancelled) {
+    if (triggerCancelled) {
       cancelCharging();
     } else {
       releaseAndFire();
@@ -2558,19 +2555,35 @@ if (fireTriggerBtn) {
   });
 }
 
-// Clic droit ou contextmenu n'importe où pour annuler immédiatement le tir
-window.addEventListener('pointerdown', (e) => {
-  if (e.button === 2 && isCharging) {
-    e.preventDefault();
-    cancelCharging();
-  }
-});
+// Bloquer l'apparition du menu contextuel au long-press n'importe où
 window.addEventListener('contextmenu', (e) => {
-  if (isCharging) {
+  e.preventDefault();
+  // Ne PAS appeler cancelCharging() ici : sur smartphone, un appui prolongé déclenche contextmenu !
+});
+
+// Annulation du tir :
+// 1) Si le joueur clique/touche AILLEURS sur l'écran pendant qu'il charge le tir
+// 2) Sur PC, si vrai clic droit de souris
+window.addEventListener('pointerdown', (e) => {
+  if (!isCharging) return;
+
+  // Si le clic / touch est AILLEURS que sur le bouton de tir :
+  const isOutsideTrigger = fireTriggerBtn && e.target !== fireTriggerBtn && !fireTriggerBtn.contains(e.target);
+  if (isOutsideTrigger) {
     e.preventDefault();
+    triggerCancelled = true;
+    cancelCharging();
+    renderer?.popup?.(GRID_W / 2, GROUND_Y - 30, '❌ Tir annulé', '#facc15');
+    return;
+  }
+
+  // Sur PC : vrai clic droit de souris pour annuler
+  if (e.pointerType === 'mouse' && e.button === 2) {
+    e.preventDefault();
+    triggerCancelled = true;
     cancelCharging();
   }
-});
+}, { passive: false });
 
 // Relâchement global n'importe où sur l'écran pour garantir le déclenchement immédiat du tir
 window.addEventListener('pointerup', (e) => {
@@ -2980,8 +2993,8 @@ function frame(now) {
   const isShooter = phase === 'battle' && roomState?.turn?.shooterId === myId;
   const curCatSide = isShooter ? myCatapultSide : (roomState?.turn?.catapultSide || 'left');
 
-  // Vue stable plein écran cadrée sur l'ensemble de l'île : catapulte et château toujours 100% visibles
-
+  // Mise à jour de la caméra adaptée au mobile (château plein écran en build, catapulte+château en bataille)
+  renderer.updateCamera(dt, { phase, catapultSide: curCatSide });
 
   renderer.begin(dt);
 
