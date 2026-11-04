@@ -764,9 +764,77 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+
+.roster-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--wood-dark, #3e2723);
+  letter-spacing: 0.2px;
+}
+
+.roster-badge {
+  background: rgba(228, 87, 46, 0.15);
+  color: #c2410c;
+  padding: 3px 10px;
+  border-radius: 999px;
   font-size: 0.85rem;
   font-weight: 800;
-  margin-bottom: 8px;
+  border: 1px solid rgba(228, 87, 46, 0.3);
+}
+
+.add-bot-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: rgba(248, 250, 252, 0.85);
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1.5px dashed rgba(203, 213, 225, 0.9);
+  margin-bottom: 12px;
+}
+
+.bot-select-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.bot-select-label {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.add-bot-panel .bot-difficulty-select {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+}
+
+.btn-add-bot {
+  white-space: nowrap;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 7px 12px;
+  background: #f1f5f9;
+  border: 1.5px solid #cbd5e1;
+  color: #1e293b;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-add-bot:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+  transform: translateY(-1px);
 }
 
 .roster-list {

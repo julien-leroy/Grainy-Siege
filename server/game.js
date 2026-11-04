@@ -1186,11 +1186,19 @@ export class Room {
       const dt = now - t.resolveStart;
       const anyDead = [...this.players.values()].some((p) => p.alive && p.world.king?.dead);
       const isIntermediateShot = t.shotsLeft > 0 && now < t.attackPhaseEndsAt && !anyDead;
-      // Entre deux tirs : attente rapide et raisonnable (~650ms après impact) pour re-tirer sans attendre
-      // Dernier tir : on laisse ~1.8 seconde pour bien admirer les dégâts sur le château
-      const waitTime = isIntermediateShot ? 650 : 1800;
 
-      if (dt >= waitTime) {
+      // Entre deux tirs d'un même joueur : reprise rapide (~650ms après impact)
+      // Dernier tir : on attend que TOUS les grains de sable aient cessé de bouger/tomber (physique stabilisée)
+      // avec un minimum d'observation de 1.5s et un timeout max de sécurité de 5.5s
+      const physicsSettled = target.world.isPhysicsSettled ? target.world.isPhysicsSettled() : target.world.settled;
+      const minWait = isIntermediateShot ? 650 : 1500;
+      const maxSafetyTimeout = 5500;
+
+      const canProceed = isIntermediateShot
+        ? (dt >= minWait)
+        : (dt >= minWait && (physicsSettled || dt >= maxSafetyTimeout));
+
+      if (canProceed) {
         for (const p of this.players.values()) {
           if (p.alive && p.world.king?.dead) {
             if (this.isTraining && this.trainingMode === 'shoot' && p.isBot) {

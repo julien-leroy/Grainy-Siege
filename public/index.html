@@ -142,20 +142,26 @@
             </div>
 
             <div class="roster-header">
-              <span>Bâtisseurs sur la plage (<span id="roster-count">0</span>/8)</span>
-              <div id="add-bot-group" class="add-bot-group">
+              <span class="roster-title">🏖️ Bâtisseurs sur la plage</span>
+              <span class="roster-badge"><span id="roster-count">0</span> / 8</span>
+            </div>
+
+            <div id="add-bot-group" class="add-bot-panel">
+              <div class="bot-select-wrap">
+                <span class="bot-select-label">🤖 IA :</span>
                 <select id="bot-difficulty-select" class="bot-difficulty-select" title="Âge / Niveau de l'IA">
                   <option value="5yo">👶 5 ans (Facile)</option>
                   <option value="12yo" selected>🧒 12 ans (Moyen)</option>
                   <option value="36yo">👷‍♂️ 36 ans, Ingé Vinci (Difficile)</option>
                 </select>
-                <button id="add-bot-btn" class="btn btn-sm" type="button">+ Ajouter 🤖</button>
               </div>
+              <button id="add-bot-btn" class="btn btn-sm btn-add-bot" type="button">+ Ajouter 🤖</button>
             </div>
+
             <ul id="roster-list" class="roster-list"></ul>
 
             <div class="lobby-footer">
-              <button id="start-btn" class="btn btn-primary btn-lg">🚀 Lancer la bataille (1 min de construction)</button>
+              <button id="start-btn" class="btn btn-primary btn-lg">🚀 LANCER LE SIÈGE !</button>
               <button id="leave-room-btn" class="btn btn-sm btn-secondary" style="margin-top: 8px; width: 100%;">🚪 Quitter la plage</button>
               <p id="wait-host-msg" class="hint-msg hidden">En attente du lancement par l'hôte…</p>
             </div>
@@ -243,12 +249,9 @@
 
   <!-- Actions de tir directement dans le sable (près de la catapulte active) -->
   <div id="catapult-hud" class="sand-catapult-hud hidden" aria-label="Commandes de tir dans le sable">
-    <!-- 1. Râtelier des boulets disponibles (max 3) -->
-    <div class="sand-ammo-rack" id="sand-ammo-rack" title="Boulets disponibles pour cette manche (max 3)">
-      <div class="shots-balls" id="shots-balls">
-        <span class="shot-ball available" id="shot-1">☄️</span>
-        <span class="shot-ball available" id="shot-2">☄️</span>
-      </div>
+    <!-- 1. Râtelier des boulets disponibles (max 5) -->
+    <div class="sand-ammo-rack" id="sand-ammo-rack" title="Boulets disponibles pour cette manche (max 5)">
+      <div class="shots-balls" id="shots-balls"></div>
     </div>
 
     <!-- 2. Grand bouton de puissance et tir étiré dans la longueur directement dans le sable -->

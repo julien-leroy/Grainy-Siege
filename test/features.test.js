@@ -1048,4 +1048,55 @@ test('spectateur libre & abandon en restant dans la room (forfeitToSpectator)', 
   assert.equal(room.describe().humanCount, 2);
 });
 
+test('game: attente de stabilisation physique (isPhysicsSettled) avant passage au tour suivant', () => {
+  const room = new Room('SETTLE_TEST', createFakeIo());
+  const p1 = room.addPlayer({ name: 'Alice' });
+  const p2 = room.addPlayer({ name: 'Bob' });
+  room.start(p1.id);
+
+  // Forcer le passage en bataille avec 1 seul tir restant pour Alice
+  room.phase = 'battle';
+  room.round = 0;
+  room.order = [p1.id, p2.id];
+  let tNow = Date.now();
+  room.turn = {
+    shooterId: p1.id,
+    targetId: p2.id,
+    shotsLeft: 1,
+    shotsTotal: 1,
+    state: 'aim',
+    endsAt: tNow + 30000,
+    attackPhaseEndsAt: tNow + 30000,
+  };
+
+  // Alice tire son dernier boulet
+  const fired = room.fire(p1.id, { angle: 0.85, power: 0.60 });
+  assert.ok(fired);
+  assert.equal(room.turn.shotsLeft, 0);
+
+  // Le boulet atterrit, passe en 'resolve'
+  p2.world.ball = null;
+  room.turn.state = 'resolve';
+  room.turn.resolveStart = tNow;
+
+  // Simuler que du sable est encore en mouvement après 1600ms (ex: éboulement qui glisse)
+  p2.world.tick = 100;
+  p2.world.lastGrainMotionTick = 95; // il a bougé il y a 5 ticks seulement
+  p2.world.quietTicks = 0;
+  assert.equal(p2.world.isPhysicsSettled(), false, 'le monde ne doit pas être considéré comme stabilisé');
+
+  // À dt = 1600ms (> minWait de 1500ms), le tour ne DOIT PAS passer à Bob car le sable bouge encore !
+  room.tickBattle(tNow + 1600);
+  assert.equal(room.turn.shooterId, p1.id, 'le tour reste sur Alice pendant que le sable s effondre');
+
+  // Le sable s'immobilise enfin
+  p2.world.tick = 140; // 45 ticks sans mouvement
+  assert.equal(p2.world.isPhysicsSettled(), true, 'le monde est enfin stabilisé');
+
+  // Maintenant, le tour peut passer en toute sécurité à Bob
+  room.tickBattle(tNow + 2000);
+  assert.equal(room.turn.shooterId, p2.id, 'passe enfin à Bob une fois le sable totalement arrêté');
+});
+
+
 

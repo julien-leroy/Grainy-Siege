@@ -1478,10 +1478,10 @@ function updateAmmoRack(s, me, isUnlimitedAmmo) {
     }
   }
 
-  // Nettoyer les munitions plus possédées sans tout recréer
+  // Nettoyer les munitions plus possédées et tout bouton résiduel non typé
   for (const child of Array.from(shotsBallsEl.children)) {
-    const t = child.dataset.ammo;
-    if (t && !visibleTypes.has(t)) {
+    const t = child.dataset?.ammo;
+    if (!t || !visibleTypes.has(t)) {
       child.remove();
     }
   }
@@ -1711,7 +1711,8 @@ function syncUI() {
     const triggerLabelEl = $('trigger-label');
     const triggerBoltEl = document.querySelector('.power-bolt');
     if (triggerLabelEl && triggerBoltEl) {
-      const catEntry = AMMO_CATALOG.find((a) => a.type === selectedAmmo);
+      const activeAmmo = me?.selectedAmmo || s.turn?.selectedAmmo || 'sand';
+      const catEntry = AMMO_CATALOG.find((a) => a.type === activeAmmo);
       triggerBoltEl.textContent = catEntry ? catEntry.bolt : '⚡';
       if (!isCharging) triggerLabelEl.textContent = 'Tirer !!';
     }

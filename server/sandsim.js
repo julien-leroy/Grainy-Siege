@@ -182,6 +182,7 @@ export class SandWorld {
     this.structDirty = true;
     this.tick = 0;
     this.quietTicks = 0;
+    this.lastGrainMotionTick = 0;
     this.version = 0;
     this.events = [];
     this.rng = mulberry32(seed);
@@ -582,9 +583,12 @@ export class SandWorld {
     if (this.sleeping) return;
     this.tick++;
     let activity = 0;
-    activity += this.stepGrains();
-    activity += this.stepParticles();
-    activity += this.stepAcid();
+    const moved = this.stepGrains();
+    activity += moved;
+    const parts = this.stepParticles();
+    activity += parts;
+    const acid = this.stepAcid();
+    activity += acid;
     if (this.ball) {
       this.stepBall();
       activity++;
@@ -593,8 +597,13 @@ export class SandWorld {
     if (this.floatingActive || (this.structDirty && this.tick % CONFIG.structureInterval === 0)) {
       const failed = this.analyzeStructure();
       activity += failed;
+      if (failed > 0) this.lastGrainMotionTick = this.tick;
     }
-    if (this.drying && this.tick % 6 === 0) {
+    if (moved > 0 || parts > 0 || acid > 0 || this.ball || this.floatingActive) {
+      this.lastGrainMotionTick = this.tick;
+    }
+    // Séchage équilibré et progressif (tous les 7 ticks, taux modéré)
+    if (this.drying && this.tick % 7 === 0) {
       const dried = this.stepDrying();
       if (dried > 0) activity++;
     }
@@ -610,7 +619,7 @@ export class SandWorld {
     if (!this.drying) return 0;
     const { type, moist, moistTmp } = this;
     moistTmp.set(moist);
-    const D = 0.10; // Diffusion capillaire naturelle entre grains voisins
+    const D = 0.04; // Diffusion capillaire naturelle douce entre grains voisins
     let driedCount = 0;
     for (let y = 0; y < GROUND_Y; y++) {
       const row = y * W;
@@ -648,10 +657,10 @@ export class SandWorld {
           else if (isStructural(nt)) { sumDelta += moist[i + 1] - m; nbCount++; }
         }
 
-        // Taux d'évaporation équilibré et progressif :
+        // Taux d'évaporation équilibré, naturel et progressif :
         // Le sable sèche lentement depuis l'extérieur (faces exposées) vers l'intérieur
         if (exposedFaces > 0) {
-          const baseRate = t === HARD ? 0.08 : 0.20;
+          const baseRate = t === HARD ? 0.06 : 0.14;
           const faceMultiplier = 0.75 + exposedFaces * 0.25;
           m -= baseRate * faceMultiplier;
           driedCount++;
@@ -674,6 +683,10 @@ export class SandWorld {
 
   get settled() {
     return this.quietTicks > 20 && !this.ball && this.particles.length === 0 && !this.floatingActive && this.acidCount === 0;
+  }
+
+  isPhysicsSettled() {
+    return !this.ball && this.particles.length === 0 && !this.floatingActive && (this.quietTicks > 20 || (this.tick - this.lastGrainMotionTick >= 25));
   }
 
   moveCell(from, to, v) {
@@ -1111,9 +1124,9 @@ export class SandWorld {
   impact(x, y, vx, vy, ballR, isSpike = false, isIron = false, isSandBall = true) {
     const { type, damage, rng } = this;
     const speed = Math.hypot(vx, vy);
-    const spikeRMult = isSpike ? 1.20 : (isIron ? 1.16 : 1.0);
+    const spikeRMult = isSpike ? 1.20 : (isIron ? 1.06 : 1.0);
     const R = Math.min(CONFIG.craterMax * 1.5, (CONFIG.craterBase + speed * CONFIG.craterPerSpeed) * spikeRMult) * this.ballScale;
-    const R2 = R * (isSpike ? CONFIG.shockFactor * 1.08 : (isIron ? CONFIG.shockFactor * 1.18 : CONFIG.shockFactor));
+    const R2 = R * (isSpike ? CONFIG.shockFactor * 1.08 : (isIron ? CONFIG.shockFactor * 1.06 : CONFIG.shockFactor));
     const x0 = Math.max(0, Math.floor(x - R2));
     const x1 = Math.min(W - 1, Math.ceil(x + R2));
     const y0 = Math.max(0, Math.floor(y - R2));
@@ -1121,7 +1134,8 @@ export class SandWorld {
     const nx = vx / (speed || 1);
     const ny = vy / (speed || 1);
 
-    if ((isSpike || isIron) && this.king) {
+    // Seul le boulet à pointes (isSpike) a une létalité accrue à distance contre le Roi
+    if (isSpike && this.king) {
       const kDist = Math.hypot(this.king.x + KING_W / 2 - x, this.king.y + KING_H / 2 - y);
       if (kDist <= R * 1.05) {
         this.killKing('touché');
@@ -1139,9 +1153,9 @@ export class SandWorld {
         const d = Math.hypot(dx, dy);
         if (d > R2) continue;
         const isDry = this.moist[i] < 60; // Sable structuré asséché vs sable mouillé
-        // Le boulet en fer (isIron) fait des dégâts massifs au SABLE MOUILLÉ surtout (!isDry) !
+        // Le boulet en fer (isIron) est équilibré : efficace sur sable mouillé (!isDry) sans être démesuré
         const craterRadius = isIron
-          ? (!isDry ? R * 1.25 : R * 0.65)
+          ? (!isDry ? R * 1.05 : R * 0.65)
           : isSpike
             ? (t === HARD ? R * 0.75 : R * 0.98)
             : (t === HARD ? R * 0.62 : R);
@@ -1150,9 +1164,9 @@ export class SandWorld {
           type[i] = EMPTY;
           this.vel[i] = 0;
           damage[i] = 0;
-          if (rng() < (isSpike ? 0.75 : isIron ? 0.80 : CONFIG.ejectaRatio)) {
+          if (rng() < (isSpike ? 0.75 : isIron ? 0.65 : CONFIG.ejectaRatio)) {
             const inv = 1 / (d || 1);
-            const kick = (0.6 + rng() * 1.6) * (0.5 + speed * 0.35) * (isSpike || isIron ? 1.18 : 1.0);
+            const kick = (0.6 + rng() * 1.6) * (0.5 + speed * 0.35) * (isSpike ? 1.18 : (isIron ? 1.08 : 1.0));
             this.spawnParticle(
               cx + 0.5, cy + 0.5,
               dx * inv * kick + nx * speed * 0.3 + (rng() - 0.5) * 0.6,
@@ -1162,22 +1176,22 @@ export class SandWorld {
           }
         } else if (isStructural(t)) {
           const f = Math.max(0, 1 - (d - craterRadius) / (R2 - craterRadius));
-          // Pour isIron : l'onde de choc hydraulique dévaste le sable mouillé/durci (!isDry)
+          // Pour isIron : impact percutant sur le sable mouillé/durci (!isDry), modéré et équilibré
           const resist = isIron
-            ? (!isDry ? 1.45 : 0.55)
+            ? (!isDry ? 1.20 : 0.55)
             : isSpike
               ? 0.85
               : (t === HARD ? 0.48 : 1);
           const moistureDmgMult = isIron
-            ? (!isDry ? 2.8 : 0.75)
+            ? (!isDry ? 1.85 : 0.75)
             : (isDry ? 2.6 : 1.0);
-          const specialMult = isSpike ? 1.4 : (isIron ? 1.35 : 1.0);
+          const specialMult = isSpike ? 1.4 : (isIron ? 1.15 : 1.0);
           damage[i] = Math.min(255, damage[i] + f * CONFIG.shockDamage * resist * moistureDmgMult * specialMult * (0.6 + rng() * 0.8));
-          if (t === HARD && (damage[i] > 160 || (isIron && !isDry && rng() < 0.75) || (isSpike && rng() < 0.35))) {
+          if (t === HARD && (damage[i] > 160 || (isIron && !isDry && rng() < 0.60) || (isSpike && rng() < 0.35))) {
             type[i] = WET;
           }
           const looseChance = isIron
-            ? (!isDry ? Math.min(0.92, f * 1.25) : f * 0.30)
+            ? (!isDry ? Math.min(0.78, f * 1.05) : f * 0.30)
             : isSpike
               ? Math.min(0.85, f * 1.15)
               : (isDry ? Math.min(0.96, f * 0.96) : (f * CONFIG.shockLooseChance * resist));
@@ -1189,17 +1203,17 @@ export class SandWorld {
             const canPush = isIron ? !isDry : isDry;
             if (canPush && Math.abs(nx) > 0.2) {
               const pushX = cx + (nx > 0 ? 1 : -1);
-              if (pushX >= 0 && pushX < W && type[cy * W + pushX] === EMPTY && rng() < 0.75) {
+              if (pushX >= 0 && pushX < W && type[cy * W + pushX] === EMPTY && rng() < 0.70) {
                 type[cy * W + pushX] = isIron ? LOOSE : (rng() < 0.5 ? DRY : LOOSE);
                 this.vel[cy * W + pushX] = Math.abs(vx) * 0.5;
                 type[i] = EMPTY;
               }
             }
 
-            // Fissuration profonde (sur sable mouillé pour le boulet de fer, sur sable sec/pointes sinon)
+            // Fissuration (sur sable mouillé pour le boulet de fer, sur sable sec/pointes sinon)
             const canFissure = isIron ? !isDry : (isDry || isSpike);
-            if (canFissure && rng() < (isSpike || isIron ? 0.90 : 0.75)) {
-              const fissureLen = (isSpike || isIron ? 6 : 4) + Math.floor(rng() * 5);
+            if (canFissure && rng() < (isSpike ? 0.90 : (isIron ? 0.75 : 0.70))) {
+              const fissureLen = (isSpike ? 6 : (isIron ? 4 : 4)) + Math.floor(rng() * 4);
               const dirY = rng() < 0.35 ? 1 : -1;
               const dirX = nx > 0 ? 1 : (nx < 0 ? -1 : (rng() < 0.5 ? -1 : 1));
               let fy = cy + dirY;
@@ -1209,10 +1223,10 @@ export class SandWorld {
                 const fi = fy * W + fx;
                 if (isStructural(type[fi])) {
                   if (isIron && this.moist[fi] < 60) continue; // Le fer fissure en priorité le sable mouillé
-                  damage[fi] = Math.min(255, damage[fi] + (isSpike || isIron ? 155 : 115));
-                  if (rng() < 0.85) {
+                  damage[fi] = Math.min(255, damage[fi] + (isSpike ? 155 : (isIron ? 105 : 115)));
+                  if (rng() < 0.80) {
                     type[fi] = isIron ? LOOSE : (rng() < 0.5 ? DRY : LOOSE);
-                    this.vel[fi] = 0.6;
+                    this.vel[fi] = 0.5;
                   }
                 }
               }
