@@ -1098,5 +1098,39 @@ test('game: attente de stabilisation physique (isPhysicsSettled) avant passage a
   assert.equal(room.turn.shooterId, p2.id, 'passe enfin à Bob une fois le sable totalement arrêté');
 });
 
+test('sandsim: aucune onde de choc ne tue le roi, l acide inflige des degats progressifs comme le sable', () => {
+  const w = new SandWorld(55);
+  w.armed = true;
+  w.placeKing(210, GROUND_Y - 8);
+  assert.equal(w.king.dead, false);
+  assert.equal(w.king.hits, 0);
+
+  // 1. Impact puissant à proximité immédiate (onde de choc) avec boulet à pointes
+  // À 5 pixels du Roi (kDist ~ 5 < R)
+  w.impact(215, GROUND_Y - 8, 4, 3, 5, true, false, false);
+  // Aucune onde de choc ne tue le roi !
+  assert.equal(w.king.dead, false, 'l onde de choc ne tue pas le Roi à distance');
+
+  // 2. Explosion de grenade à proximité immédiate
+  w.grenadeExplosion(215, GROUND_Y - 8, 5);
+  assert.equal(w.king.dead, false, 'le souffle d explosion ne tue pas le Roi à distance');
+
+  // 3. Acide qui coule sur le Roi : inflige des dégâts (hits) comme le sable, sans one-shot
+  // Déposer 3 grains d'acide au-dessus de la tête du Roi
+  const kx = w.king.x + 1;
+  const ky = w.king.y - 2;
+  w.type[ky * GRID_W + kx] = T.ACID;
+  w.vel[ky * GRID_W + kx] = 1.0;
+  w.acidCount = 1;
+
+  // Laisser tomber le grain d'acide sur le Roi
+  w.step();
+  w.step();
+  // Le Roi doit avoir pris des hits (comme un grain de sable) sans mourir instantanément
+  assert.ok(w.king.hits > 0, 'le Roi a pris des hits de l acide qui lui coule dessus');
+  assert.equal(w.king.dead, false, 'un grain d acide ne le one-shot pas en un coup');
+});
+
+
 
 

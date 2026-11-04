@@ -745,12 +745,8 @@ export class SandWorld {
           const falling = vel[cur] > 0.45 || n > 0;
           if (falling) {
             if (bt === KING) {
-              if (ct === ACID) {
-                this.killKing('acide');
-                if (this.acidCount > 0) this.acidCount--;
-              } else {
-                this.kingHit(v);
-              }
+              this.kingHit(v > 0.5 ? v : 1);
+              if (ct === ACID && this.acidCount > 0) this.acidCount--;
               type[cur] = EMPTY;
               vel[cur] = 0;
               this.damage[cur] = 0;
@@ -839,7 +835,7 @@ export class SandWorld {
           const ni = ny * W + nx;
           const nt = type[ni];
           if (nt === KING) {
-            this.killKing('acide');
+            this.kingHit(1);
             targetIdx = -2;
             break;
           }
@@ -868,7 +864,7 @@ export class SandWorld {
             const ni = ny * W + nx;
             const nt = type[ni];
             if (nt === KING) {
-              this.killKing('acide');
+              this.kingHit(1);
               targetIdx = -2;
               break;
             }
@@ -891,6 +887,13 @@ export class SandWorld {
           fizzX = x;
           fizzY = y;
           // Décrémente le quota de grains restants pour ce grain d'acide
+          moist[i]--;
+        } else if (targetIdx === -2) {
+          // Ronge le Roi : inflige des dégâts (comme le sable) et s'épuise
+          activity++;
+          corrodedThisTick++;
+          fizzX = x;
+          fizzY = y;
           moist[i]--;
         } else if (targetIdx === -1) {
           // Pas de sable jaune autour : s'épuise plus lentement
@@ -1134,15 +1137,6 @@ export class SandWorld {
     const nx = vx / (speed || 1);
     const ny = vy / (speed || 1);
 
-    // Seul le boulet à pointes (isSpike) a une létalité accrue à distance contre le Roi
-    if (isSpike && this.king) {
-      const kDist = Math.hypot(this.king.x + KING_W / 2 - x, this.king.y + KING_H / 2 - y);
-      if (kDist <= R * 1.05) {
-        this.killKing('touché');
-        this.events.push({ type: 'kingHit', x, y });
-      }
-    }
-
     for (let cy = y0; cy <= y1; cy++) {
       for (let cx = x0; cx <= x1; cx++) {
         const i = cy * W + cx;
@@ -1310,15 +1304,6 @@ export class SandWorld {
       }
     }
 
-    // Le Roi est vulnérable uniquement si la grenade explose à proximité immédiate
-    if (this.king) {
-      const kDist = Math.hypot(this.king.x + KING_W / 2 - x, this.king.y + KING_H / 2 - y);
-      if (kDist <= R * 0.85) {
-        this.killKing('explosion');
-        this.events.push({ type: 'kingHit', x, y });
-      }
-    }
-
     // Paquets d'éjectas latéraux modérés projetés à gauche et à droite
     for (let k = 0; k < 12; k++) {
       const side = k % 2 === 0 ? -1 : 1;
@@ -1353,6 +1338,7 @@ export class SandWorld {
           const idx = aboveY * W + k.x + x;
           const t = this.type[idx];
           if (t !== EMPTY && t !== GROUND && t !== KING) {
+            if (t === ACID && this.acidCount > 0) this.acidCount--;
             this.type[idx] = EMPTY;
             this.vel[idx] = 0;
             this.damage[idx] = 0;
