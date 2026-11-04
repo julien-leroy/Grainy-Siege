@@ -13,6 +13,13 @@ export const BOT_PROFILES = {
     ageLabel: '5 ans',
     difficultyLabel: 'Facile',
     names: ['Timothée', 'Titouan', 'Enzo', 'Louka', 'Corentin', 'Mathéo', 'Antonin', 'Jules-Arthur'],
+    taglines: [
+      '5 ans, caca dans sa couche',
+      '4 ans, confond ses pieds et ses mains',
+      '5 ans, mange du sable au goûter',
+      '3 ans et demi, pleure quand la vague arrive',
+      '5 ans, tourne en rond les yeux fermés',
+    ],
     skill: 0.68,
   },
   '12yo': {
@@ -20,6 +27,14 @@ export const BOT_PROFILES = {
     ageLabel: '12 ans',
     difficultyLabel: 'Moyen',
     names: ['Kévin', 'Dylan', 'Bryan', 'Jordan', 'Killian', 'Rayan', 'Brandon', 'Maxence'],
+    taglines: [
+      '11 ans, joueur roblox',
+      '13 ans, fait du skate',
+      '12 ans, a une érection',
+      '15 ans, la technique de la main dans la poche',
+      '12 ans, écoute Jul en cachette',
+      '14 ans, fume des allumettes',
+    ],
     skill: 0.88,
   },
   '36yo': {
@@ -27,6 +42,14 @@ export const BOT_PROFILES = {
     ageLabel: '36 ans, Ingénieur chez Vinci',
     difficultyLabel: 'Difficile',
     names: ['Jean-Eudes', 'Thierry', 'Hubert', 'Didier', 'Gonzague', 'Bertrand', 'Patrice', 'Alain-Michel'],
+    taglines: [
+      '42 ans, technicien btp',
+      '32 ans, ingénieur en thermodynamique',
+      '36 ans, conducteur de travaux autoroutiers',
+      '38 ans, expert résistance des matériaux',
+      '45 ans, chef de chantier chez Bouygues',
+      '36 ans, Ingénieur chez Vinci',
+    ],
     skill: 0.99,
   },
 };
@@ -34,7 +57,9 @@ export const BOT_PROFILES = {
 export function getBotName(difficulty = '5yo', i = 0) {
   const profile = BOT_PROFILES[difficulty] || BOT_PROFILES['5yo'];
   const name = profile.names[i % profile.names.length];
-  return `${name} (${profile.ageLabel})`;
+  const taglines = profile.taglines || [];
+  const tag = taglines.length > 0 ? taglines[i % taglines.length] : profile.ageLabel;
+  return `${name} (${tag})`;
 }
 
 // Rétrocompatibilité botName

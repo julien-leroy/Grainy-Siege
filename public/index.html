@@ -149,10 +149,10 @@
             <div id="add-bot-group" class="add-bot-panel">
               <div class="bot-select-wrap">
                 <span class="bot-select-label">🤖 IA :</span>
-                <select id="bot-difficulty-select" class="bot-difficulty-select" title="Âge / Niveau de l'IA">
-                  <option value="5yo">👶 5 ans (Facile)</option>
-                  <option value="12yo" selected>🧒 12 ans (Moyen)</option>
-                  <option value="36yo">👷‍♂️ 36 ans, Ingé Vinci (Difficile)</option>
+                <select id="bot-difficulty-select" class="bot-difficulty-select" title="Niveau de l'IA">
+                  <option value="5yo">🟢 IA Facile</option>
+                  <option value="12yo" selected>🟡 IA Moyenne</option>
+                  <option value="36yo">🔴 IA Difficile</option>
                 </select>
               </div>
               <button id="add-bot-btn" class="btn btn-sm btn-add-bot" type="button">+ Ajouter 🤖</button>
@@ -317,10 +317,10 @@
       <h2>CAMP D'ENTRAÎNEMENT</h2>
       <div class="training-difficulty-box">
         <label for="train-ai-difficulty-select" class="training-difficulty-label">Niveau de l'Adversaire IA :</label>
-        <select id="train-ai-difficulty-select" class="train-difficulty-select">
-          <option value="5yo">👶 Timothée (5 ans - Facile)</option>
-          <option value="12yo" selected>🧒 Kévin (12 ans - Moyen)</option>
-          <option value="36yo">👷‍♂️ Jean-Eudes (36 ans, Ingénieur Vinci - Difficile)</option>
+        <select id="train-ai-difficulty-select" class="train-difficulty-select" title="Niveau de l'IA">
+          <option value="5yo">🟢 IA Facile</option>
+          <option value="12yo" selected>🟡 IA Moyenne</option>
+          <option value="36yo">🔴 IA Difficile</option>
         </select>
       </div>
       <div class="training-modes-grid">
@@ -336,6 +336,26 @@
         </button>
       </div>
       <button id="training-modal-cancel-btn" class="btn btn-sm btn-secondary" type="button" style="margin-top:14px;">Fermer</button>
+    </div>
+  </section>
+
+  <!-- Modale Menu Pause (Touche Échap hors tir / Clic sur la croix rouge) -->
+  <section id="pause-modal" class="modal-backdrop hidden" aria-modal="true" role="dialog">
+    <div class="modal-card pause-modal-card">
+      <div class="pause-icon">⏸️</div>
+      <h2>PAUSE</h2>
+      <p id="pause-subtitle" class="pause-subtitle">Que souhaites-tu faire ?</p>
+      <div class="pause-actions-list">
+        <button id="pause-resume-btn" class="btn btn-primary btn-lg" type="button">
+          ▶️ Reprendre le siège
+        </button>
+        <button id="pause-lobby-btn" class="btn btn-secondary btn-lg" type="button">
+          🏖️ Revenir au salon (Lobby)
+        </button>
+        <button id="pause-leave-btn" class="btn btn-danger btn-lg" type="button">
+          🚪 Quitter la plage
+        </button>
+      </div>
     </div>
   </section>
 

@@ -2596,33 +2596,91 @@ function fireCatapult() {
   });
 }
 
-// Bouton rouge pour quitter la partie (croix rouge)
+// ==================== Menu Pause (Échap hors tir / Clic sur la croix rouge) ====================
+let isPauseOpen = false;
+
+function openPauseMenu() {
+  // Ne pas ouvrir la pause si on est déjà sur l'accueil déconnecté sans salon
+  if (!roomState && !myId) return;
+  isPauseOpen = true;
+  const s = roomState;
+  const me = s?.players?.find((p) => p.id === myId);
+
+  const sub = $('pause-subtitle');
+  if (sub) {
+    if (s?.phase === 'lobby') {
+      sub.textContent = 'Tu es dans le salon de la plage.';
+    } else if (me?.isSpectator) {
+      sub.textContent = 'Tu observes la bataille en tant que spectateur.';
+    } else {
+      sub.textContent = 'Que souhaites-tu faire pendant la bataille ?';
+    }
+  }
+
+  // Adapter le bouton reprendre selon le contexte
+  const resumeBtn = $('pause-resume-btn');
+  if (resumeBtn) {
+    resumeBtn.textContent = s?.phase === 'lobby' ? '🏖️ Rester dans le salon' : '▶️ Reprendre le siège';
+  }
+
+  $('pause-modal')?.classList.remove('hidden');
+}
+
+function closePauseMenu() {
+  isPauseOpen = false;
+  $('pause-modal')?.classList.add('hidden');
+}
+
+// Clics sur les actions de la modale Pause
+$('pause-resume-btn')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  unlock();
+  closePauseMenu();
+});
+
+$('pause-lobby-btn')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  unlock();
+  closePauseMenu();
+  const s = roomState;
+  const me = s?.players?.find((p) => p.id === myId);
+
+  // Si on est en pleine partie et vivant, abandonner le château vers le mode spectateur
+  if (s && s.phase !== 'lobby' && me && me.alive && !me.isSpectator) {
+    socket.emit('forfeit', {});
+    toast('👀 Château abandonné : tu es désormais spectateur du salon.');
+  }
+
+  // Revenir à l'affichage du salon / lobby
+  isWatchingGame = false;
+  inspectingOwnCastle = false;
+  stopGameLoop();
+  $('scene')?.classList.add('hidden');
+  $('hud')?.classList.add('hidden');
+  $('catapult-hud')?.classList.add('hidden');
+  $('battle-timeline')?.classList.add('hidden');
+  $('defender-controls')?.classList.add('hidden');
+  $('over-modal')?.classList.add('hidden');
+  $('welcome-view')?.classList.add('hidden');
+  $('room-view')?.classList.remove('hidden');
+  $('lobby-modal')?.classList.remove('hidden');
+  syncUI();
+});
+
+$('pause-leave-btn')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  unlock();
+  closePauseMenu();
+  leaveRoom();
+});
+
+// Bouton rouge pour quitter la partie (croix rouge) -> Ouvre désormais le menu pause sans alert() JS
 const quitGameBtn = $('quit-game-btn');
 if (quitGameBtn) {
   quitGameBtn.addEventListener('click', (e) => {
     e.preventDefault();
     unlock();
-    const s = roomState;
-    if (!s || s.phase === 'lobby') {
-      if (confirm('🚪 Quitter le salon et retourner à l\'accueil ?')) {
-        leaveRoom();
-      }
-      return;
-    }
-    const me = s.players.find((p) => p.id === myId);
-    if (!me || !me.alive || me.isSpectator) {
-      if (confirm('🚪 Quitter définitivement la salle et retourner à l\'accueil ?')) {
-        leaveRoom();
-      }
-      return;
-    }
-    if (confirm('❌ Abandonner ton château et passer en mode spectateur ?\n(Tu resteras dans la salle pour continuer à observer la bataille)')) {
-      socket.emit('forfeit', {});
-      isWatchingGame = true;
-      inspectingOwnCastle = false;
-      toast('👀 Tu as capitulé. Tu es maintenant spectateur de la bataille.');
-      syncUI();
-    }
+    openPauseMenu();
   });
 }
 
@@ -2651,15 +2709,29 @@ if (sideRightBtn) {
 
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
+    // 1. Si on est en train de charger un tir, Échap annule la charge
     if (isCharging) {
       e.preventDefault();
       cancelCharging();
       return;
     }
+    // 2. Si le menu pause est déjà ouvert, Échap le referme (reprendre)
+    if (isPauseOpen) {
+      e.preventDefault();
+      closePauseMenu();
+      return;
+    }
+    // 3. Si un spray était sélectionné en défense, le désélectionner
     if (battleSpraySelected) {
       battleSpraySelected = false;
       activeTool = 'pate';
       renderer.popup(pointer.x, pointer.y - 8, 'Spray désélectionné', '#94a3b8');
+      return;
+    }
+    // 4. Sinon, Échap ouvre le menu pause interactif
+    if (roomState || myId) {
+      e.preventDefault();
+      openPauseMenu();
       return;
     }
   }

@@ -972,13 +972,13 @@ test('bot: 3 niveaux de difficulté (5 ans, 12 ans, 36 ans Ingénieur Vinci)', (
   const bot36 = room.addBot('36yo');
 
   assert.equal(bot5.difficulty, '5yo');
-  assert.ok(bot5.name.includes('(5 ans)'), `Nom attendu avec '5 ans', reçu: ${bot5.name}`);
+  assert.ok(bot5.name.includes('ans'), `Nom attendu avec un sous-titre d'âge (ex: 5 ans ou 4 ans), reçu: ${bot5.name}`);
 
   assert.equal(bot12.difficulty, '12yo');
-  assert.ok(bot12.name.includes('(12 ans)'), `Nom attendu avec '12 ans', reçu: ${bot12.name}`);
+  assert.ok(bot12.name.includes('ans'), `Nom attendu avec un sous-titre d'âge (ex: 11 ans, 12 ans, etc.), reçu: ${bot12.name}`);
 
   assert.equal(bot36.difficulty, '36yo');
-  assert.ok(bot36.name.includes('(36 ans, Ingénieur chez Vinci)'), `Nom attendu avec 'Vinci', reçu: ${bot36.name}`);
+  assert.ok(bot36.name.includes('ans'), `Nom attendu avec un sous-titre d'âge/métier (ex: 42 ans btp, 36 ans Vinci, etc.), reçu: ${bot36.name}`);
 
   // 2. Vérification des plans de construction
   const rng = () => 0.5;

@@ -2938,15 +2938,27 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
 
 /* ==================== Modale de choix d'entraînement ==================== */
 .training-choice-card {
-  max-width: 560px;
+  max-width: 580px;
   text-align: center;
-  border-color: #38bdf8;
+  background: var(--glass-bg, rgba(255, 251, 240, 0.96));
+  border: 3px solid var(--sand-border, #d9b982);
+  border-radius: var(--radius-lg, 22px);
+  box-shadow: var(--glass-shadow, 0 14px 36px rgba(44, 30, 18, 0.22));
+  color: var(--wood-dark, #2c1e12);
+}
+
+.training-choice-card h2 {
+  color: var(--wood-dark, #2c1e12);
+  font-family: 'Fredoka', 'Nunito', sans-serif;
+  font-size: 1.55rem;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
 }
 
 .training-modes-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 14px;
   margin-top: 14px;
 }
 
@@ -2954,40 +2966,44 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 16px 14px;
-  border-radius: 16px;
-  background: rgba(15, 23, 42, 0.78);
-  border: 2px solid rgba(56, 189, 248, 0.45);
-  color: #f8fafc;
+  gap: 10px;
+  padding: 18px 16px;
+  border-radius: var(--radius-md, 16px);
+  background: #ffffff;
+  border: 2.5px solid var(--sand-border, #d9b982);
+  color: var(--wood-dark, #2c1e12);
   cursor: pointer;
   text-align: center;
-  transition: all 0.18s ease;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 4px 12px rgba(44, 30, 18, 0.08);
   font-family: inherit;
 }
 
 .training-mode-card:hover {
-  background: rgba(14, 116, 144, 0.45);
-  border-color: #fde047;
+  background: #fffdf7;
+  border-color: #f59e0b;
   transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(56, 189, 248, 0.3);
+  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.28), 0 4px 0 #d97706;
 }
 
 .training-mode-icon {
-  font-size: 2.1rem;
+  font-size: 2.3rem;
   line-height: 1.1;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
 .training-mode-title {
-  font-size: 1rem;
+  font-size: 1.05rem;
   font-weight: 800;
-  color: #fde047;
+  color: var(--wood-dark, #2c1e12);
+  font-family: 'Fredoka', 'Nunito', sans-serif;
 }
 
 .training-mode-desc {
-  font-size: 0.78rem;
-  color: #cbd5e1;
-  line-height: 1.35;
+  font-size: 0.82rem;
+  color: var(--wood-soft, #634932);
+  line-height: 1.4;
+  font-weight: 600;
 }
 
 /* ==================== Contrôles d'entraînement dans le HUD ==================== */
@@ -3072,19 +3088,26 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
 }
 
 .bot-difficulty-select {
-  padding: 5px 8px;
-  font-size: 0.8rem;
-  font-weight: 700;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  font-weight: 800;
   border-radius: 8px;
-  background: rgba(30, 41, 59, 0.9);
-  color: #fef08a;
-  border: 1.5px solid rgba(245, 158, 11, 0.5);
+  background: #ffffff;
+  color: var(--wood-dark, #2c1e12);
+  border: 1.5px solid var(--sand-border, #d9b982);
   cursor: pointer;
   outline: none;
+  box-shadow: 0 1px 4px rgba(44, 30, 18, 0.08);
+  transition: all 0.15s ease;
+}
+.bot-difficulty-select:hover,
+.bot-difficulty-select:focus {
+  border-color: #f59e0b;
 }
 .bot-difficulty-select option {
-  background: #1e293b;
-  color: #fff;
+  background: #ffffff;
+  color: var(--wood-dark, #2c1e12);
+  font-weight: 700;
 }
 
 .training-difficulty-box {
@@ -3093,32 +3116,41 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   justify-content: center;
   gap: 10px;
   margin: 4px 0 16px 0;
-  padding: 8px 14px;
-  background: rgba(0, 0, 0, 0.25);
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 10px 16px;
+  background: rgba(243, 227, 195, 0.45);
+  border-radius: var(--radius-sm, 12px);
+  border: 1.5px solid var(--sand-border, #d9b982);
 }
 
 .training-difficulty-label {
   font-size: 0.88rem;
   font-weight: 800;
-  color: #fae29c;
+  color: var(--wood-dark, #2c1e12);
 }
 
 .train-difficulty-select {
   padding: 6px 12px;
   font-size: 0.88rem;
-  font-weight: 700;
+  font-weight: 800;
   border-radius: 8px;
-  background: rgba(15, 23, 42, 0.9);
-  color: #fef08a;
-  border: 1.5px solid #f59e0b;
+  background: #ffffff;
+  color: var(--wood-dark, #2c1e12);
+  border: 2px solid var(--sand-border, #d9b982);
   cursor: pointer;
   outline: none;
+  box-shadow: 0 2px 6px rgba(44, 30, 18, 0.08);
+  transition: all 0.15s ease;
 }
+
+.train-difficulty-select:hover,
+.train-difficulty-select:focus {
+  border-color: #f59e0b;
+}
+
 .train-difficulty-select option {
-  background: #0f172a;
-  color: #fff;
+  background: #ffffff;
+  color: var(--wood-dark, #2c1e12);
+  font-weight: 700;
 }
 
 /* ==================== Bouton Rejoindre la salle précédente ==================== */
@@ -3143,4 +3175,76 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
 .btn-rejoin strong {
   color: #fef08a;
   letter-spacing: 1px;
+}
+
+/* ==================== Modale Menu Pause ==================== */
+.pause-modal-card {
+  max-width: 440px;
+  text-align: center;
+  background: var(--glass-bg, rgba(255, 251, 240, 0.96));
+  border: 3.5px solid var(--sand-border, #d9b982);
+  border-radius: var(--radius-lg, 22px);
+  box-shadow: 0 16px 42px rgba(44, 30, 18, 0.35);
+  padding: 28px 24px;
+  animation: pause-pop 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes pause-pop {
+  0% { transform: scale(0.92); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.pause-icon {
+  font-size: 3rem;
+  line-height: 1;
+  margin-bottom: 8px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+}
+
+.pause-modal-card h2 {
+  font-size: 1.8rem;
+  letter-spacing: 1px;
+  color: var(--wood-dark, #2c1e12);
+  margin-bottom: 4px;
+}
+
+.pause-subtitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--wood-soft, #634932);
+  margin-bottom: 20px;
+}
+
+.pause-actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.pause-actions-list .btn {
+  width: 100%;
+  padding: 13px 18px;
+  font-size: 1rem;
+  font-weight: 800;
+  border-radius: var(--radius-md, 14px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #ffffff;
+  border: 2px solid #f87171;
+  box-shadow: 0 4px 0 #b91c1c, 0 6px 14px rgba(220, 38, 38, 0.35);
+}
+
+.btn-danger:hover {
+  background: linear-gradient(135deg, #f87171, #dc2626);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #b91c1c, 0 8px 18px rgba(220, 38, 38, 0.45);
 }
