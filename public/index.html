@@ -138,7 +138,14 @@
 
             <div class="roster-header">
               <span>Bâtisseurs sur la plage (<span id="roster-count">0</span>/8)</span>
-              <button id="add-bot-btn" class="btn btn-sm">+ Ajouter un Bot 🤖</button>
+              <div id="add-bot-group" class="add-bot-group">
+                <select id="bot-difficulty-select" class="bot-difficulty-select" title="Âge / Niveau de l'IA">
+                  <option value="5yo">👶 5 ans (Facile)</option>
+                  <option value="12yo" selected>🧒 12 ans (Moyen)</option>
+                  <option value="36yo">👷‍♂️ 36 ans, Ingé Vinci (Difficile)</option>
+                </select>
+                <button id="add-bot-btn" class="btn btn-sm" type="button">+ Ajouter 🤖</button>
+              </div>
             </div>
             <ul id="roster-list" class="roster-list"></ul>
 
@@ -300,7 +307,14 @@
     <div class="modal-card training-choice-card">
       <div class="bonus-choice-icon">🎯</div>
       <h2>CAMP D'ENTRAÎNEMENT</h2>
-      <p class="subtitle">Choisis ton exercice d'entraînement sur la plage :</p>
+      <div class="training-difficulty-box">
+        <label for="train-ai-difficulty-select" class="training-difficulty-label">Niveau de l'Adversaire IA :</label>
+        <select id="train-ai-difficulty-select" class="train-difficulty-select">
+          <option value="5yo">👶 Timothée (5 ans - Facile)</option>
+          <option value="12yo" selected>🧒 Kévin (12 ans - Moyen)</option>
+          <option value="36yo">👷‍♂️ Jean-Eudes (36 ans, Ingénieur Vinci - Difficile)</option>
+        </select>
+      </div>
       <div class="training-modes-grid">
         <button id="train-mode-build-btn" class="training-mode-card" type="button">
           <span class="training-mode-icon">🏗️🛡️</span>

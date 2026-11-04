@@ -1,7 +1,7 @@
 // Logique d'une partie (salle) : lobby → construction → bataille → fin.
 import { SandWorld, mulberry32 } from './sandsim.js';
 import { CONFIG } from './config.js';
-import { makeBuildPlan, botShot, botName } from './bot.js';
+import { makeBuildPlan, botShot, botName, getBotName } from './bot.js';
 import {
   BUILD_SECONDS, AIM_SECONDS, PLAYER_COLORS, LAUNCH_X, LAUNCH_Y, GROUND_Y, BUILD_MIN_X, BUILD_MAX_X,
   SPRAY_COOLDOWN_MS, launchVelocity, BUILD_PLACE_COOLDOWN_MS, PATE_COOLDOWN_MS, PATTERN_PATE_COOLDOWN_MS, SHOTS_PER_TURN, DEFENSE_SPRAY_MAX,
@@ -87,7 +87,7 @@ export class Room {
   }
 
   // ---------------------------------------------------------------- joueurs
-  addPlayer({ name, socket, isBot = false }) {
+  addPlayer({ name, socket, isBot = false, difficulty = null }) {
     if (this.players.size >= MAX_PLAYERS) throw new Error('La salle est pleine');
     if (this.phase !== 'lobby') {
       return this.addSpectator({ name, socket });
@@ -95,11 +95,13 @@ export class Room {
     const id = `p${nextId++}`;
     const used = new Set([...this.players.values()].map((p) => p.color));
     const color = PLAYER_COLORS.find((c) => !used.has(c)) || PLAYER_COLORS[0];
+    const diff = isBot ? (difficulty || '5yo') : null;
     const p = {
       id,
-      name: String(name || 'Joueur').slice(0, 18),
+      name: String(name || (isBot ? getBotName(diff, 0) : 'Joueur')).slice(0, 50),
       color,
       isBot,
+      difficulty: diff,
       isSpectator: false,
       socket: socket || null,
       connected: !!socket || isBot,
@@ -128,7 +130,7 @@ export class Room {
     const id = `spec_${nextId++}`;
     const p = {
       id,
-      name: String(name || 'Spectateur').slice(0, 18),
+      name: String(name || 'Spectateur').slice(0, 50),
       color: '#94a3b8',
       isBot: false,
       isSpectator: true,
@@ -151,9 +153,11 @@ export class Room {
     return p;
   }
 
-  addBot() {
+  addBot(difficulty = '5yo') {
+    const validDiffs = ['5yo', '12yo', '36yo'];
+    const diff = validDiffs.includes(difficulty) ? difficulty : '5yo';
     const n = [...this.players.values()].filter((p) => p.isBot).length;
-    return this.addPlayer({ name: botName(n), isBot: true });
+    return this.addPlayer({ name: getBotName(diff, n), isBot: true, difficulty: diff });
   }
 
   reattach(playerId, socket) {
@@ -348,7 +352,7 @@ export class Room {
       p.hasIronBall = false;
       p.hasAcidBall = false;
       p.bonusAmmo = 0;
-      p.plan = p.isBot ? makeBuildPlan(this.rng, BUILD_SECONDS * 1000, p.world.king?.x ?? 210) : null;
+      p.plan = p.isBot ? makeBuildPlan(this.rng, BUILD_SECONDS * 1000, p.world.king?.x ?? 210, p.difficulty || '5yo') : null;
     }
     this.order = [...this.players.keys()];
     this.phase = 'build';
@@ -367,7 +371,7 @@ export class Room {
     const pedestalType = Math.floor(this.rng() * 5);
     const kx = Math.round(210 + (this.rng() - 0.5) * 16);
     p.world.initBeachDunes(pedestalType, kx);
-    const plan = makeBuildPlan(this.rng, BUILD_SECONDS * 1000, p.world.king?.x ?? kx);
+    const plan = makeBuildPlan(this.rng, BUILD_SECONDS * 1000, p.world.king?.x ?? kx, p.difficulty || '5yo');
     for (const a of plan) {
       if (a.shape === 'king') p.world.placeKing(a.x, a.y);
       else if (a.shape === 'spray') p.world.spray(a.x, a.y);
@@ -386,9 +390,17 @@ export class Room {
     p.sentSlow = -1;
   }
 
-  startTraining(byId, mode = 'build_defense') {
+  startTraining(byId, mode = 'build_defense', difficulty = '12yo') {
+    const validDiffs = ['5yo', '12yo', '36yo'];
+    const diff = validDiffs.includes(difficulty) ? difficulty : '12yo';
     if (this.players.size < 2) {
-      this.addBot();
+      this.addBot(diff);
+    } else {
+      const existingBot = [...this.players.values()].find((p) => p.isBot);
+      if (existingBot) {
+        existingBot.difficulty = diff;
+        existingBot.name = getBotName(diff, 0);
+      }
     }
     this.isTraining = true;
     this.trainingMode = mode === 'shoot' ? 'shoot' : 'build_defense';
@@ -442,7 +454,7 @@ export class Room {
       this.say('🎯 Entraînement au Tir ! Boulets illimités : clique sur une icône sous la catapulte pour choisir ton boulet !');
     } else {
       for (const p of this.players.values()) {
-        if (p.isBot) p.plan = makeBuildPlan(this.rng, 45000, p.world.king?.x ?? 210);
+        if (p.isBot) p.plan = makeBuildPlan(this.rng, 45000, p.world.king?.x ?? 210, p.difficulty || diff);
       }
       this.phase = 'build';
       this.phaseStart = Date.now();
@@ -1075,14 +1087,20 @@ export class Room {
     }
 
     // Si la cible est un bot qui se défend, il utilise son spray pour durcir son dôme/arche
-    if (target.isBot && t.botSprayAt && now >= t.botSprayAt && target.world.king) {
-      t.botSprayAt = 0;
-      this.spray(target.id, { x: target.world.king.x + 2, y: target.world.king.y - 6 });
+    if (target.isBot && target.world.king) {
+      const isVinci = target.difficulty === '36yo';
+      if (t.botSprayAt && now >= t.botSprayAt) {
+        t.botSprayAt = 0;
+        this.spray(target.id, { x: target.world.king.x + 2, y: target.world.king.y - 6 });
+      } else if (isVinci && target.world.king.hits > 0 && target.defenseSpraysLeft > 0 && now - (target.lastSpray || 0) > 2200) {
+        // L'ingénieur Vinci répare immédiatement les brèches dès qu'il subit un choc !
+        this.spray(target.id, { x: target.world.king.x + Math.round((this.rng() - 0.5) * 12), y: target.world.king.y - 12 });
+      }
     }
 
     if (t.state === 'aim') {
       if (shooter?.isBot && now >= t.botFireAt) {
-        this.fire(shooter.id, botShot(target.world, this.rng, 0.72 + this.round * 0.04));
+        this.fire(shooter.id, botShot(target.world, this.rng, shooter.difficulty || '5yo', shooter, this.drops));
       } else if (now >= t.endsAt) {
         this.say(`${shooter?.name || '?'} a laissé passer son tour`);
         this.nextTurn(t.shooterId);
@@ -1472,6 +1490,7 @@ export class Room {
       name: p.name,
       color: p.color,
       isBot: p.isBot,
+      difficulty: p.difficulty || (p.isBot ? '5yo' : null),
       isSpectator: !!p.isSpectator,
       connected: p.connected,
       alive: p.alive,

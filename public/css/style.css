@@ -2961,24 +2961,30 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   border-radius: 999px;
   gap: 5px;
   cursor: pointer;
-  background: rgba(15, 23, 42, 0.65);
-  border: 2px solid rgba(255, 255, 255, 0.28);
+  background: rgba(15, 23, 42, 0.75);
+  border: 2px solid rgba(255, 255, 255, 0.3);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
-  transform: scale(1);
-  transition: all 0.16s ease;
+  transform: translateY(0);
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  user-select: none;
 }
 
 .shot-ball.ammo-type-btn:hover {
   border-color: #fde047;
-  background: rgba(250, 204, 21, 0.22);
+  background: rgba(250, 204, 21, 0.28);
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.5);
   transform: translateY(-2px);
+}
+
+.shot-ball.ammo-type-btn:active {
+  transform: translateY(0) scale(0.96);
 }
 
 .shot-ball.ammo-type-btn.selected {
   border-color: #facc15;
-  background: linear-gradient(135deg, rgba(250, 204, 21, 0.42), rgba(234, 88, 12, 0.45));
-  box-shadow: 0 0 14px rgba(250, 204, 21, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.35);
-  transform: scale(1.07);
+  background: linear-gradient(135deg, rgba(250, 204, 21, 0.45), rgba(234, 88, 12, 0.5));
+  box-shadow: 0 0 14px rgba(250, 204, 21, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transform: scale(1.06);
 }
 
 .ammo-count-badge {
@@ -2988,4 +2994,61 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
   font-family: 'Fredoka', 'Nunito', sans-serif;
   line-height: 1;
+}
+
+/* ==================== Sélecteurs de difficulté de l'IA (Âge) ==================== */
+.add-bot-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bot-difficulty-select {
+  padding: 5px 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border-radius: 8px;
+  background: rgba(30, 41, 59, 0.9);
+  color: #fef08a;
+  border: 1.5px solid rgba(245, 158, 11, 0.5);
+  cursor: pointer;
+  outline: none;
+}
+.bot-difficulty-select option {
+  background: #1e293b;
+  color: #fff;
+}
+
+.training-difficulty-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 4px 0 16px 0;
+  padding: 8px 14px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.training-difficulty-label {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #fae29c;
+}
+
+.train-difficulty-select {
+  padding: 6px 12px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.9);
+  color: #fef08a;
+  border: 1.5px solid #f59e0b;
+  cursor: pointer;
+  outline: none;
+}
+.train-difficulty-select option {
+  background: #0f172a;
+  color: #fff;
 }

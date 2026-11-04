@@ -509,7 +509,7 @@ $('solo-btn').addEventListener('click', () => {
   socket.emit('create', { name: getPlayerName() }, (res) => {
     if (!res?.ok) return showLobbyError(res?.error || 'Erreur');
     onJoinedRoom(res.code, res.playerId);
-    socket.emit('addBot', {}, () => {
+    socket.emit('addBot', { difficulty: '12yo' }, () => {
       socket.emit('start', {});
     });
   });
@@ -519,8 +519,9 @@ function launchTraining(mode) {
   unlock();
   resetAllGameData();
   showLobbyError(null);
+  const difficulty = $('train-ai-difficulty-select')?.value || '12yo';
   $('training-modal')?.classList.add('hidden');
-  socket.emit('startTraining', { name: getPlayerName(), mode }, (res) => {
+  socket.emit('startTraining', { name: getPlayerName(), mode, difficulty }, (res) => {
     if (!res?.ok) return showLobbyError(res?.error || 'Erreur');
     myId = res.playerId;
     myCode = res.code;
@@ -566,7 +567,8 @@ $('train-new-target-btn')?.addEventListener('click', () => {
 
 $('add-bot-btn').addEventListener('click', () => {
   unlock();
-  socket.emit('addBot', {});
+  const difficulty = $('bot-difficulty-select')?.value || '12yo';
+  socket.emit('addBot', { difficulty });
 });
 
 $('start-btn').addEventListener('click', () => {
@@ -1314,6 +1316,109 @@ const AMMO_CATALOG = [
   { type: 'grenade', icon: '/assets/sprites/bomb.png', label: 'Grenade à retardement (2s)', bolt: '🧨' },
 ];
 
+function selectAmmoType(ammoType) {
+  if (!roomState) return;
+  const me = roomState.players?.find((p) => p.id === myId);
+  if (!me) return;
+  me.selectedAmmo = ammoType;
+  sfx.ratchet(740);
+  socket.emit('selectAmmo', { type: ammoType });
+  const entry = AMMO_CATALOG.find((a) => a.type === ammoType);
+  if (entry) {
+    toast(`🎯 Boulet sélectionné : ${entry.label} [Touche TAB pour alterner]`);
+  }
+  syncUI();
+}
+
+function cycleAmmoSelection(dir = 1) {
+  if (!roomState || roomState.phase !== 'battle') return;
+  const me = roomState.players?.find((p) => p.id === myId);
+  if (!me || !me.alive) return;
+
+  const isUnlimitedAmmo = Boolean(roomState.turn?.infiniteAmmo || (roomState.isTraining && roomState.trainingMode === 'shoot'));
+  const inv = me.ammoInventory || {
+    sand: roomState.turn?.shotsLeft ?? 0,
+    iron: me.hasIronBall ? 1 : 0,
+    acid: me.hasAcidBall ? 1 : 0,
+    heavySpikeBall: me.hasSpikeBall ? 1 : 0,
+    grenade: me.hasGrenade ? 1 : 0,
+  };
+
+  const available = AMMO_CATALOG.filter((entry) => {
+    return isUnlimitedAmmo || (inv[entry.type] || 0) > 0;
+  });
+
+  if (available.length <= 1) return;
+
+  const curType = me.selectedAmmo || 'sand';
+  let idx = available.findIndex((a) => a.type === curType);
+  if (idx < 0) idx = 0;
+
+  let nextIdx = (idx + dir) % available.length;
+  if (nextIdx < 0) nextIdx += available.length;
+
+  selectAmmoType(available[nextIdx].type);
+}
+
+function updateAmmoRack(s, me, isUnlimitedAmmo) {
+  const shotsBallsEl = $('shots-balls');
+  if (!shotsBallsEl || !s.turn) return;
+
+  const selectedAmmo = me?.selectedAmmo || 'sand';
+  const inv = me?.ammoInventory || {
+    sand: s.turn?.shotsLeft ?? 0,
+    iron: me?.hasIronBall ? 1 : 0,
+    acid: me?.hasAcidBall ? 1 : 0,
+    heavySpikeBall: me?.hasSpikeBall ? 1 : 0,
+    grenade: me?.hasGrenade ? 1 : 0,
+  };
+
+  const visibleTypes = new Set();
+
+  for (const entry of AMMO_CATALOG) {
+    const count = isUnlimitedAmmo ? 99 : (inv[entry.type] || 0);
+    if (!isUnlimitedAmmo && count <= 0) continue;
+
+    visibleTypes.add(entry.type);
+    const qtyLabel = isUnlimitedAmmo ? '∞' : `x${count}`;
+    const isSelected = selectedAmmo === entry.type;
+
+    let btn = shotsBallsEl.querySelector(`[data-ammo="${entry.type}"]`);
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'shot-ball ammo-type-btn available';
+      btn.dataset.ammo = entry.type;
+      btn.innerHTML = `
+        <img src="${entry.icon}" alt="${entry.label}" class="shot-ball-img" draggable="false">
+        <span class="ammo-count-badge"></span>
+      `;
+      btn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        unlock();
+        selectAmmoType(entry.type);
+      });
+      shotsBallsEl.appendChild(btn);
+    }
+
+    btn.classList.toggle('selected', isSelected);
+    btn.title = `${entry.label} (${qtyLabel}) — Cliquer ou [TAB] pour sélectionner`;
+    const badge = btn.querySelector('.ammo-count-badge');
+    if (badge && badge.textContent !== qtyLabel) {
+      badge.textContent = qtyLabel;
+    }
+  }
+
+  // Nettoyer les munitions plus possédées sans tout recréer
+  for (const child of Array.from(shotsBallsEl.children)) {
+    const t = child.dataset.ammo;
+    if (t && !visibleTypes.has(t)) {
+      child.remove();
+    }
+  }
+}
+
 // ------------------------------------------------------------------ Synchronisation de l'interface
 function syncUI() {
   const s = roomState;
@@ -1368,7 +1473,8 @@ function syncUI() {
     $('lobby-modal').classList.remove('hidden');
 
     $('roster-count').textContent = String(s.players.length);
-    $('add-bot-btn').classList.toggle('hidden', !isHost || s.players.length >= 8);
+    $('add-bot-group')?.classList.toggle('hidden', !isHost || s.players.length >= 8);
+    $('add-bot-btn')?.classList.toggle('hidden', !isHost || s.players.length >= 8);
     $('start-btn').classList.toggle('hidden', !isHost);
     $('start-btn').disabled = s.players.length < 2;
     $('wait-host-msg').classList.toggle('hidden', isHost);
@@ -1379,7 +1485,8 @@ function syncUI() {
       const li = document.createElement('li');
       li.className = 'roster-item';
       const left = document.createElement('span');
-      left.innerHTML = `<span class="color-dot" style="background:${p.color}"></span> ${escapeHtml(p.name)} ${p.id === s.hostId ? '👑' : ''} ${p.isBot ? '🤖' : ''} ${p.isSpectator ? '👀' : ''}`;
+      const botIcon = p.isBot ? (p.difficulty === '36yo' ? ' 👷‍♂️' : p.difficulty === '12yo' ? ' 🧒' : ' 👶') : '';
+      left.innerHTML = `<span class="color-dot" style="background:${p.color}"></span> ${escapeHtml(p.name)} ${p.id === s.hostId ? '👑' : ''}${botIcon} ${p.isSpectator ? '👀' : ''}`;
       li.appendChild(left);
       if (isHost && p.isBot) {
         const kick = document.createElement('button');
@@ -1529,46 +1636,9 @@ function syncUI() {
     const arrow = wVal > 0 ? '→'.repeat(Math.min(3, Math.ceil(wVal / 3))) : wVal < 0 ? '←'.repeat(Math.min(3, Math.ceil(-wVal / 3))) : 'calme';
     $('wind-pill').textContent = `💨 Vent : ${arrow} (${wVal > 0 ? '+' : ''}${wVal})`;
 
-    // Barre des boulets sous la catapulte : un bouton icône par type de boulet possédé (ex: [Sable x2] [Fer x1] [Acide x1])
-    const shotsBallsEl = $('shots-balls');
-    const selectedAmmo = me?.selectedAmmo || 'sand';
+    // Barre des boulets sous la catapulte : stable, sans clignotement et avec sélection fluide
     const isUnlimitedAmmo = Boolean(s.turn?.infiniteAmmo || (s.isTraining && s.trainingMode === 'shoot'));
-    const inv = me?.ammoInventory || {
-      sand: s.turn?.shotsLeft ?? 0,
-      iron: me?.hasIronBall ? 1 : 0,
-      acid: me?.hasAcidBall ? 1 : 0,
-      heavySpikeBall: me?.hasSpikeBall ? 1 : 0,
-      grenade: me?.hasGrenade ? 1 : 0,
-    };
-
-    if (shotsBallsEl && s.turn) {
-      shotsBallsEl.innerHTML = '';
-      for (const entry of AMMO_CATALOG) {
-        const count = isUnlimitedAmmo ? 99 : (inv[entry.type] || 0);
-        if (!isUnlimitedAmmo && count <= 0) continue;
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        const isSelected = selectedAmmo === entry.type;
-        btn.className = `shot-ball ammo-type-btn available ${isSelected ? 'selected' : ''}`;
-        btn.dataset.ammo = entry.type;
-        const qtyLabel = isUnlimitedAmmo ? '∞' : `x${count}`;
-        btn.innerHTML = `
-          <img src="${entry.icon}" alt="${entry.label}" class="shot-ball-img">
-          <span class="ammo-count-badge">${qtyLabel}</span>
-        `;
-        btn.title = `${entry.label} (${qtyLabel}) — Cliquer pour sélectionner`;
-        btn.addEventListener('click', (ev) => {
-          ev.preventDefault();
-          ev.stopPropagation();
-          unlock();
-          if (me) me.selectedAmmo = entry.type;
-          sfx.ratchet(740);
-          socket.emit('selectAmmo', { type: entry.type });
-          syncUI();
-        });
-        shotsBallsEl.appendChild(btn);
-      }
-    }
+    updateAmmoRack(s, me, isUnlimitedAmmo);
 
     const triggerLabelEl = $('trigger-label');
     const triggerBoltEl = document.querySelector('.power-bolt');
@@ -2422,6 +2492,13 @@ if (sideRightBtn) {
 
 window.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT') return;
+  if (e.key === 'Tab') {
+    if (roomState?.phase === 'battle') {
+      e.preventDefault();
+      cycleAmmoSelection(e.shiftKey ? -1 : 1);
+      return;
+    }
+  }
   if (e.key >= '1' && e.key <= '9') {
     if (e.key === '1') {
       selectTool('pate');

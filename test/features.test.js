@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SandWorld } from '../server/sandsim.js';
 import { Room } from '../server/game.js';
+import { makeBuildPlan, botShot } from '../server/bot.js';
 import {
   T, GRID_W, GROUND_Y, BUILD_MIN_X, BUILD_MAX_X, CATAPULT_X, LAUNCH_X,
   CATAPULT_RIGHT_X, LAUNCH_RIGHT_X, PATE_COOLDOWN_MS, BUILD_PLACE_COOLDOWN_MS,
@@ -959,5 +960,47 @@ test('server logs: formatage des logs de lancement, fin de partie et vainqueur',
   } finally {
     console.log = origLog;
   }
+});
+
+test('bot: 3 niveaux de difficulté (5 ans, 12 ans, 36 ans Ingénieur Vinci)', () => {
+  const io = createFakeIo();
+  const room = new Room('BOT_DIFF', io);
+
+  // 1. Création des 3 bots avec leurs difficultés respectives
+  const bot5 = room.addBot('5yo');
+  const bot12 = room.addBot('12yo');
+  const bot36 = room.addBot('36yo');
+
+  assert.equal(bot5.difficulty, '5yo');
+  assert.ok(bot5.name.includes('(5 ans)'), `Nom attendu avec '5 ans', reçu: ${bot5.name}`);
+
+  assert.equal(bot12.difficulty, '12yo');
+  assert.ok(bot12.name.includes('(12 ans)'), `Nom attendu avec '12 ans', reçu: ${bot12.name}`);
+
+  assert.equal(bot36.difficulty, '36yo');
+  assert.ok(bot36.name.includes('(36 ans, Ingénieur chez Vinci)'), `Nom attendu avec 'Vinci', reçu: ${bot36.name}`);
+
+  // 2. Vérification des plans de construction
+  const rng = () => 0.5;
+  const plan5 = makeBuildPlan(rng, 60000, 210, '5yo');
+  const plan36 = makeBuildPlan(rng, 60000, 210, '36yo');
+
+  assert.ok(plan36.length > plan5.length, 'le plan 36 ans Vinci comporte plus de pièces de structure que le 5 ans');
+  const sprayCount36 = plan36.filter((p) => p.shape === 'spray').length;
+  assert.ok(sprayCount36 >= 4, 'le château Vinci est massivement arrosé au spray durcisseur');
+
+  // 3. Vérification des tirs balistiques
+  const dummyWorld = new SandWorld();
+  dummyWorld.placeKing(210, GROUND_Y - 8);
+
+  // Bot 36 ans : vise stratégiquement au-dessus du roi
+  const shot36 = botShot(dummyWorld, rng, '36yo', bot36);
+  assert.ok(shot36.angle > 0.1 && shot36.angle < 1.5, 'angle valide calculé');
+  assert.ok(shot36.power > 0.1 && shot36.power <= 1, 'puissance valide calculée');
+
+  // Bot 12 ans : teste la recherche de bonus aérien
+  const drops = [{ id: 1, x: 195, y: 70, collected: false, inWater: false, sunk: false }];
+  const shot12 = botShot(dummyWorld, rng, '12yo', bot12, drops);
+  assert.ok(shot12.angle > 0 && shot12.power > 0);
 });
 

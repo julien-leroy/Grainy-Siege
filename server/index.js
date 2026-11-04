@@ -142,9 +142,9 @@ io.on('connection', (socket) => {
     r.sendAllWorlds(socket);
   }));
 
-  socket.on('addBot', guard('addBot', (_, cb) => {
+  socket.on('addBot', guard('addBot', ({ difficulty } = {}, cb) => {
     if (!room || me?.id !== room.hostId) throw new Error("Réservé à l'hôte");
-    room.addBot();
+    room.addBot(difficulty);
     room.sendAllWorlds();
     cb?.({ ok: true });
   }));
@@ -161,13 +161,13 @@ io.on('connection', (socket) => {
     cb?.({ ok: true });
   }));
 
-  socket.on('startTraining', guard('startTraining', ({ name, mode }, cb) => {
+  socket.on('startTraining', guard('startTraining', ({ name, mode, difficulty }, cb) => {
     if (!room) {
       room = createRoom();
       me = room.addPlayer({ name: name || 'Joueur', socket });
-      room.addBot();
+      room.addBot(difficulty || '12yo');
     }
-    room.startTraining(me?.id, mode || 'build_defense');
+    room.startTraining(me?.id, mode || 'build_defense', difficulty || '12yo');
     room.sendAllWorlds(socket);
     cb?.({ ok: true, code: room.code, playerId: me?.id, trainingMode: room.trainingMode });
   }));
@@ -296,7 +296,8 @@ api.post('/rooms/:code/bots', (req, res) => {
   if (!r) return res.status(404).json({ error: 'Salle introuvable' });
   try {
     const n = Math.max(1, Math.min(7, Number(req.body?.count) || 1));
-    for (let i = 0; i < n; i++) r.addBot();
+    const diff = req.body?.difficulty || '5yo';
+    for (let i = 0; i < n; i++) r.addBot(diff);
     r.sendAllWorlds();
     res.json(r.describe());
   } catch (e) {
