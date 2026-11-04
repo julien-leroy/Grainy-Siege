@@ -66,6 +66,7 @@ window.addEventListener('unhandledrejection', (evt) => {
 });
 
 let activeTool = 'pate'; // par défaut le pâté de sable maniable pour sculpter librement !
+let battleSpraySelected = false; // en bataille : appuyer sur E sélectionne le spray, clic pour activer
 let nextSprayAvailableAt = 0;
 const KING_GHOST = { w: KING_W, h: KING_H, mask: new Uint8Array(KING_W * KING_H).fill(1) };
 
@@ -1834,6 +1835,10 @@ function refreshThumb(pid) {
 canvas.addEventListener('contextmenu', (e) => {
   e.preventDefault();
   unlock();
+  if (isCharging) {
+    cancelCharging();
+    return;
+  }
   const cell = renderer.toCell(e.clientX, e.clientY);
   trySprayAt(cell.x, cell.y);
 });
@@ -1929,8 +1934,12 @@ canvas.addEventListener('pointerdown', (e) => {
   pointer.x = cell.x;
   pointer.y = cell.y;
 
-  // Clic droit = Spray d'eau immédiat !
+  // Clic droit = Annuler le tir si chargement en cours, sinon Spray d'eau immédiat !
   if (e.button === 2) {
+    if (isCharging) {
+      cancelCharging();
+      return;
+    }
     trySprayAt(cell.x, cell.y);
     return;
   }
@@ -1943,8 +1952,12 @@ canvas.addEventListener('pointerdown', (e) => {
   } else if (roomState?.phase === 'battle') {
     const viewingOwnCastle = (viewedPid || myId) === myId && (roomState.turn?.targetId === myId || inspectingOwnCastle);
     if (viewingOwnCastle) {
-      // Sur notre propre château (en défense ou en visite via "Mon Château") : clic = Spray d'eau durcisseur !
-      trySprayAt(cell.x, cell.y);
+      // Sur son propre château en bataille : le clic gauche active le spray SEULEMENT s'il a été sélectionné avec [E]
+      if (battleSpraySelected || activeTool === 'spray') {
+        trySprayAt(cell.x, cell.y);
+      } else {
+        renderer.popup(cell.x, cell.y - 6, '💡 Appuie sur [E] pour sélectionner le Spray 💦', '#38bdf8');
+      }
       return;
     }
 
@@ -2014,6 +2027,13 @@ function trySprayAt(cx, cy) {
     if (res && !res.ok) {
       if (res.error) renderer.popup(cx, cy - 4, `⚠️ ${res.error}`, '#f87171');
       if (res.cooldownMs) nextSprayAvailableAt = performance.now() + res.cooldownMs;
+    } else {
+      nextSprayAvailableAt = performance.now() + (res?.cooldownMs || SPRAY_COOLDOWN_MS);
+      const me = roomState?.players.find((p) => p.id === myId);
+      if (me && me.defenseSpraysLeft <= 1) {
+        battleSpraySelected = false;
+        activeTool = 'pate';
+      }
     }
   });
 }
@@ -2436,6 +2456,28 @@ function startCharging() {
   chargeRafId = requestAnimationFrame(chargeLoop);
 }
 
+function cancelCharging() {
+  if (!isCharging) return false;
+  isCharging = false;
+  if (chargeRafId) {
+    cancelAnimationFrame(chargeRafId);
+    chargeRafId = null;
+  }
+  sfx.stopCharge();
+  if (fireTriggerBtn) fireTriggerBtn.classList.remove('charging');
+  if (triggerLabel) triggerLabel.textContent = 'Tirer !!';
+  currentChargePower = 0;
+  aim.power = 0;
+  if (powerBar) powerBar.style.width = '0%';
+  if (powerValText) powerValText.textContent = '0';
+  socket.emit('aim', { angle: aim.angle, power: 0, side: myCatapultSide });
+  const isRight = (roomState?.turn?.catapultSide || myCatapultSide) === 'right';
+  const catSideX = isRight ? (GRID_W - CATAPULT_X - 10) : (CATAPULT_X + 10);
+  renderer.popup(catSideX, GROUND_Y - 25, '🚫 Tir annulé !', '#94a3b8');
+  toast('🚫 Chargement du tir annulé.');
+  return true;
+}
+
 function releaseAndFire() {
   if (!isCharging) return;
   isCharging = false;
@@ -2470,12 +2512,20 @@ function releaseAndFire() {
 
 if (fireTriggerBtn) {
   fireTriggerBtn.addEventListener('pointerdown', (e) => {
+    if (e.button === 2) {
+      cancelCharging();
+      return;
+    }
     e.preventDefault();
     unlock();
     try { fireTriggerBtn.setPointerCapture(e.pointerId); } catch (_) {}
     startCharging();
   });
   fireTriggerBtn.addEventListener('pointerup', (e) => {
+    if (e.button === 2) {
+      cancelCharging();
+      return;
+    }
     e.preventDefault();
     releaseAndFire();
   });
@@ -2484,11 +2534,33 @@ if (fireTriggerBtn) {
   });
 }
 
+// Clic droit ou contextmenu n'importe où pour annuler immédiatement le tir
+window.addEventListener('pointerdown', (e) => {
+  if (e.button === 2 && isCharging) {
+    e.preventDefault();
+    cancelCharging();
+  }
+});
+window.addEventListener('contextmenu', (e) => {
+  if (isCharging) {
+    e.preventDefault();
+    cancelCharging();
+  }
+});
+
 // Relâchement global n'importe où sur l'écran pour garantir le déclenchement immédiat du tir
-window.addEventListener('pointerup', () => {
+window.addEventListener('pointerup', (e) => {
+  if (e.button === 2 && isCharging) {
+    cancelCharging();
+    return;
+  }
   if (isCharging) releaseAndFire();
 });
-window.addEventListener('mouseup', () => {
+window.addEventListener('mouseup', (e) => {
+  if (e.button === 2 && isCharging) {
+    cancelCharging();
+    return;
+  }
   if (isCharging) releaseAndFire();
 });
 window.addEventListener('touchend', () => {
@@ -2578,7 +2650,19 @@ if (sideRightBtn) {
 }
 
 window.addEventListener('keydown', (e) => {
-  if (e.target.tagName === 'INPUT') return;
+  if (e.key === 'Escape') {
+    if (isCharging) {
+      e.preventDefault();
+      cancelCharging();
+      return;
+    }
+    if (battleSpraySelected) {
+      battleSpraySelected = false;
+      activeTool = 'pate';
+      renderer.popup(pointer.x, pointer.y - 8, 'Spray désélectionné', '#94a3b8');
+      return;
+    }
+  }
   if (e.key === 'Tab') {
     if (roomState?.phase === 'battle') {
       e.preventDefault();
@@ -2601,18 +2685,36 @@ window.addEventListener('keydown', (e) => {
     selectTool('retirer');
   } else if (e.key.toLowerCase() === 'e') {
     if (roomState?.phase === 'battle') {
-      if (roomState.turn?.targetId !== myId) {
-        inspectingOwnCastle = !inspectingOwnCastle;
-        sfx.ratchet(inspectingOwnCastle ? 820 : 620);
+      const me = roomState.players.find((p) => p.id === myId);
+      if (!me || !me.alive) return;
+      if (roomState.turn?.targetId !== myId && !inspectingOwnCastle) {
+        inspectingOwnCastle = true;
         syncUI();
+      }
+      battleSpraySelected = !battleSpraySelected;
+      activeTool = battleSpraySelected ? 'spray' : 'pate';
+      sfx.ratchet(battleSpraySelected ? 860 : 540);
+      const px = pointer.x || 210;
+      const py = pointer.y || 120;
+      if (battleSpraySelected) {
+        renderer.popup(px, py - 8, '💦 Spray sélectionné — Clique pour arroser !', '#38bdf8');
+        toast('💦 Spray sélectionné : clique sur ton château pour durcir le sable !');
       } else {
-        trySprayAt(pointer.x, pointer.y);
+        renderer.popup(px, py - 8, 'Spray désélectionné', '#94a3b8');
       }
     } else {
       selectTool('spray');
     }
   } else if (e.key.toLowerCase() === 'r') {
-    toggleMouldFlip();
+    if (roomState?.phase === 'battle') {
+      const nextSide = myCatapultSide === 'left' ? 'right' : 'left';
+      setCatapultSide(nextSide);
+      const px = nextSide === 'left' ? (CATAPULT_X + 15) : (GRID_W - CATAPULT_X - 15);
+      renderer.popup(px, GROUND_Y - 25, nextSide === 'left' ? '⬅️ Catapulte Gauche [R]' : 'Catapulte Droite ➡️ [R]', '#38bdf8');
+      toast(nextSide === 'left' ? '⬅️ Catapulte Gauche activée [R]' : '➡️ Catapulte Droite activée [R]');
+    } else {
+      toggleMouldFlip();
+    }
   } else if (e.key.toLowerCase() === 'c') {
     if (roomState?.phase === 'battle') setCatapultSide(myCatapultSide === 'left' ? 'right' : 'left');
   } else if (e.key.toLowerCase() === 'q') {
@@ -2970,9 +3072,11 @@ function frame(now) {
     }
   }
 
-  // Curseur de Spray quand on est sur son château en phase de bataille (en défense ou via "Mon Château")
+  // Curseur de Spray quand on est sur son château en phase de bataille (en défense ou via "Mon Château") si sélectionné
   if (phase === 'battle' && pointer.inside && activePid === myId && (roomState?.turn?.targetId === myId || inspectingOwnCastle)) {
-    renderer.drawSprayCursor(pointer.x, pointer.y, sprayReadyFraction);
+    if (battleSpraySelected || activeTool === 'spray') {
+      renderer.drawSprayCursor(pointer.x, pointer.y, sprayReadyFraction);
+    }
   }
 
   // Aperçu de trajectoire en phase de bataille (gauche ou droite)
