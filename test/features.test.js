@@ -1144,3 +1144,42 @@ test('game: deconnexion du dernier humain laisse la salle sans humain (humansCon
   assert.equal(r.humanCount, 0, 'Il ne doit rester aucun humain connecté');
   assert.equal(r.humansConnected, false, 'humansConnected doit être faux pour fermeture immédiate');
 });
+
+test('game: en multijoueur un joueur deconnecte reste dans la partie (disconnected=true), peut revenir via reattach et peut etre kick par l admin', () => {
+  const r = new Room('MULTI_REJOIN', createFakeIo());
+  const sock1 = { id: 's1', emit: () => {}, join: () => {}, leave: () => {} };
+  const sock2 = { id: 's2', emit: () => {}, join: () => {}, leave: () => {} };
+  const sock3 = { id: 's3', emit: () => {}, join: () => {}, leave: () => {} };
+
+  const p1 = r.addPlayer({ name: 'AdminHost', socket: sock1 });
+  const p2 = r.addPlayer({ name: 'MobilePlayer', socket: sock2 });
+  const p3 = r.addPlayer({ name: 'ThirdPlayer', socket: sock3 });
+
+  r.start();
+  r.endBuild();
+  r.startBattle();
+
+  // p2 verrouille son téléphone / perd la connexion
+  r.disconnect(sock2);
+  assert.equal(p2.connected, false);
+  assert.equal(p2.disconnected, true, 'p2 est marqué disconnected=true pour le clignotement admin');
+  assert.equal(p2.alive, true, 'p2 reste en vie dans la partie en attendant son retour');
+  assert.ok(r.players.has(p2.id), 'p2 est toujours dans la room');
+
+  // p2 revient dans la room avec un nouveau socket (via son playerId ou son nom)
+  const sock2New = { id: 's2_new', emit: () => {}, join: () => {}, leave: () => {} };
+  const reattached = r.reattach(null, sock2New, 'MobilePlayer');
+  assert.ok(reattached, 'p2 a pu réintégrer sa place');
+  assert.equal(reattached.id, p2.id);
+  assert.equal(p2.connected, true);
+  assert.equal(p2.disconnected, false, 'le clignotement disconnected s arrête au retour');
+  assert.equal(p2.alive, true);
+
+  // Si p3 ne peut pas revenir, l'admin l'éjecte avec kickPlayer
+  r.disconnect(sock3);
+  assert.equal(p3.disconnected, true);
+  const kickedOk = r.kickPlayer(p3.id);
+  assert.equal(kickedOk, true, 'kickPlayer a réussi');
+  assert.equal(r.players.has(p3.id), false, 'p3 a été retiré de la partie');
+});
+

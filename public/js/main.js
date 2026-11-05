@@ -20,8 +20,8 @@ const socket = window.io();
 const worlds = new Map(); // pid -> ClientWorld
 const demoWorld = new ClientWorld('demo');
 let roomState = null;
-let myId = sessionStorage.getItem('sc-pid') || null;
-let myCode = sessionStorage.getItem('sc-code') || null;
+let myId = sessionStorage.getItem('sc-pid') || localStorage.getItem('sc-pid') || null;
+let myCode = sessionStorage.getItem('sc-code') || localStorage.getItem('sc-code') || null;
 let viewedPid = null; // quel château affiche-t-on en grand ?
 let inspectingOwnCastle = false; // Le joueur inspecte-t-il son propre château en bataille pour mettre un spray ?
 let isWatchingGame = false; // Le spectateur a-t-il cliqué sur "Regarder la partie" ?
@@ -135,42 +135,35 @@ function updateCatapultSwitchButton() {
     }
   }
 
-  // Barre mobile de commande dans le dock bas
-  const dockNameEl = $('dock-cat-name');
-  if (dockNameEl) {
-    dockNameEl.textContent = isLeft ? '⇄ Catapulte Droite' : '⇄ Catapulte Gauche';
+  // Barre mobile de commande dans le dock bas (#mobile-game-dock)
+  for (const id of ['dock-cat-name', 'mob-cat-switch-label']) {
+    const el = $(id);
+    if (el) el.textContent = isLeft ? '⇄ Catapulte Droite' : '⇄ Catapulte Gauche';
   }
-  const dockSwitchBtn = $('dock-cat-switch-btn');
-  if (dockSwitchBtn && !dockSwitchBtn._init) {
-    dockSwitchBtn._init = true;
-    dockSwitchBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      unlock();
-      setCatapultSide(myCatapultSide === 'left' ? 'right' : 'left');
-    });
-  }
-
-  const dockSprayBtn = $('dock-spray-btn');
-  if (dockSprayBtn && !dockSprayBtn._init) {
-    dockSprayBtn._init = true;
-    dockSprayBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      unlock();
-      toggleOwnCastleView();
-    });
+  for (const id of ['dock-cat-switch-btn', 'mob-cat-switch-btn']) {
+    const btn = $(id);
+    if (btn && !btn._init) {
+      btn._init = true;
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        unlock();
+        setCatapultSide(myCatapultSide === 'left' ? 'right' : 'left');
+      });
+    }
   }
 
-  const defReturnBtn = $('defender-return-duel-btn');
-  if (defReturnBtn && !defReturnBtn._init) {
-    defReturnBtn._init = true;
-    defReturnBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      unlock();
-      toggleOwnCastleView();
-    });
+  for (const id of ['dock-spray-btn', 'mob-my-castle-btn', 'defender-return-duel-btn', 'mob-defend-return-btn']) {
+    const btn = $(id);
+    if (btn && !btn._init) {
+      btn._init = true;
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        unlock();
+        toggleOwnCastleView();
+      });
+    }
   }
 
   const hud = $('catapult-hud');
@@ -232,8 +225,12 @@ function seedDemoCastle() {
 function initTools() {
   const toolsRow = $('atelier-tools-row');
   const mouldsGrid = $('tool-list');
+  const mobToolsRow = $('mob-tools-row');
+  const mobMouldsGrid = $('mob-moulds-grid');
   if (toolsRow) toolsRow.innerHTML = '';
   if (mouldsGrid) mouldsGrid.innerHTML = '';
+  if (mobToolsRow) mobToolsRow.innerHTML = '';
+  if (mobMouldsGrid) mobMouldsGrid.innerHTML = '';
 
   // 1. Outils de modelage au-dessus des patrons de sable (Le Pâté de base est ici !)
   const manipulationTools = [
@@ -256,11 +253,9 @@ function initTools() {
     const btn = document.createElement('button');
     btn.className = `tool-btn${t.isFlip ? ' flip-tool' : ''}${t.isSpray ? ' spray-tool' : ''}${t.id === activeTool ? ' active' : ''}${isMould ? ' mould-slot' : ''}`;
     btn.dataset.tool = t.id;
-    // Pas de tooltip dans l'atelier
 
     const icon = document.createElement('canvas');
     if (isMould) {
-      // Pour les patrons de l'inventaire : pas de texte ni de numéro pour grossir au maximum le patron
       icon.width = 54;
       icon.height = 40;
       drawToolIcon(icon, t);
@@ -298,15 +293,17 @@ function initTools() {
   if (mouldsGrid) {
     for (const t of mouldTools) createBtn(t, mouldsGrid, true);
   }
+  if (mobToolsRow) {
+    for (const t of manipulationTools) createBtn(t, mobToolsRow, false);
+  }
+  if (mobMouldsGrid) {
+    for (const t of mouldTools) createBtn(t, mobMouldsGrid, true);
+  }
 
   const toggleBtn = $('toggle-atelier-sidebar') || $('toggle-build-sidebar');
   if (toggleBtn && !toggleBtn._init) {
     toggleBtn._init = true;
     const dock = $('atelier-dock') || $('build-dock');
-    if (window.innerWidth <= 768 && dock) {
-      dock.classList.add('collapsed');
-      toggleBtn.textContent = '▶';
-    }
     toggleBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       dock.classList.toggle('collapsed');
@@ -315,7 +312,7 @@ function initTools() {
     });
   }
 
-  for (const dockId of ['build-dock', 'atelier-dock']) {
+  for (const dockId of ['build-dock', 'atelier-dock', 'mobile-game-dock']) {
     const dock = $(dockId);
     if (dock && !dock._initEvents) {
       dock._initEvents = true;
@@ -331,11 +328,12 @@ function initTools() {
     if (spr && !spr.complete) {
       spr.addEventListener('load', () => {
         const toolId = k === 'toolSpray' ? 'spray' : k === 'toolSpoon' ? 'retirer' : 'aplatir';
-        const btn = document.querySelector(`.tool-btn[data-tool="${toolId}"]`);
-        const canvas = btn?.querySelector('canvas');
-        if (canvas) {
-          const tool = manipulationTools.find((t) => t.id === toolId);
-          if (tool) drawToolIcon(canvas, tool);
+        for (const btn of document.querySelectorAll(`.tool-btn[data-tool="${toolId}"]`)) {
+          const canvasEl = btn?.querySelector('canvas');
+          if (canvasEl) {
+            const tool = manipulationTools.find((t) => t.id === toolId);
+            if (tool) drawToolIcon(canvasEl, tool);
+          }
         }
       });
     }
@@ -346,8 +344,9 @@ let isMouldFlipped = false;
 function toggleMouldFlip() {
   isMouldFlipped = !isMouldFlipped;
   sfx.ratchet();
-  const btn = document.querySelector('.tool-btn[data-tool="flip"]');
-  if (btn) btn.classList.toggle('active', isMouldFlipped);
+  for (const btn of document.querySelectorAll('.tool-btn[data-tool="flip"]')) {
+    btn.classList.toggle('active', isMouldFlipped);
+  }
   const px = pointer?.x || 210;
   const py = pointer?.y || 120;
   renderer.popup(px, py - 8, isMouldFlipped ? '🔄 Patron inversé (Miroir)' : '🔄 Patron normal', '#c084fc');
@@ -563,7 +562,8 @@ $('join-btn').addEventListener('click', () => {
   showLobbyError(null);
   const code = codeInput.value.trim().toUpperCase();
   if (!code) return showLobbyError('Entre le code à 4 lettres de la plage');
-  socket.emit('join', { code, name: getPlayerName() }, (res) => {
+  const savedPid = sessionStorage.getItem('sc-pid') || localStorage.getItem('sc-pid') || myId || null;
+  socket.emit('join', { code, name: getPlayerName(), playerId: savedPid }, (res) => {
     if (!res?.ok) return showLobbyError(res?.error || 'Salle introuvable');
     onJoinedRoom(res.code, res.playerId, res.phase, res.isSpectator);
   });
@@ -575,7 +575,8 @@ $('rejoin-prev-room-btn')?.addEventListener('click', () => {
   showLobbyError(null);
   const lastCode = (localStorage.getItem('sc-last-room') || sessionStorage.getItem('sc-code') || '').toUpperCase().trim();
   if (!lastCode) return;
-  socket.emit('join', { code: lastCode, name: getPlayerName() }, (res) => {
+  const savedPid = sessionStorage.getItem('sc-pid') || localStorage.getItem('sc-pid') || myId || null;
+  socket.emit('join', { code: lastCode, name: getPlayerName(), playerId: savedPid }, (res) => {
     if (!res?.ok) {
       showLobbyError(res?.error || 'Salle introuvable ou fermée');
       checkPreviousRoom();
@@ -610,6 +611,8 @@ function launchTraining(mode) {
     myCode = res.code;
     sessionStorage.setItem('sc-pid', res.playerId);
     sessionStorage.setItem('sc-code', res.code);
+    localStorage.setItem('sc-pid', res.playerId);
+    localStorage.setItem('sc-code', res.code);
     $('lobby-modal')?.classList.add('hidden');
     $('scene')?.classList.remove('hidden');
     $('hud')?.classList.remove('hidden');
@@ -642,10 +645,12 @@ $('mobile-tuto-btn')?.addEventListener('click', () => {
   }
 });
 
-$('train-switch-mode-btn')?.addEventListener('click', () => {
-  unlock();
-  $('training-modal')?.classList.remove('hidden');
-});
+for (const id of ['train-switch-mode-btn', 'mob-train-switch-mode-btn']) {
+  $(id)?.addEventListener('click', () => {
+    unlock();
+    $('training-modal')?.classList.remove('hidden');
+  });
+}
 
 $('training-modal-cancel-btn')?.addEventListener('click', () => {
   $('training-modal')?.classList.add('hidden');
@@ -659,15 +664,19 @@ $('train-mode-shoot-btn')?.addEventListener('click', () => {
   launchTraining('shoot');
 });
 
-$('train-start-ai-btn')?.addEventListener('click', () => {
-  unlock();
-  socket.emit('finishBuildTraining', {});
-});
+for (const id of ['train-start-ai-btn', 'mob-train-start-ai-btn']) {
+  $(id)?.addEventListener('click', () => {
+    unlock();
+    socket.emit('finishBuildTraining', {});
+  });
+}
 
-$('train-new-target-btn')?.addEventListener('click', () => {
-  unlock();
-  socket.emit('resetTrainingTarget', {});
-});
+for (const id of ['train-new-target-btn', 'mob-train-new-target-btn']) {
+  $(id)?.addEventListener('click', () => {
+    unlock();
+    socket.emit('resetTrainingTarget', {});
+  });
+}
 
 $('add-bot-btn').addEventListener('click', () => {
   unlock();
@@ -747,16 +756,20 @@ async function copyRoomLink() {
   }
 }
 
-function leaveRoom() {
+function leaveRoom(emitLeave = true) {
   music.stopAll();
-  const savedCode = myCode || roomState?.code || sessionStorage.getItem('sc-code') || '';
+  const savedCode = myCode || roomState?.code || sessionStorage.getItem('sc-code') || localStorage.getItem('sc-code') || '';
   resetAllGameData();
   sessionStorage.removeItem('sc-pid');
   sessionStorage.removeItem('sc-code');
+  localStorage.removeItem('sc-pid');
+  localStorage.removeItem('sc-code');
   myId = null;
   myCode = null;
   roomState = null;
-  socket.emit('leave', {});
+  if (emitLeave) {
+    socket.emit('leave', {});
+  }
   stopGameLoop();
 
   // Conserver le code dans l'input pour pouvoir rejoindre en 1 clic
@@ -765,12 +778,20 @@ function leaveRoom() {
     if (codeInput) codeInput.value = savedCode;
   }
 
-  // Cacher tous les éléments de jeu
+  // Cacher tous les éléments de jeu (PC et Mobile)
   $('scene').classList.add('hidden');
   $('hud').classList.add('hidden');
+  $('pc-players-strip')?.classList.add('hidden');
+  $('atelier-dock')?.classList.add('hidden');
+  $('build-dock')?.classList.add('hidden');
+  $('catapult-switch-btn')?.classList.add('hidden');
   $('catapult-hud')?.classList.add('hidden');
   $('battle-timeline')?.classList.add('hidden');
   $('defender-controls')?.classList.add('hidden');
+  $('mobile-game-dock')?.classList.add('hidden');
+  $('mob-panel-build')?.classList.add('hidden');
+  $('mob-panel-attack')?.classList.add('hidden');
+  $('mob-panel-defend')?.classList.add('hidden');
   $('over-modal')?.classList.add('hidden');
   $('intro-overlay')?.classList.add('hidden');
   $('duel-intro-overlay')?.classList.add('hidden');
@@ -798,7 +819,7 @@ async function checkPreviousRoom() {
       return;
     }
     const r = await res.json();
-    const hasHumans = Boolean(r.humansConnected || (r.players && r.players.some((p) => !p.isBot && p.connected)));
+    const hasHumans = Boolean(r.humansConnected || (r.players && r.players.some((p) => !p.isBot)));
     if (hasHumans) {
       $('prev-room-code').textContent = lastCode;
       const descEl = $('prev-room-desc');
@@ -818,7 +839,7 @@ const leaveBtn = $('leave-room-btn');
 if (leaveBtn) {
   leaveBtn.addEventListener('click', () => {
     unlock();
-    leaveRoom();
+    leaveRoom(true);
   });
 }
 
@@ -927,10 +948,15 @@ function resetAllGameData(clearWorlds = true) {
   if (overModal) overModal.classList.add('hidden');
   const targetModal = $('target-choice-modal');
   if (targetModal) targetModal.classList.add('hidden');
-  const powerBar = $('power-gauge-bar');
-  if (powerBar) powerBar.style.width = '0%';
-  const powerValText = $('power-val');
-  if (powerValText) powerValText.textContent = '0';
+  for (const barId of ['power-gauge-bar', 'mob-power-gauge-bar']) {
+    const b = $(barId);
+    if (b) b.style.width = '0%';
+  }
+  for (const valId of ['power-val', 'mob-power-val']) {
+    const v = $(valId);
+    if (v) v.textContent = '0';
+  }
+  $('mob-cancel-fire-btn')?.classList.add('hidden');
   const bucketFillEl = $('bucket-status-fill');
   if (bucketFillEl) bucketFillEl.style.width = '100%';
   const bucketLabelEl = $('bucket-status-label');
@@ -939,7 +965,7 @@ function resetAllGameData(clearWorlds = true) {
   if (flowEl) flowEl.innerHTML = '';
   const timelineEl = $('battle-timeline');
   if (timelineEl) timelineEl.classList.add('hidden');
-  const strip = $('players-strip');
+  const strip = $('pc-players-strip');
   if (strip) strip.innerHTML = '';
 }
 
@@ -953,6 +979,8 @@ async function onJoinedRoom(code, playerId, phase = 'lobby', isSpectator = false
   myCode = code;
   sessionStorage.setItem('sc-pid', playerId);
   sessionStorage.setItem('sc-code', code);
+  localStorage.setItem('sc-pid', playerId);
+  localStorage.setItem('sc-code', code);
   localStorage.setItem('sc-last-room', code);
 
   $('welcome-view').classList.add('hidden');
@@ -963,7 +991,6 @@ async function onJoinedRoom(code, playerId, phase = 'lobby', isSpectator = false
   if (mobileTutoBtn) mobileTutoBtn.textContent = '📖 Règles du jeu & Tuto animé ▼';
 
   if (phase && phase !== 'lobby') {
-    // Si la partie est déjà lancée, entrer directement sur la scène de jeu !
     isWatchingGame = true;
     $('room-view').classList.add('hidden');
     $('lobby-modal')?.classList.add('hidden');
@@ -977,6 +1004,8 @@ async function onJoinedRoom(code, playerId, phase = 'lobby', isSpectator = false
     isWatchingGame = false;
     stopGameLoop();
     $('hud').classList.add('hidden');
+    $('mobile-game-dock')?.classList.add('hidden');
+    $('pc-players-strip')?.classList.add('hidden');
     $('room-view').classList.remove('hidden');
     $('lobby-modal')?.classList.remove('hidden');
   }
@@ -996,16 +1025,24 @@ async function onJoinedRoom(code, playerId, phase = 'lobby', isSpectator = false
   } catch {}
 }
 
+socket.on('kicked', ({ reason } = {}) => {
+  leaveRoom(false);
+  toast(`👢 ${reason || "Tu as été éjecté de la partie par l'hôte."}`);
+});
+
 socket.on('connect', () => {
   if (disconnectResetTimer) {
     clearTimeout(disconnectResetTimer);
     disconnectResetTimer = null;
   }
-  if (myCode && myId) {
-    socket.emit('join', { code: myCode, playerId: myId, name: getPlayerName() }, (res) => {
-      if (res?.ok) onJoinedRoom(res.code, res.playerId, res.phase, res.isSpectator);
-      else {
-        leaveRoom();
+  const codeToRejoin = myCode || sessionStorage.getItem('sc-code') || localStorage.getItem('sc-code');
+  const pidToRejoin = myId || sessionStorage.getItem('sc-pid') || localStorage.getItem('sc-pid');
+  if (codeToRejoin && pidToRejoin) {
+    socket.emit('join', { code: codeToRejoin, playerId: pidToRejoin, name: getPlayerName() }, (res) => {
+      if (res?.ok) {
+        onJoinedRoom(res.code, res.playerId, res.phase, res.isSpectator);
+      } else {
+        leaveRoom(false);
         checkPreviousRoom();
       }
     });
@@ -1017,40 +1054,55 @@ socket.on('connect', () => {
 socket.on('disconnect', (reason) => {
   console.warn('Socket déconnecté :', reason);
   if (disconnectResetTimer) clearTimeout(disconnectResetTimer);
-  // Si la déconnexion est volontaire ou dure plus de 5 secondes sans reconnexion automatique, quitter et reset
-  disconnectResetTimer = setTimeout(() => {
-    disconnectResetTimer = null;
-    if (!socket.connected && (myCode || roomState || myId)) {
-      leaveRoom();
-      toast('🔌 Connexion interrompue. Retour au salon d\'accueil.');
-    }
-  }, 5000);
+
+  const humanPlayers = (roomState?.players || []).filter((p) => !p.isBot && !p.isSpectator).length;
+  const isSolo = Boolean(roomState?.isTraining || humanPlayers <= 1);
+
+  if (isSolo) {
+    // En solo contre des IA : le serveur laisse 15 secondes pour revenir, sinon efface la room
+    disconnectResetTimer = setTimeout(() => {
+      disconnectResetTimer = null;
+      if (!socket.connected && (myCode || roomState || myId)) {
+        leaveRoom(false);
+        toast('⏱️ Partie solo expirée après 15s de déconnexion.');
+      }
+    }, 15500);
+  } else {
+    // En multijoueur : le joueur reste dans la partie jusqu'à son retour ou un kick de l'admin
+    toast('🔌 Connexion interrompue… Reconnexion automatique dès ton retour !');
+  }
 });
 
-// Détection de verrouillage du téléphone ou mise en veille prolongée (ex: 3 minutes)
+// Détection de déverrouillage du téléphone ou retour sur l'onglet
 let pageHiddenAt = 0;
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     pageHiddenAt = Date.now();
   } else {
-    if (pageHiddenAt > 0) {
-      const elapsed = Date.now() - pageHiddenAt;
-      pageHiddenAt = 0;
-      if (elapsed > 25000) {
-        if (myCode || roomState || myId) {
-          console.log(`💤 Réveil après mise en veille (${Math.round(elapsed / 1000)}s) : réinitialisation complète.`);
-          leaveRoom();
-          toast('💤 Retour après mise en veille prolongée. Données réinitialisées.');
-          if (!socket.connected) socket.connect();
-        }
-      }
+    const elapsed = pageHiddenAt > 0 ? (Date.now() - pageHiddenAt) : 0;
+    pageHiddenAt = 0;
+    const humanPlayers = (roomState?.players || []).filter((p) => !p.isBot && !p.isSpectator).length;
+    const isSolo = Boolean(roomState?.isTraining || humanPlayers <= 1);
+
+    if (isSolo && elapsed > 15500 && (myCode || roomState || myId)) {
+      leaveRoom(false);
+      toast('⏱️ Partie solo expirée après 15s d\'absence.');
+      if (!socket.connected) socket.connect();
+      return;
+    }
+    if (!socket.connected) {
+      socket.connect();
+    } else if (myCode && myId) {
+      socket.emit('join', { code: myCode, playerId: myId, name: getPlayerName() }, (res) => {
+        if (res?.ok) onJoinedRoom(res.code, res.playerId, res.phase, res.isSpectator);
+        else leaveRoom(false);
+      });
     }
   }
 });
 
 window.addEventListener('pageshow', (event) => {
-  if (event.persisted && (myCode || roomState || myId)) {
-    leaveRoom();
+  if (event.persisted) {
     if (!socket.connected) socket.connect();
   }
 });
@@ -1612,8 +1664,8 @@ function cycleAmmoSelection(dir = 1) {
 }
 
 function updateAmmoRack(s, me, isUnlimitedAmmo) {
-  const shotsBallsEl = $('shots-balls');
-  if (!shotsBallsEl || !s.turn) return;
+  const containers = [$('shots-balls'), $('mob-ammo-rack')].filter(Boolean);
+  if (!containers.length || !s.turn) return;
 
   const selectedAmmo = me?.selectedAmmo || 'sand';
   const inv = me?.ammoInventory || {
@@ -1624,48 +1676,49 @@ function updateAmmoRack(s, me, isUnlimitedAmmo) {
     grenade: me?.hasGrenade ? 1 : 0,
   };
 
-  const visibleTypes = new Set();
+  for (const rackEl of containers) {
+    const visibleTypes = new Set();
 
-  for (const entry of AMMO_CATALOG) {
-    const count = isUnlimitedAmmo ? 99 : (inv[entry.type] || 0);
-    if (!isUnlimitedAmmo && count <= 0) continue;
+    for (const entry of AMMO_CATALOG) {
+      const count = isUnlimitedAmmo ? 99 : (inv[entry.type] || 0);
+      if (!isUnlimitedAmmo && count <= 0) continue;
 
-    visibleTypes.add(entry.type);
-    const qtyLabel = isUnlimitedAmmo ? '∞' : `x${count}`;
-    const isSelected = selectedAmmo === entry.type;
+      visibleTypes.add(entry.type);
+      const qtyLabel = isUnlimitedAmmo ? '∞' : `x${count}`;
+      const isSelected = selectedAmmo === entry.type;
 
-    let btn = shotsBallsEl.querySelector(`[data-ammo="${entry.type}"]`);
-    if (!btn) {
-      btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'shot-ball ammo-type-btn available';
-      btn.dataset.ammo = entry.type;
-      btn.innerHTML = `
-        <img src="${entry.icon}" alt="${entry.label}" class="shot-ball-img" draggable="false">
-        <span class="ammo-count-badge"></span>
-      `;
-      btn.addEventListener('click', (ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        unlock();
-        selectAmmoType(entry.type);
-      });
-      shotsBallsEl.appendChild(btn);
+      let btn = rackEl.querySelector(`[data-ammo="${entry.type}"]`);
+      if (!btn) {
+        btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'shot-ball ammo-type-btn available';
+        btn.dataset.ammo = entry.type;
+        btn.innerHTML = `
+          <img src="${entry.icon}" alt="${entry.label}" class="shot-ball-img" draggable="false">
+          <span class="ammo-count-badge"></span>
+        `;
+        btn.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          unlock();
+          selectAmmoType(entry.type);
+        });
+        rackEl.appendChild(btn);
+      }
+
+      btn.classList.toggle('selected', isSelected);
+      btn.title = `${entry.label} (${qtyLabel}) — Cliquer ou [TAB] pour sélectionner`;
+      const badge = btn.querySelector('.ammo-count-badge');
+      if (badge && badge.textContent !== qtyLabel) {
+        badge.textContent = qtyLabel;
+      }
     }
 
-    btn.classList.toggle('selected', isSelected);
-    btn.title = `${entry.label} (${qtyLabel}) — Cliquer ou [TAB] pour sélectionner`;
-    const badge = btn.querySelector('.ammo-count-badge');
-    if (badge && badge.textContent !== qtyLabel) {
-      badge.textContent = qtyLabel;
-    }
-  }
-
-  // Nettoyer les munitions plus possédées et tout bouton résiduel non typé
-  for (const child of Array.from(shotsBallsEl.children)) {
-    const t = child.dataset?.ammo;
-    if (!t || !visibleTypes.has(t)) {
-      child.remove();
+    for (const child of Array.from(rackEl.children)) {
+      const t = child.dataset?.ammo;
+      if (!t || !visibleTypes.has(t)) {
+        child.remove();
+      }
     }
   }
 }
@@ -1679,12 +1732,35 @@ function syncUI() {
   const me = s.players.find((p) => p.id === myId);
   const isSpectator = !!me?.isSpectator || (me && !me.alive && s.phase !== 'over');
 
-  // Barre d'entraînement dans le HUD
+  // Mise à jour des pastilles de la barre supérieure (#hud)
+  const roomPill = $('room-pill');
+  if (roomPill) {
+    roomPill.textContent = s.isTraining ? '🎯 ENTRAÎNEMENT' : `🏖️ PLAGE ${s.code}`;
+  }
+  const phasePill = $('phase-pill');
+  if (phasePill) {
+    const phaseLabels = {
+      lobby: 'SALON',
+      build: 'CONSTRUCTION',
+      settle: 'GRAVITÉ',
+      battle: 'COMBAT',
+      over: 'FIN',
+    };
+    phasePill.textContent = phaseLabels[s.phase] || String(s.phase || '').toUpperCase();
+  }
+
+  // Barre d'entraînement dans le HUD (PC) & dans le Dock Mobile
   const trainHudBar = $('train-hud-bar');
   if (trainHudBar) {
     trainHudBar.classList.toggle('hidden', !s.isTraining);
     $('train-start-ai-btn')?.classList.toggle('hidden', !(s.isTraining && s.phase === 'build'));
     $('train-new-target-btn')?.classList.toggle('hidden', !(s.isTraining && s.trainingMode === 'shoot' && s.phase === 'battle'));
+  }
+  const mobTrainBar = $('mob-train-bar');
+  if (mobTrainBar) {
+    mobTrainBar.classList.toggle('hidden', !s.isTraining);
+    $('mob-train-start-ai-btn')?.classList.toggle('hidden', !(s.isTraining && s.phase === 'build'));
+    $('mob-train-new-target-btn')?.classList.toggle('hidden', !(s.isTraining && s.trainingMode === 'shoot' && s.phase === 'battle'));
   }
 
   // Bouton Spray dans le HUD : affiché uniquement en phase de construction (en bataille, le spray est automatique sur son château !)
@@ -1693,8 +1769,8 @@ function syncUI() {
 
   // Bouton dédié pour retourner à tout moment sur son château en bataille (quand on n'est pas déjà la cible en défense)
   const myCastleBtn = $('my-castle-btn');
+  const showMyCastleBtn = !isSpectator && Boolean(me?.alive) && s.phase === 'battle' && Boolean(s.turn) && s.turn.targetId !== myId;
   if (myCastleBtn) {
-    const showMyCastleBtn = !isSpectator && Boolean(me?.alive) && s.phase === 'battle' && Boolean(s.turn) && s.turn.targetId !== myId;
     myCastleBtn.classList.toggle('hidden', !showMyCastleBtn);
     if (showMyCastleBtn) {
       const spraysLeft = me?.defenseSpraysLeft ?? 0;
@@ -1709,12 +1785,24 @@ function syncUI() {
       inspectingOwnCastle = false;
     }
   }
+  const mobMyCastleBtn = $('mob-my-castle-btn');
+  if (mobMyCastleBtn) {
+    mobMyCastleBtn.classList.toggle('hidden', !showMyCastleBtn);
+    if (showMyCastleBtn) {
+      const spraysLeft = me?.defenseSpraysLeft ?? 0;
+      mobMyCastleBtn.innerHTML = inspectingOwnCastle
+        ? `⚔️ Retour combat`
+        : `🏰 Château (${spraysLeft} 💦)`;
+    }
+  }
 
   // Modale Lobby & Spectateur
   if (s.phase === 'lobby') {
     isWatchingGame = false;
     stopGameLoop();
     $('hud').classList.add('hidden');
+    $('pc-players-strip')?.classList.add('hidden');
+    $('mobile-game-dock')?.classList.add('hidden');
     $('welcome-view').classList.add('hidden');
     $('room-view').classList.remove('hidden');
     $('over-modal').classList.add('hidden');
@@ -1732,16 +1820,18 @@ function syncUI() {
     ul.innerHTML = '';
     for (const p of s.players) {
       const li = document.createElement('li');
-      li.className = 'roster-item';
+      li.className = `roster-item${p.disconnected ? ' player-disconnected' : ''}`;
+      li.style.setProperty('--p-color', p.color || '#38bdf8');
       const left = document.createElement('span');
       const botIcon = p.isBot ? (p.difficulty === '36yo' ? ' 👷‍♂️' : p.difficulty === '12yo' ? ' 🧒' : ' 👶') : '';
-      left.innerHTML = `<span class="color-dot" style="background:${p.color}"></span> ${escapeHtml(p.name)} ${p.id === s.hostId ? '👑' : ''}${botIcon} ${p.isSpectator ? '👀' : ''}`;
+      const discBadge = p.disconnected ? ' ⚠️ (Hors-ligne)' : '';
+      left.innerHTML = `<span class="color-dot" style="background:${p.color}"></span> ${escapeHtml(p.name)} ${p.id === s.hostId ? '👑' : ''}${botIcon} ${p.isSpectator ? '👀' : ''}${discBadge}`;
       li.appendChild(left);
-      if (isHost && p.isBot) {
+      if (isHost && p.id !== myId) {
         const kick = document.createElement('button');
         kick.className = 'kick-btn';
-        kick.textContent = 'Retirer';
-        kick.addEventListener('click', () => socket.emit('kick', { id: p.id }));
+        kick.textContent = '✕ Éjecter';
+        kick.addEventListener('click', () => socket.emit('kickPlayer', { id: p.id }));
         li.appendChild(kick);
       }
       ul.appendChild(li);
@@ -1754,6 +1844,8 @@ function syncUI() {
     if (showSpectateModal) {
       stopGameLoop();
       $('hud').classList.add('hidden');
+      $('pc-players-strip')?.classList.add('hidden');
+      $('mobile-game-dock')?.classList.add('hidden');
       $('welcome-view').classList.add('hidden');
       $('room-view').classList.remove('hidden');
       $('spectate-btn-wrap')?.classList.remove('hidden');
@@ -1766,16 +1858,24 @@ function syncUI() {
         ul.innerHTML = '';
         for (const p of s.players) {
           const li = document.createElement('li');
-          li.className = 'roster-item';
+          li.className = `roster-item${p.disconnected ? ' player-disconnected' : ''}`;
           const left = document.createElement('span');
-          left.innerHTML = `<span class="color-dot" style="background:${p.color}"></span> ${escapeHtml(p.name)} ${p.alive ? '🏰' : '💀'} ${p.isSpectator ? '👀' : ''}`;
+          left.innerHTML = `<span class="color-dot" style="background:${p.color}"></span> ${escapeHtml(p.name)} ${p.alive ? '🏰' : '💀'} ${p.isSpectator ? '👀' : ''}${p.disconnected ? ' ⚠️' : ''}`;
           li.appendChild(left);
+          if (isHost && p.id !== myId) {
+            const kick = document.createElement('button');
+            kick.className = 'kick-btn';
+            kick.textContent = '✕';
+            kick.addEventListener('click', () => socket.emit('kickPlayer', { id: p.id }));
+            li.appendChild(kick);
+          }
           ul.appendChild(li);
         }
       }
     } else {
       $('spectate-btn-wrap')?.classList.add('hidden');
       $('hud').classList.remove('hidden');
+      $('mobile-game-dock')?.classList.remove('hidden');
       startGameLoop();
     }
   }
@@ -1848,13 +1948,13 @@ function syncUI() {
   // Bannière / Dock Défenseur & Château (sur PC et Mobile)
   const isDefenderTarget = s.phase === 'battle' && s.turn?.targetId === myId && Boolean(me?.alive);
   const isInspectingOwn = s.phase === 'battle' && Boolean(s.turn) && inspectingOwnCastle && s.turn.targetId !== myId && Boolean(me?.alive);
-  const isMobileWatchingOtherDuel = isMobileDevice() && s.phase === 'battle' && Boolean(s.turn) && Boolean(me?.alive) && s.turn.shooterId !== myId && s.turn.targetId !== myId && !inspectingOwnCastle;
-  const showDefControls = isDefenderTarget || isInspectingOwn || isMobileWatchingOtherDuel;
+  const isWatchingOtherDuel = s.phase === 'battle' && Boolean(s.turn) && Boolean(me?.alive) && s.turn.shooterId !== myId && s.turn.targetId !== myId && !inspectingOwnCastle;
+  const showDefControls = isDefenderTarget || isInspectingOwn;
 
   const defControls = $('defender-controls');
   if (defControls) {
     defControls.classList.toggle('hidden', !showDefControls);
-    defControls.classList.toggle('inspect-mode', isInspectingOwn || isMobileWatchingOtherDuel);
+    defControls.classList.toggle('inspect-mode', isInspectingOwn);
     const spraysLeft = me?.defenseSpraysLeft ?? 0;
     const defSprayCount = $('defender-spray-count');
     if (defSprayCount) defSprayCount.textContent = String(spraysLeft);
@@ -1862,15 +1962,12 @@ function syncUI() {
     const defIcon = $('defender-icon');
     const defMsg = $('spectator-msg');
     const defReturnBtn = $('defender-return-duel-btn');
-    const mobile = isMobileDevice();
 
     if (isDefenderTarget) {
       if (defIcon) defIcon.textContent = '🛡️';
       if (defMsg) {
         defMsg.innerHTML = spraysLeft > 0
-          ? (mobile
-            ? '<strong>Tu es pris pour cible !</strong> Touche directement ton château pour le durcir au Spray 💦 !'
-            : '<strong>Tu es pris pour cible !</strong> Clique directement sur ton château pour le durcir au Spray 💦 !')
+          ? '<strong>Tu es pris pour cible !</strong> Clique directement sur ton château pour le durcir au Spray 💦 !'
           : '<strong>Tu es pris pour cible !</strong> Plus de spray en stock pour ce tour.';
       }
       if (defReturnBtn) defReturnBtn.classList.add('hidden');
@@ -1878,25 +1975,12 @@ function syncUI() {
       if (defIcon) defIcon.textContent = '🏰';
       if (defMsg) {
         defMsg.innerHTML = spraysLeft > 0
-          ? (mobile
-            ? '<strong>Sur ton château !</strong> Touche directement ton sable pour appliquer un Spray 💦.'
-            : '<strong>Sur ton château !</strong> Clique directement sur ton sable pour appliquer un Spray 💦.')
+          ? '<strong>Sur ton château !</strong> Clique directement sur ton sable pour appliquer un Spray 💦.'
           : '<strong>Sur ton château !</strong> Plus de spray disponible actuellement.';
       }
       if (defReturnBtn) {
         defReturnBtn.classList.remove('hidden');
         defReturnBtn.innerHTML = '⚔️ Retourner au combat';
-      }
-    } else if (isMobileWatchingOtherDuel) {
-      const shooter = s.players.find((p) => p.id === s.turn.shooterId);
-      const target = s.players.find((p) => p.id === s.turn.targetId);
-      if (defIcon) defIcon.textContent = '👀';
-      if (defMsg) {
-        defMsg.innerHTML = `<strong>${escapeHtml(shooter?.name || '?')}</strong> attaque <strong>${escapeHtml(target?.name || '?')}</strong>.`;
-      }
-      if (defReturnBtn) {
-        defReturnBtn.classList.remove('hidden');
-        defReturnBtn.innerHTML = `🏰 Mon Château (${spraysLeft} 💦)`;
       }
     }
   }
@@ -1906,12 +1990,12 @@ function syncUI() {
 
   $('banner-msg')?.classList.add('hidden');
 
-  // Docks de construction (atelier à gauche et inventaire en bas)
+  // Docks de construction PC (atelier à gauche et inventaire en bas)
   $('build-dock')?.classList.toggle('hidden', s.phase !== 'build');
   $('atelier-dock')?.classList.toggle('hidden', s.phase !== 'build');
   if (s.phase === 'build' && me) {
-    const kw = $('king-warning');
-    if (kw) {
+    for (const kw of [$('king-warning'), $('mob-king-warning')]) {
+      if (!kw) continue;
       if (!me.alive) {
         kw.className = 'dock-hint danger';
         kw.innerHTML = '💀 <strong>Ton Roi a été enseveli sous un effondrement !</strong>';
@@ -1934,10 +2018,77 @@ function syncUI() {
 
   // Contrôles de bataille directement sur la catapulte et bouton de switch latéral
   const inBattle = s.phase === 'battle' && s.turn;
-  const isMyTurn = inBattle && s.turn.shooterId === myId && s.turn.state === 'aim' && !inspectingOwnCastle;
+  const isMyTurn = Boolean(inBattle && s.turn.shooterId === myId && s.turn.state === 'aim' && !inspectingOwnCastle);
 
   $('catapult-hud')?.classList.toggle('hidden', !isMyTurn);
   $('wind-pill').classList.toggle('hidden', !inBattle);
+
+  // Synchronisation des panneaux du Dock Mobile dédié (#mobile-game-dock)
+  const mobPanelBuild = $('mob-panel-build');
+  const mobPanelAttack = $('mob-panel-attack');
+  const mobPanelDefend = $('mob-panel-defend');
+  if (mobPanelBuild) mobPanelBuild.classList.toggle('hidden', s.phase !== 'build');
+  if (mobPanelAttack) mobPanelAttack.classList.toggle('hidden', !isMyTurn);
+  const showMobDefend = (s.phase === 'battle' || s.phase === 'settle') && !isMyTurn;
+  if (mobPanelDefend) {
+    mobPanelDefend.classList.toggle('hidden', !showMobDefend);
+    if (showMobDefend) {
+      const spraysLeft = me?.defenseSpraysLeft ?? 0;
+      const mobDefIcon = $('mob-defend-icon');
+      const mobDefText = $('mob-defend-text');
+      const mobDefSpray = $('mob-defend-spray-badge');
+      const mobDefReturnBtn = $('mob-defend-return-btn');
+
+      if (mobDefSpray) {
+        mobDefSpray.textContent = `💦 ${spraysLeft}`;
+        mobDefSpray.classList.toggle('hidden', !me?.alive || s.phase === 'settle');
+      }
+
+      if (s.phase === 'settle') {
+        if (mobDefIcon) mobDefIcon.textContent = '⏳';
+        if (mobDefText) mobDefText.innerHTML = '<strong>Test de gravité…</strong> Voyons si les châteaux tiennent debout !';
+        if (mobDefReturnBtn) mobDefReturnBtn.classList.add('hidden');
+      } else if (isDefenderTarget) {
+        if (mobDefIcon) mobDefIcon.textContent = '🛡️';
+        if (mobDefText) {
+          mobDefText.innerHTML = spraysLeft > 0
+            ? '<strong>Tu es pris pour cible !</strong> Touche directement ton château pour le durcir au Spray 💦 !'
+            : '<strong>Tu es pris pour cible !</strong> Plus de spray en stock pour ce tour.';
+        }
+        if (mobDefReturnBtn) mobDefReturnBtn.classList.add('hidden');
+      } else if (isInspectingOwn) {
+        if (mobDefIcon) mobDefIcon.textContent = '🏰';
+        if (mobDefText) {
+          mobDefText.innerHTML = spraysLeft > 0
+            ? '<strong>Sur ton château !</strong> Touche ton sable pour appliquer un Spray 💦.'
+            : '<strong>Sur ton château !</strong> Plus de spray disponible.';
+        }
+        if (mobDefReturnBtn) {
+          mobDefReturnBtn.classList.remove('hidden');
+          mobDefReturnBtn.innerHTML = '⚔️ Retour au combat';
+        }
+      } else if (isWatchingOtherDuel) {
+        const shooter = s.players.find((p) => p.id === s.turn?.shooterId);
+        const target = s.players.find((p) => p.id === s.turn?.targetId);
+        if (mobDefIcon) mobDefIcon.textContent = '👀';
+        if (mobDefText) {
+          mobDefText.innerHTML = `<strong>${escapeHtml(shooter?.name || '?')}</strong> attaque <strong>${escapeHtml(target?.name || '?')}</strong>.`;
+        }
+        if (mobDefReturnBtn) {
+          mobDefReturnBtn.classList.remove('hidden');
+          mobDefReturnBtn.innerHTML = `🏰 Mon Château (${spraysLeft} 💦)`;
+        }
+      } else if (s.turn?.shooterId === myId && s.turn?.state !== 'aim') {
+        if (mobDefIcon) mobDefIcon.textContent = '☄️';
+        if (mobDefText) mobDefText.innerHTML = '<strong>Boulet en vol !</strong> Observe l\'impact sur le château adverse…';
+        if (mobDefReturnBtn) mobDefReturnBtn.classList.add('hidden');
+      } else {
+        if (mobDefIcon) mobDefIcon.textContent = '👀';
+        if (mobDefText) mobDefText.innerHTML = '<strong>Mode Spectateur</strong> — Observe la bataille en cours.';
+        if (mobDefReturnBtn) mobDefReturnBtn.classList.add('hidden');
+      }
+    }
+  }
 
   // Bouton latéral de bascule de catapulte (au centre sur le bord où se trouve la catapulte opposée)
   updateCatapultSwitchButton();
@@ -1947,17 +2098,25 @@ function syncUI() {
     const arrow = wVal > 0 ? '→'.repeat(Math.min(3, Math.ceil(wVal / 3))) : wVal < 0 ? '←'.repeat(Math.min(3, Math.ceil(-wVal / 3))) : 'calme';
     $('wind-pill').textContent = `💨 Vent : ${arrow} (${wVal > 0 ? '+' : ''}${wVal})`;
 
-    // Barre des boulets sous la catapulte : stable, sans clignotement et avec sélection fluide
+    // Barre des boulets sous la catapulte (PC) et dans le dock d'attaque (Mobile)
     const isUnlimitedAmmo = Boolean(s.turn?.infiniteAmmo || (s.isTraining && s.trainingMode === 'shoot'));
     updateAmmoRack(s, me, isUnlimitedAmmo);
+
+    const activeAmmo = me?.selectedAmmo || s.turn?.selectedAmmo || 'sand';
+    const catEntry = AMMO_CATALOG.find((a) => a.type === activeAmmo);
+    const boltChar = catEntry ? catEntry.bolt : '⚡';
 
     const triggerLabelEl = $('trigger-label');
     const triggerBoltEl = document.querySelector('.power-bolt');
     if (triggerLabelEl && triggerBoltEl) {
-      const activeAmmo = me?.selectedAmmo || s.turn?.selectedAmmo || 'sand';
-      const catEntry = AMMO_CATALOG.find((a) => a.type === activeAmmo);
-      triggerBoltEl.textContent = catEntry ? catEntry.bolt : '⚡';
+      triggerBoltEl.textContent = boltChar;
       if (!isCharging) triggerLabelEl.textContent = 'Tirer !!';
+    }
+    const mobTriggerLabelEl = $('mob-trigger-label');
+    const mobTriggerBoltEl = $('mob-power-bolt');
+    if (mobTriggerLabelEl && mobTriggerBoltEl) {
+      mobTriggerBoltEl.textContent = boltChar;
+      if (!isCharging) mobTriggerLabelEl.textContent = 'MAINTENIR POUR TIRER';
     }
 
     const shooter = s.players.find((p) => p.id === s.turn.shooterId);
@@ -2059,10 +2218,70 @@ function syncUI() {
 }
 
 function renderPlayersStrip() {
-  const strip = $('players-strip');
-  if (!strip) return;
-  strip.classList.add('hidden');
-  strip.innerHTML = '';
+  const pcStrip = $('pc-players-strip');
+  if (!pcStrip) return;
+  const s = roomState;
+  if (!s || s.phase === 'lobby' || s.isTraining) {
+    pcStrip.classList.add('hidden');
+    pcStrip.innerHTML = '';
+    return;
+  }
+
+  const isHost = s.hostId === myId;
+  pcStrip.classList.remove('hidden');
+  pcStrip.innerHTML = '';
+
+  for (const p of s.players) {
+    const chip = document.createElement('div');
+    const classes = ['pc-player-chip'];
+    if (!p.alive) classes.push('is-dead');
+    if (p.disconnected) classes.push('player-disconnected');
+    chip.className = classes.join(' ');
+    chip.style.setProperty('--p-color', p.color || '#38bdf8');
+
+    const icon = document.createElement('span');
+    icon.className = 'pc-player-icon';
+    if (p.disconnected) {
+      icon.textContent = '📡';
+      chip.title = `${p.name} — Connexion perdue (peut revenir dans la partie)`;
+    } else if (!p.alive) {
+      icon.textContent = '💀';
+      chip.title = `${p.name} — Éliminé`;
+    } else if (p.id === s.hostId) {
+      icon.textContent = '👑';
+      chip.title = `${p.name} (Hôte)`;
+    } else if (p.isBot) {
+      icon.textContent = p.difficulty === '36yo' ? '👷‍♂️' : p.difficulty === '12yo' ? '🧒' : '👶';
+      chip.title = `${p.name} (IA)`;
+    } else {
+      icon.textContent = '🏰';
+      chip.title = p.name;
+    }
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'pc-player-name';
+    nameSpan.textContent = p.name;
+
+    chip.appendChild(icon);
+    chip.appendChild(nameSpan);
+
+    if (isHost && p.id !== myId) {
+      const kickBtn = document.createElement('button');
+      kickBtn.type = 'button';
+      kickBtn.className = 'pc-player-kick-btn';
+      kickBtn.textContent = '✕';
+      kickBtn.title = `Éjecter ${p.name} de la partie`;
+      kickBtn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        unlock();
+        socket.emit('kickPlayer', { id: p.id });
+      });
+      chip.appendChild(kickBtn);
+    }
+
+    pcStrip.appendChild(chip);
+  }
 }
 
 function refreshThumb(pid) {
@@ -2661,6 +2880,11 @@ const fireTriggerBtn = $('fire-trigger-btn');
 const powerBar = $('power-gauge-bar');
 const powerValText = $('power-val');
 const triggerLabel = $('trigger-label');
+const mobFireBtn = $('mob-fire-btn');
+const mobPowerBar = $('mob-power-gauge-bar');
+const mobPowerValText = $('mob-power-val');
+const mobTriggerLabel = $('mob-trigger-label');
+const mobCancelFireBtn = $('mob-cancel-fire-btn');
 
 function startCharging() {
   if (isCharging) return;
@@ -2676,6 +2900,9 @@ function startCharging() {
   currentChargePower = 0.0;
   if (fireTriggerBtn) fireTriggerBtn.classList.add('charging');
   if (triggerLabel) triggerLabel.textContent = 'Charge...';
+  if (mobFireBtn) mobFireBtn.classList.add('charging');
+  if (mobTriggerLabel) mobTriggerLabel.textContent = 'RELÂCHER POUR TIRER !';
+  if (mobCancelFireBtn) mobCancelFireBtn.classList.remove('hidden');
   sfx.startCharge(0.0);
 
   function chargeLoop(now) {
@@ -2696,6 +2923,8 @@ function startCharging() {
     const pct = Math.round(currentChargePower * 100);
     if (powerBar) powerBar.style.width = `${pct}%`;
     if (powerValText) powerValText.textContent = String(pct);
+    if (mobPowerBar) mobPowerBar.style.width = `${pct}%`;
+    if (mobPowerValText) mobPowerValText.textContent = String(pct);
     aim.power = currentChargePower;
     socket.emit('aim', { angle: aim.angle, power: aim.power, side: myCatapultSide });
 
@@ -2715,10 +2944,15 @@ function cancelCharging() {
   sfx.stopCharge();
   if (fireTriggerBtn) fireTriggerBtn.classList.remove('charging');
   if (triggerLabel) triggerLabel.textContent = 'Tirer !!';
+  if (mobFireBtn) mobFireBtn.classList.remove('charging');
+  if (mobTriggerLabel) mobTriggerLabel.textContent = 'MAINTENIR POUR TIRER';
+  if (mobCancelFireBtn) mobCancelFireBtn.classList.add('hidden');
   currentChargePower = 0;
   aim.power = 0;
   if (powerBar) powerBar.style.width = '0%';
   if (powerValText) powerValText.textContent = '0';
+  if (mobPowerBar) mobPowerBar.style.width = '0%';
+  if (mobPowerValText) mobPowerValText.textContent = '0';
   socket.emit('aim', { angle: aim.angle, power: 0, side: myCatapultSide });
   const isRight = (roomState?.turn?.catapultSide || myCatapultSide) === 'right';
   const catSideX = isRight ? (GRID_W - CATAPULT_X - 10) : (CATAPULT_X + 10);
@@ -2734,6 +2968,9 @@ function releaseAndFire() {
   sfx.stopCharge();
   if (fireTriggerBtn) fireTriggerBtn.classList.remove('charging');
   if (triggerLabel) triggerLabel.textContent = 'Tirer !!';
+  if (mobFireBtn) mobFireBtn.classList.remove('charging');
+  if (mobTriggerLabel) mobTriggerLabel.textContent = 'MAINTENIR POUR TIRER';
+  if (mobCancelFireBtn) mobCancelFireBtn.classList.add('hidden');
 
   // Ne tirer le boulet que si le chargement est à minimum 20%
   if (currentChargePower < 0.20) {
@@ -2741,6 +2978,8 @@ function releaseAndFire() {
     aim.power = 0;
     if (powerBar) powerBar.style.width = '0%';
     if (powerValText) powerValText.textContent = '0';
+    if (mobPowerBar) mobPowerBar.style.width = '0%';
+    if (mobPowerValText) mobPowerValText.textContent = '0';
     socket.emit('aim', { angle: aim.angle, power: 0, side: myCatapultSide });
     const isRight = (roomState?.turn?.catapultSide || myCatapultSide) === 'right';
     const catSideX = isRight ? (GRID_W - CATAPULT_X - 10) : (CATAPULT_X + 10);
@@ -2755,6 +2994,8 @@ function releaseAndFire() {
     if (!isCharging) {
       if (powerBar) powerBar.style.width = '0%';
       if (powerValText) powerValText.textContent = '0';
+      if (mobPowerBar) mobPowerBar.style.width = '0%';
+      if (mobPowerValText) mobPowerValText.textContent = '0';
     }
   }, 450);
 }
@@ -2763,12 +3004,12 @@ let triggerTouchStartX = 0;
 let triggerTouchStartY = 0;
 let triggerCancelled = false;
 
-if (fireTriggerBtn) {
-  fireTriggerBtn.addEventListener('contextmenu', (e) => {
+for (const btnEl of [fireTriggerBtn, mobFireBtn].filter(Boolean)) {
+  btnEl.addEventListener('contextmenu', (e) => {
     e.preventDefault();
   });
 
-  fireTriggerBtn.addEventListener('pointerdown', (e) => {
+  btnEl.addEventListener('pointerdown', (e) => {
     // Sur PC uniquement : si vrai clic droit de souris, ignorer
     if (e.pointerType === 'mouse' && e.button === 2) {
       return;
@@ -2778,11 +3019,11 @@ if (fireTriggerBtn) {
     triggerTouchStartX = e.clientX;
     triggerTouchStartY = e.clientY;
     triggerCancelled = false;
-    try { fireTriggerBtn.setPointerCapture(e.pointerId); } catch (_) {}
+    try { btnEl.setPointerCapture(e.pointerId); } catch (_) {}
     startCharging();
   });
 
-  fireTriggerBtn.addEventListener('pointerup', (e) => {
+  btnEl.addEventListener('pointerup', (e) => {
     e.preventDefault();
     if (triggerCancelled) {
       cancelCharging();
@@ -2791,12 +3032,22 @@ if (fireTriggerBtn) {
     releaseAndFire();
   });
 
-  fireTriggerBtn.addEventListener('pointercancel', () => {
+  btnEl.addEventListener('pointercancel', () => {
     if (triggerCancelled) {
       cancelCharging();
     } else {
       releaseAndFire();
     }
+  });
+}
+
+if (mobCancelFireBtn) {
+  mobCancelFireBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    unlock();
+    triggerCancelled = true;
+    cancelCharging();
   });
 }
 
@@ -2812,9 +3063,10 @@ window.addEventListener('contextmenu', (e) => {
 window.addEventListener('pointerdown', (e) => {
   if (!isCharging) return;
 
+  const isOnPcTrigger = fireTriggerBtn && (e.target === fireTriggerBtn || fireTriggerBtn.contains(e.target));
+  const isOnMobTrigger = mobFireBtn && (e.target === mobFireBtn || mobFireBtn.contains(e.target));
   // Si le clic / touch est AILLEURS que sur le bouton de tir :
-  const isOutsideTrigger = fireTriggerBtn && e.target !== fireTriggerBtn && !fireTriggerBtn.contains(e.target);
-  if (isOutsideTrigger) {
+  if (!isOnPcTrigger && !isOnMobTrigger) {
     e.preventDefault();
     triggerCancelled = true;
     cancelCharging();
@@ -2939,6 +3191,8 @@ $('pause-lobby-btn')?.addEventListener('click', (e) => {
   stopGameLoop();
   $('scene')?.classList.add('hidden');
   $('hud')?.classList.add('hidden');
+  $('pc-players-strip')?.classList.add('hidden');
+  $('mobile-game-dock')?.classList.add('hidden');
   $('catapult-hud')?.classList.add('hidden');
   $('battle-timeline')?.classList.add('hidden');
   $('defender-controls')?.classList.add('hidden');

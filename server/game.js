@@ -105,6 +105,8 @@ export class Room {
       isSpectator: false,
       socket: socket || null,
       connected: !!socket || isBot,
+      disconnected: false,
+      disconnectedAt: null,
       world: new SandWorld((this.rng() * 2 ** 32) >>> 0),
       alive: true,
       lastPlace: 0,
@@ -136,6 +138,8 @@ export class Room {
       isSpectator: true,
       socket: socket || null,
       connected: !!socket,
+      disconnected: false,
+      disconnectedAt: null,
       world: new SandWorld(0),
       alive: false,
       lastPlace: 0,
@@ -160,20 +164,69 @@ export class Room {
     return this.addPlayer({ name: getBotName(diff, n), isBot: true, difficulty: diff });
   }
 
-  reattach(playerId, socket) {
-    const p = this.players.get(playerId);
+  reattach(playerId, socket, name = '') {
+    let p = playerId ? this.players.get(playerId) : null;
+    if ((!p || p.isBot) && name) {
+      const cleanName = String(name).trim().toLowerCase();
+      if (cleanName) {
+        p = [...this.players.values()].find(
+          (x) => !x.isBot && (!x.connected || x.disconnected) && x.name.trim().toLowerCase() === cleanName
+        ) || null;
+      }
+    }
     if (!p || p.isBot) return null;
+    if (this.soloDisconnectTimer) {
+      clearTimeout(this.soloDisconnectTimer);
+      this.soloDisconnectTimer = null;
+    }
+    this.soloDisconnectAt = null;
     if (p.socket && p.socket.id !== socket.id) {
       try { p.socket.disconnect(true); } catch (_) {}
     }
+    const wasDisconnected = !!p.disconnected || !p.connected;
     p.socket = socket;
     p.connected = true;
-    socket.join(this.channel);
+    p.disconnected = false;
+    p.disconnectedAt = null;
+    if (socket) socket.join(this.channel);
     p.sentFast = -1;
     p.sentSlow = -1;
     this.dirtyState = true;
+    if (wasDisconnected) {
+      this.say(`🔄 ${p.name} est de retour dans la partie !`);
+    }
     this.sendAllWorlds(socket);
     return p;
+  }
+
+  kickPlayer(id) {
+    const p = this.players.get(id);
+    if (!p) return false;
+
+    if (p.socket) {
+      try {
+        p.socket.emit('kicked', { reason: "Tu as été éjecté de la partie par l'hôte." });
+        p.socket.leave(this.channel);
+        p.socket.leave(this.code);
+      } catch (_) {}
+      p.socket = null;
+    }
+    p.connected = false;
+    p.disconnected = false;
+
+    if (this.phase === 'lobby') {
+      this.removePlayer(id);
+      return true;
+    }
+
+    // En cours de partie : éliminer son Roi et nettoyer son slot de la salle
+    this.leavePlayer(id);
+    this.players.delete(id);
+    this.order = this.order.filter((x) => x !== id);
+    this.say(`👢 ${p.name} a été éjecté par l'hôte.`);
+    this.dirtyState = true;
+    this.broadcastState();
+    return true;
   }
 
   leavePlayer(id) {
@@ -191,6 +244,7 @@ export class Room {
       p.world.king.cause = 'abandon';
     }
     p.connected = false;
+    p.disconnected = false;
     if (p.socket) {
       try {
         p.socket.leave(this.channel);
@@ -317,13 +371,29 @@ export class Room {
   disconnect(socket) {
     for (const p of this.players.values()) {
       if (p.socket && p.socket.id === socket.id) {
-        if (this.phase === 'lobby') {
-          this.removePlayer(p.id);
-        } else {
-          this.leavePlayer(p.id);
+        p.connected = false;
+        p.disconnected = true;
+        p.disconnectedAt = Date.now();
+        try {
+          p.socket.leave(this.channel);
+          p.socket.leave(this.code);
+        } catch (_) {}
+        p.socket = null;
+
+        // Si le joueur était le tireur actif en combat, écourter son tour pour ne pas bloquer la partie
+        if (this.phase === 'battle' && this.turn && this.turn.shooterId === p.id && this.turn.state === 'aim') {
+          this.turn.endsAt = Math.min(this.turn.endsAt, Date.now() + 4000);
         }
+
+        this.dirtyState = true;
+        this.say(`🔌 ${p.name} est hors-ligne (en attente de reconnexion…).`);
+        this.broadcastState();
       }
     }
+  }
+
+  get totalHumanPlayers() {
+    return [...this.players.values()].filter((p) => !p.isBot && !p.isSpectator).length;
   }
 
   get humanCount() {
@@ -1562,6 +1632,8 @@ export class Room {
       difficulty: p.difficulty || (p.isBot ? '5yo' : null),
       isSpectator: !!p.isSpectator,
       connected: p.connected,
+      disconnected: !!p.disconnected || (!p.connected && !p.isBot),
+      disconnectedAt: p.disconnectedAt || null,
       alive: p.alive,
       kingPlaced: !!k,
       kingHits: k ? k.hits : 0,

@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&family=Pixelify+Sans:wght@500;600;700&family=Silkscreen:wght@400;700&family=Quicksand:wght@600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/style.css?v=7" />
+  <link rel="stylesheet" href="/css/style.css?v=8" />
 </head>
 <body>
   <!-- Arrière-plan animé du site avec Parallax léger (Ciel, Mer, Nuages & Oiseaux) -->
@@ -32,10 +32,10 @@
       <button id="room-pill" class="pill pill-btn" title="Cliquer pour copier le lien d'invitation">🏖️ PLAGE ----</button>
       <span id="phase-pill" class="pill phase-pill">SALON</span>
       <span id="wind-pill" class="pill wind-pill hidden">💨 Vent : calme</span>
-      <button id="my-castle-btn" class="pill my-castle-pill hidden" type="button" title="Aller voir ton château pour y mettre un spray [Touche E]">
+      <button id="my-castle-btn" class="pill my-castle-pill pc-only-ui hidden" type="button" title="Aller voir ton château pour y mettre un spray [Touche E]">
         🏰 Mon Château & Spray
       </button>
-      <div id="train-hud-bar" class="train-hud-bar hidden">
+      <div id="train-hud-bar" class="train-hud-bar pc-only-ui hidden">
         <button id="train-start-ai-btn" class="pill train-action-pill hidden" type="button" title="Terminer la construction et lancer les vagues d'attaque de l'IA">
           ⚔️ Tester face à l'IA
         </button>
@@ -56,10 +56,10 @@
     </div>
 
     <div class="hud-right">
-      <button id="spray-quick-btn" class="pill spray-pill hidden" title="Arroser ton château au spray pour le durcir [Touche E]">
+      <button id="spray-quick-btn" class="pill spray-pill pc-only-ui hidden" title="Arroser ton château au spray pour le durcir [Touche E]">
         💦 Spray : <strong id="spray-status-txt">PRÊT</strong>
       </button>
-      <button id="mobile-chat-trigger" class="icon-btn mobile-chat-btn" type="button" title="Afficher les notifications" aria-label="Notifications">
+      <button id="mobile-chat-trigger" class="icon-btn mobile-chat-btn mobile-only-ui" type="button" title="Afficher les notifications" aria-label="Notifications">
         🔔<span id="mobile-chat-badge" class="chat-badge-mini hidden">0</span>
       </button>
       <button id="mute-btn" class="icon-btn" title="Activer / couper les effets sonores">🔊</button>
@@ -70,6 +70,9 @@
     <!-- Bannière déportée dans le centre de notifications -->
     <div id="banner-msg" class="banner-msg hidden">En attente des joueurs…</div>
   </header>
+
+  <!-- Liste des joueurs sous la room (PC uniquement : couleur, icône, nom, statut hors-ligne clignotant et croix d'éjection pour l'admin) -->
+  <div id="pc-players-strip" class="pc-players-strip pc-only-ui hidden" aria-label="Joueurs dans la partie"></div>
 
   <!-- Timeline de bataille : duels de Rois en icônes épurées -->
   <div id="battle-timeline" class="battle-timeline hidden">
@@ -219,8 +222,8 @@
     </div>
   </section>
 
-  <!-- Atelier de construction tout à gauche : Outils, modelage et vision du seau -->
-  <aside id="atelier-dock" class="atelier-sidebar hidden" aria-label="Atelier de modelage">
+  <!-- Atelier de construction tout à gauche (PC uniquement) : Outils, modelage et vision du seau -->
+  <aside id="atelier-dock" class="atelier-sidebar pc-only-ui hidden" aria-label="Atelier de modelage">
     <div class="sidebar-header">
       <div class="sidebar-title-group">
         <span class="sidebar-icon">🏰</span>
@@ -248,25 +251,24 @@
     </div>
   </aside>
 
-  <!-- Barre d'inventaire en footer dans le sable : uniquement les patrons -->
-  <nav id="build-dock" class="sand-inventory-footer hidden" aria-label="Inventaire des patrons">
+  <!-- Barre d'inventaire en footer dans le sable (PC uniquement) : uniquement les patrons -->
+  <nav id="build-dock" class="sand-inventory-footer pc-only-ui hidden" aria-label="Inventaire des patrons">
     <div class="inventory-moulds-row" id="tool-list"></div>
   </nav>
 
-  <!-- Bouton icône pour changer de catapulte (positionné de l'autre côté de l'écran) -->
-  <button id="catapult-switch-btn" class="catapult-icon-switch-btn hidden pos-right" type="button" title="Changer de catapulte" aria-label="Changer de catapulte">
+  <!-- Bouton icône pour changer de catapulte (PC uniquement) -->
+  <button id="catapult-switch-btn" class="catapult-icon-switch-btn pc-only-ui hidden pos-right" type="button" title="Changer de catapulte" aria-label="Changer de catapulte">
     <span class="cat-switch-icon">☄️</span>
     <span class="cat-switch-tag" id="hud-cat-name">⇄</span>
   </button>
 
-  <!-- Actions de tir directement dans le sable (près de la catapulte active) -->
-  <div id="catapult-hud" class="sand-catapult-hud hidden" aria-label="Commandes de tir dans le sable">
-    <!-- 0. Barre mobile : Switch catapulte & Mon Château directement sous le pouce (masquée sur PC) -->
-    <div class="sand-catapult-top-row" id="sand-catapult-top-row">
-      <button id="dock-cat-switch-btn" class="dock-pill-btn btn-cat-switch" type="button" title="Changer de côté de catapulte">
+  <!-- Actions de tir directement dans le sable (PC uniquement) -->
+  <div id="catapult-hud" class="sand-catapult-hud pc-only-ui hidden" aria-label="Commandes de tir dans le sable">
+    <div class="sand-catapult-top-row hidden" id="sand-catapult-top-row">
+      <button id="dock-cat-switch-btn" class="dock-pill-btn btn-cat-switch" type="button">
         <span class="cat-switch-icon">☄️</span> <span id="dock-cat-name">⇄ Catapulte Droite</span>
       </button>
-      <button id="dock-spray-btn" class="dock-pill-btn btn-dock-spray" type="button" title="Aller voir ton château pour y mettre un spray">
+      <button id="dock-spray-btn" class="dock-pill-btn btn-dock-spray" type="button">
         🏰 Mon Château (<strong id="dock-spray-count">1</strong> 💦)
       </button>
     </div>
@@ -296,13 +298,13 @@
     <button id="btn-side-right"></button>
   </div>
 
-  <!-- Bannière Défense & Château : Flottante sur PC, Dock ergonomique sous la plage sur mobile -->
-  <aside id="defender-controls" class="defender-floating-pill hidden" aria-live="polite">
+  <!-- Bannière Défense & Château (PC uniquement) -->
+  <aside id="defender-controls" class="defender-floating-pill pc-only-ui hidden" aria-live="polite">
     <div class="defender-pill-content">
       <div class="defender-info-row">
         <span class="defender-icon" id="defender-icon">🛡️</span>
         <div class="defender-text" id="spectator-msg">
-          <strong>Tu es pris pour cible !</strong> Touche ou clique sur ton château pour le durcir au spray !
+          <strong>Tu es pris pour cible !</strong> Clique sur ton château pour le durcir au spray !
         </div>
       </div>
       <div class="defender-actions-row">
@@ -315,6 +317,66 @@
       </div>
     </div>
   </aside>
+
+  <!-- =========================================================================
+       INTERFACE DE JEU DÉDIÉE TÉLÉPHONE (Masquée sur PC, remplace les docks PC)
+       ========================================================================= -->
+  <section id="mobile-game-dock" class="mobile-game-dock mobile-only-ui hidden" aria-label="Commandes tactiles sur téléphone">
+    <!-- Barre d'actions d'entraînement (visible uniquement en mode entraînement sur téléphone) -->
+    <div id="mob-train-bar" class="mob-train-bar hidden">
+      <button id="mob-train-start-ai-btn" class="mob-train-btn mob-train-primary hidden" type="button">⚔️ Tester face à l'IA</button>
+      <button id="mob-train-new-target-btn" class="mob-train-btn mob-train-primary hidden" type="button">🔄 Nouveau château</button>
+      <button id="mob-train-switch-mode-btn" class="mob-train-btn mob-train-secondary" type="button">🎯 Mode Entraînement</button>
+    </div>
+
+    <!-- 1. PANNEAU CONSTRUCTION MOBILE -->
+    <div id="mob-panel-build" class="mob-dock-panel hidden">
+      <div id="mob-tools-row" class="mob-tools-row"></div>
+      <div id="mob-moulds-grid" class="mob-moulds-grid"></div>
+    </div>
+
+    <!-- 2. PANNEAU ATTAQUE / CATAPULTE MOBILE -->
+    <div id="mob-panel-attack" class="mob-dock-panel hidden">
+      <div class="mob-attack-top-row">
+        <button id="mob-cat-switch-btn" class="mob-action-pill mob-cat-pill" type="button">
+          <span>☄️</span> <span id="mob-cat-switch-label">⇄ Catapulte Droite</span>
+        </button>
+        <button id="mob-my-castle-btn" class="mob-action-pill mob-castle-pill" type="button">
+          🏰 Mon Château (<strong id="mob-attack-spray-count">1</strong> 💦)
+        </button>
+      </div>
+      <div id="mob-ammo-rack" class="mob-ammo-rack"></div>
+      <div class="mob-fire-row">
+        <button id="mob-fire-btn" class="mob-fire-trigger-btn" type="button">
+          <div id="mob-power-gauge-bar" class="mob-power-progress-fill"></div>
+          <div class="mob-fire-inner">
+            <span class="mob-fire-bolt">⚡</span>
+            <span id="mob-trigger-label" class="mob-fire-heading">MAINTENIR POUR TIRER</span>
+            <span class="mob-fire-pct"><strong id="mob-power-val">0</strong>%</span>
+          </div>
+        </button>
+        <button id="mob-cancel-fire-btn" class="mob-cancel-fire-btn hidden" type="button" title="Annuler le chargement">✕</button>
+      </div>
+    </div>
+
+    <!-- 3. PANNEAU DÉFENSE / INSPECTION CHÂTEAU / SPECTATEUR MOBILE -->
+    <div id="mob-panel-defend" class="mob-dock-panel hidden">
+      <div class="mob-defend-header">
+        <span id="mob-defend-icon" class="mob-defend-icon">🛡️</span>
+        <div id="mob-defend-text" class="mob-defend-text">
+          <strong>Tu es pris pour cible !</strong> Touche directement ton château pour le durcir au spray !
+        </div>
+      </div>
+      <div class="mob-defend-actions">
+        <div id="mob-defend-spray-badge" class="mob-defend-spray-badge">
+          💦 <strong id="mob-defend-spray-count">1</strong> spray(s) dispo — <em>Touche le château !</em>
+        </div>
+        <button id="mob-defend-return-btn" class="mob-defend-action-btn hidden" type="button">
+          ⚔️ Retourner au combat
+        </button>
+      </div>
+    </div>
+  </section>
 
   <!-- Écran de Victoire / Fin de partie -->
   <section id="over-modal" class="modal-backdrop hidden">
@@ -393,101 +455,103 @@
     </div>
   </section>
 
-  <!-- Introduction cinématique du duel au début de chaque combat (tireur vs cible) -->
-  <div id="duel-intro-overlay" class="duel-intro-overlay hidden" aria-live="assertive">
-    <div class="duel-intro-card" id="duel-intro-card">
-      <div class="duel-badge-top">⚔️ COMBAT DE CHÂTEAU ⚔️</div>
-      <div class="duel-matchup">
-        <!-- Tireur à la catapulte -->
-        <div class="duel-combatant duel-shooter">
-          <div class="combatant-icon-wrapper" id="duel-shooter-box">
-            <span class="combatant-avatar" id="duel-shooter-avatar">🧑</span>
-            <span class="combatant-subicon" title="Catapulte">☄️</span>
+  <!-- Pile cinématique unifiée : Cadre fin en long (Qui combat qui) en haut + Prêts/Partez en dessous sans jamais se chevaucher -->
+  <div id="cinematic-stack" class="cinematic-stack">
+    <!-- 1. Cadre fin en long : Qui combat qui -->
+    <div id="duel-intro-overlay" class="duel-intro-overlay hidden" aria-live="assertive">
+      <div class="duel-intro-card duel-slim-banner" id="duel-intro-card">
+        <div class="duel-slim-top-row">
+          <span class="duel-badge-top">⚔️ DUEL</span>
+          <!-- Tireur à la catapulte -->
+          <div class="duel-combatant duel-shooter">
+            <div class="combatant-icon-wrapper" id="duel-shooter-box">
+              <span class="combatant-avatar" id="duel-shooter-avatar">🧑</span>
+              <span class="combatant-subicon" title="Catapulte">☄️</span>
+            </div>
+            <div class="combatant-meta">
+              <div class="combatant-role">CATAPULTE</div>
+              <div class="combatant-name" id="duel-shooter-name">Tireur</div>
+            </div>
           </div>
-          <div class="combatant-role">CATAPULTE</div>
-          <div class="combatant-name" id="duel-shooter-name">Tireur</div>
-        </div>
 
-        <!-- VS -->
-        <div class="duel-vs">
-          <span class="vs-text">VS</span>
-          <span class="vs-swords">⚔️</span>
-        </div>
-
-        <!-- Roi ciblé -->
-        <div class="duel-combatant duel-target">
-          <div class="combatant-icon-wrapper" id="duel-target-box">
-            <span class="combatant-avatar" id="duel-target-avatar">👑</span>
-            <span class="combatant-subicon" title="Château">🏰</span>
+          <!-- VS -->
+          <div class="duel-vs">
+            <span class="vs-text">VS</span>
+            <span class="vs-swords">⚔️</span>
           </div>
-          <div class="combatant-role">ROI DU CHÂTEAU</div>
-          <div class="combatant-name" id="duel-target-name">Cible</div>
+
+          <!-- Roi ciblé -->
+          <div class="duel-combatant duel-target">
+            <div class="combatant-icon-wrapper" id="duel-target-box">
+              <span class="combatant-avatar" id="duel-target-avatar">👑</span>
+              <span class="combatant-subicon" title="Château">🏰</span>
+            </div>
+            <div class="combatant-meta">
+              <div class="combatant-role">CHÂTEAU</div>
+              <div class="combatant-name" id="duel-target-name">Cible</div>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="duel-summary" id="duel-summary-text">
-        <strong>Tireur</strong> à la catapulte attaque le Roi de <strong>Cible</strong> !
-      </div>
-      <div class="duel-subhint" id="duel-subhint-text">
-        Préparez vos tirs et vos sprays !
+        <div class="duel-slim-bottom-row">
+          <div class="duel-summary" id="duel-summary-text">
+            <strong>Tireur</strong> attaque le Roi de <strong>Cible</strong> !
+          </div>
+          <div class="duel-subhint" id="duel-subhint-text">
+            Préparez vos tirs et vos sprays !
+          </div>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Grand Overlay d'introduction cinématique ("Prêts ? Feu .. Construisez !" / "Prêts ? Feu .. Tirez !") -->
-  <div id="intro-overlay" class="intro-overlay hidden" aria-hidden="true">
-    <div class="intro-card" id="intro-card">
-      <div class="intro-animation-area" id="intro-animation-area">
-        <!-- SVG interactif du seau animé pour la phase de construction -->
-        <svg class="intro-bucket-svg" id="intro-bucket-svg" viewBox="0 0 160 160">
-          <defs>
-            <linearGradient id="intro-bucket-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#38bdf8"/>
-              <stop offset="60%" stop-color="#0284c7"/>
-              <stop offset="100%" stop-color="#0369a1"/>
-            </linearGradient>
-            <linearGradient id="intro-sand-grad" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stop-color="#fef08a"/>
-              <stop offset="40%" stop-color="#eab308"/>
-              <stop offset="100%" stop-color="#ca8a04"/>
-            </linearGradient>
-            <clipPath id="intro-bucket-clip">
-              <polygon points="35,46 125,46 110,138 50,138"/>
-            </clipPath>
-          </defs>
-          <!-- Ombre portée -->
-          <ellipse cx="80" cy="144" rx="42" ry="7" fill="rgba(0,0,0,0.2)"/>
-          <!-- Anse -->
-          <path id="intro-bucket-handle" d="M 35 46 C 35 8, 125 8, 125 46" fill="none" stroke="#cbd5e1" stroke-width="4.5" stroke-linecap="round"/>
-          <!-- Corps extérieur -->
-          <polygon points="35,46 125,46 110,138 50,138" fill="url(#intro-bucket-grad)" stroke="#0c4a6e" stroke-width="3.5" stroke-linejoin="round"/>
-          <!-- Rebord supérieur extérieur -->
-          <ellipse cx="80" cy="46" rx="45" ry="9" fill="#0284c7" stroke="#0c4a6e" stroke-width="3"/>
-          <!-- Contenu sable qui monte via clipPath -->
-          <g clip-path="url(#intro-bucket-clip)">
-            <rect id="intro-sand-rect" x="30" y="138" width="100" height="100" fill="url(#intro-sand-grad)"/>
-            <ellipse id="intro-sand-ellipse" cx="80" cy="138" rx="42" ry="8" fill="#fef08a"/>
-            <!-- Particules de sable tombantes -->
-            <g id="intro-sand-stream" opacity="0">
-              <line x1="80" y1="0" x2="80" y2="130" stroke="#fef08a" stroke-width="5" stroke-dasharray="6,4"/>
-              <circle cx="76" cy="65" r="3" fill="#fde047"/>
-              <circle cx="84" cy="90" r="2.5" fill="#eab308"/>
+    <!-- 2. En dessous : Séquence "Prêts ? Feu .. Construisez / Tirez !" -->
+    <div id="intro-overlay" class="intro-overlay hidden" aria-hidden="true">
+      <div class="intro-card" id="intro-card">
+        <div class="intro-animation-area" id="intro-animation-area">
+          <!-- SVG interactif du seau animé pour la phase de construction -->
+          <svg class="intro-bucket-svg" id="intro-bucket-svg" viewBox="0 0 160 160">
+            <defs>
+              <linearGradient id="intro-bucket-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#38bdf8"/>
+                <stop offset="60%" stop-color="#0284c7"/>
+                <stop offset="100%" stop-color="#0369a1"/>
+              </linearGradient>
+              <linearGradient id="intro-sand-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#fef08a"/>
+                <stop offset="40%" stop-color="#eab308"/>
+                <stop offset="100%" stop-color="#ca8a04"/>
+              </linearGradient>
+              <clipPath id="intro-bucket-clip">
+                <polygon points="35,46 125,46 110,138 50,138"/>
+              </clipPath>
+            </defs>
+            <ellipse cx="80" cy="144" rx="42" ry="7" fill="rgba(0,0,0,0.2)"/>
+            <path id="intro-bucket-handle" d="M 35 46 C 35 8, 125 8, 125 46" fill="none" stroke="#cbd5e1" stroke-width="4.5" stroke-linecap="round"/>
+            <polygon points="35,46 125,46 110,138 50,138" fill="url(#intro-bucket-grad)" stroke="#0c4a6e" stroke-width="3.5" stroke-linejoin="round"/>
+            <ellipse cx="80" cy="46" rx="45" ry="9" fill="#0284c7" stroke="#0c4a6e" stroke-width="3"/>
+            <g clip-path="url(#intro-bucket-clip)">
+              <rect id="intro-sand-rect" x="30" y="138" width="100" height="100" fill="url(#intro-sand-grad)"/>
+              <ellipse id="intro-sand-ellipse" cx="80" cy="138" rx="42" ry="8" fill="#fef08a"/>
+              <g id="intro-sand-stream" opacity="0">
+                <line x1="80" y1="0" x2="80" y2="130" stroke="#fef08a" stroke-width="5" stroke-dasharray="6,4"/>
+                <circle cx="76" cy="65" r="3" fill="#fde047"/>
+                <circle cx="84" cy="90" r="2.5" fill="#eab308"/>
+              </g>
             </g>
-          </g>
-          <!-- Rebord supérieur intérieur -->
-          <ellipse cx="80" cy="46" rx="45" ry="9" fill="none" stroke="#38bdf8" stroke-width="1.8"/>
-        </svg>
+            <ellipse cx="80" cy="46" rx="45" ry="9" fill="none" stroke="#38bdf8" stroke-width="1.8"/>
+          </svg>
 
-        <!-- Illustration de la catapulte animée pour la phase de bataille -->
-        <div id="intro-catapult-icon" class="intro-catapult-icon hidden">
-          <span class="intro-catapult-art">☄️</span>
-          <div class="intro-balls-badge">3 BOULES PRÊTES !</div>
+          <!-- Illustration de la catapulte animée pour la phase de bataille -->
+          <div id="intro-catapult-icon" class="intro-catapult-icon hidden">
+            <span class="intro-catapult-art">☄️</span>
+            <div class="intro-balls-badge">BOULETS PRÊTS !</div>
+          </div>
         </div>
-      </div>
 
-      <div class="intro-title" id="intro-title">PRÊTS ?</div>
-      <div class="intro-subtitle" id="intro-subtitle">Remplissage du seau de sable...</div>
-      <div class="intro-progress-bar-wrapper">
-        <div class="intro-progress-bar-fill" id="intro-progress-bar-fill"></div>
+        <div class="intro-title" id="intro-title">PRÊTS ?</div>
+        <div class="intro-subtitle" id="intro-subtitle">Remplissage du seau de sable...</div>
+        <div class="intro-progress-bar-wrapper">
+          <div class="intro-progress-bar-fill" id="intro-progress-bar-fill"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -519,8 +583,8 @@
 
   <script src="/vendor/confetti/confetti.browser.js"></script>
   <script src="/socket.io/socket.io.js"></script>
-  <script type="module" src="/js/site-bg.js?v=7"></script>
-  <script type="module" src="/js/tutorial.js?v=7"></script>
-  <script type="module" src="/js/main.js?v=7"></script>
+  <script type="module" src="/js/site-bg.js?v=8"></script>
+  <script type="module" src="/js/tutorial.js?v=8"></script>
+  <script type="module" src="/js/main.js?v=8"></script>
 </body>
 </html>

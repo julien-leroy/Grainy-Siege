@@ -1,5 +1,5 @@
 // Service Worker pour Grainy Siege (PWA Standalone & Fullscreen)
-const CACHE_NAME = 'grainy-siege-v2';
+const CACHE_NAME = 'grainy-siege-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

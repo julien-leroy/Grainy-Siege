@@ -132,7 +132,7 @@ io.on('connection', (socket) => {
       socket.leave(room.channel);
     }
     room = r;
-    me = (playerId && r.reattach(playerId, socket)) || r.addPlayer({ name, socket });
+    me = r.reattach(playerId, socket, name) || r.addPlayer({ name, socket });
     cb?.({
       ok: true,
       code: r.code,
@@ -151,12 +151,18 @@ io.on('connection', (socket) => {
     cb?.({ ok: true });
   }));
 
-  socket.on('kick', guard('kick', ({ id }, cb) => {
-    if (!room || me?.id !== room.hostId || room.phase !== 'lobby') return;
-    const p = room.players.get(id);
-    if (p?.isBot) room.removePlayer(id);
+  const handleKick = ({ id, playerId } = {}, cb) => {
+    const targetId = playerId || id;
+    if (!room || me?.id !== room.hostId) throw new Error("Réservé à l'hôte");
+    if (!targetId || targetId === me.id) throw new Error("Action impossible");
+    room.kickPlayer(targetId);
+    if (!room.humansConnected && room.totalHumanPlayers <= 1) {
+      rooms.delete(room.code);
+    }
     cb?.({ ok: true });
-  }));
+  };
+  socket.on('kick', guard('kick', handleKick));
+  socket.on('kickPlayer', guard('kickPlayer', handleKick));
 
   socket.on('start', guard('start', (_, cb) => {
     room?.start(me?.id);
@@ -204,7 +210,11 @@ io.on('connection', (socket) => {
       room = null;
       me = null;
       r.leavePlayer(pid);
-      if (!r.humansConnected || r.humanCount === 0) {
+      r.players.delete(pid);
+      r.order = r.order.filter((x) => x !== pid);
+      r.broadcastState();
+      if (!r.humansConnected && r.totalHumanPlayers === 0) {
+        if (r.soloDisconnectTimer) clearTimeout(r.soloDisconnectTimer);
         console.log(`🧹 [SALLE FERMÉE] Salle: ${r.code} fermée immédiatement (aucun humain restant après départ).`);
         rooms.delete(r.code);
       }
@@ -239,10 +249,30 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     if (room) {
-      room.disconnect(socket);
-      if (!room.humansConnected || room.humanCount === 0) {
-        console.log(`🧹 [SALLE FERMÉE] Salle: ${room.code} fermée immédiatement (aucun humain restant après déconnexion).`);
-        rooms.delete(room.code);
+      const r = room;
+      r.disconnect(socket);
+      // Si c'est une partie solo contre l'IA (1 seul humain dans la salle) : délai de 15s avant suppression
+      if (r.totalHumanPlayers <= 1 && !r.humansConnected) {
+        r.soloDisconnectAt = Date.now();
+        if (r.soloDisconnectTimer) clearTimeout(r.soloDisconnectTimer);
+        r.soloDisconnectTimer = setTimeout(() => {
+          r.soloDisconnectTimer = null;
+          if (!r.humansConnected) {
+            console.log(`🧹 [SALLE SOLO FERMÉE] Salle: ${r.code} effacée après 15s sans reconnexion.`);
+            rooms.delete(r.code);
+          }
+        }, 15000);
+      } else if (!r.humansConnected) {
+        // Partie multijoueur où tous les humains ont perdu la connexion en même temps
+        r.soloDisconnectAt = Date.now();
+        if (r.soloDisconnectTimer) clearTimeout(r.soloDisconnectTimer);
+        r.soloDisconnectTimer = setTimeout(() => {
+          r.soloDisconnectTimer = null;
+          if (!r.humansConnected) {
+            console.log(`🧹 [SALLE FERMÉE] Salle: ${r.code} effacée après déconnexion prolongée de tous les joueurs.`);
+            rooms.delete(r.code);
+          }
+        }, 60000);
       }
     }
   });
@@ -269,14 +299,14 @@ setInterval(() => {
   }
 }, 4);
 
-// ménage immédiat des salles abandonnées (sans aucun joueur humain connecté)
+// ménage périodique des salles abandonnées
 setInterval(() => {
   const now = Date.now();
   for (const [code, r] of rooms) {
-    if (!r.humansConnected || r.humanCount === 0) {
-      console.log(`🧹 [SALLE FERMÉE] Salle: ${code} nettoyée (aucun joueur humain connecté).`);
+    if (!r.humansConnected && !r.soloDisconnectTimer && r.totalHumanPlayers === 0) {
+      console.log(`🧹 [SALLE FERMÉE] Salle: ${code} nettoyée (aucun joueur humain).`);
       rooms.delete(code);
-    } else {
+    } else if (r.humansConnected) {
       r.lastActivity = now;
     }
   }

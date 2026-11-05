@@ -902,15 +902,113 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
 }
 
 /* ====================================================================
+   BANDEAU DES JOUEURS SOUS LA ROOM (PC UNIQUEMENT)
+   ==================================================================== */
+.pc-players-strip {
+  position: fixed;
+  top: 60px;
+  left: 14px;
+  z-index: 24;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  max-width: min(640px, calc(100vw - 320px));
+  pointer-events: auto;
+  user-select: none;
+}
+
+.pc-players-strip.hidden {
+  display: none !important;
+}
+
+.pc-player-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(8px);
+  border: 2.5px solid var(--p-color, #38bdf8);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35), 0 0 8px var(--p-glow, rgba(56, 189, 248, 0.3));
+  color: #f8fafc;
+  font-size: 0.78rem;
+  font-weight: 800;
+  transition: transform 0.15s ease, opacity 0.2s ease;
+}
+
+.pc-player-chip.is-dead {
+  opacity: 0.62;
+  filter: grayscale(0.45);
+}
+
+.pc-player-chip.player-disconnected,
+.roster-item.player-disconnected {
+  animation: pcPlayerDisconnectBlink 0.9s infinite ease-in-out !important;
+}
+
+@keyframes pcPlayerDisconnectBlink {
+  0%, 100% {
+    border-color: var(--p-color, #f59e0b);
+    box-shadow: 0 0 6px var(--p-color, #f59e0b);
+    background: rgba(15, 23, 42, 0.9);
+  }
+  50% {
+    border-color: #ef4444;
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.95), inset 0 0 8px rgba(239, 68, 68, 0.45);
+    background: rgba(127, 29, 29, 0.88);
+  }
+}
+
+.pc-player-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.pc-player-name {
+  max-width: 115px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pc-player-kick-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 2px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(248, 113, 113, 0.8);
+  background: rgba(220, 38, 38, 0.25);
+  color: #fecaca;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pc-player-kick-btn:hover {
+  background: #dc2626;
+  border-color: #fef2f2;
+  color: #ffffff;
+  transform: scale(1.12);
+}
+
+/* ====================================================================
    ATELIER DE CONSTRUCTION ET MODELAGE TOUT À GAUCHE
    ==================================================================== */
 .atelier-sidebar {
   position: fixed;
-  top: 68px;
+  top: 102px;
   left: 14px;
   width: 230px;
   max-width: 86vw;
-  max-height: calc(100vh - 82px);
+  max-height: calc(100vh - 116px);
   padding: 12px 12px 14px;
   display: flex;
   flex-direction: column;
@@ -1463,21 +1561,35 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
 }
 
 /* ==========================================================================
-   Overlay d'introduction cinématique de duel au début de chaque combat
+   Pile cinématique unifiée : Cadre fin en long (Qui combat qui) + Prêts/Partez en dessous
    ========================================================================== */
-.duel-intro-overlay {
+#pause-modal {
+  z-index: 9999 !important;
+}
+
+.cinematic-stack {
   position: fixed;
   inset: 0;
   z-index: 120;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(10, 15, 29, 0.58);
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
+  gap: 14px;
+  padding: 58px 14px 20px;
+  pointer-events: none;
+}
+
+.duel-intro-overlay {
+  position: relative;
+  width: 100%;
+  max-width: 680px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   pointer-events: auto;
   cursor: pointer;
-  animation: duelBackdropFadeIn 0.3s ease-out forwards;
+  animation: duelBackdropFadeIn 0.28s ease-out forwards;
 }
 
 .duel-intro-overlay.hidden {
@@ -1485,7 +1597,7 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
 }
 
 .duel-intro-overlay.closing {
-  animation: duelBackdropFadeOut 0.28s ease-in forwards;
+  animation: duelBackdropFadeOut 0.25s ease-in forwards;
 }
 
 @keyframes duelBackdropFadeIn {
@@ -1498,33 +1610,31 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   to { opacity: 0; }
 }
 
-.duel-intro-card {
+.duel-intro-card.duel-slim-banner {
   position: relative;
-  width: 90%;
-  max-width: 580px;
+  width: 100%;
+  max-width: 660px;
   background: linear-gradient(155deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.98));
-  border: 3.5px solid #f59e0b;
-  border-radius: 26px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 35px rgba(245, 158, 11, 0.4);
-  padding: 24px 30px;
-  text-align: center;
+  border: 2.5px solid #f59e0b;
+  border-radius: 18px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.65), 0 0 24px rgba(245, 158, 11, 0.35);
+  padding: 10px 18px;
   color: #fff;
   user-select: none;
-  animation: duelCardPop 0.38s cubic-bezier(0.18, 1.25, 0.35, 1) forwards;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: duelCardPop 0.32s cubic-bezier(0.18, 1.25, 0.35, 1) forwards;
 }
 
 .duel-intro-overlay.closing .duel-intro-card {
-  animation: duelCardOut 0.28s ease-in forwards;
+  animation: duelCardOut 0.24s ease-in forwards;
 }
 
 @keyframes duelCardPop {
   0% {
     opacity: 0;
-    transform: scale(0.68) translateY(30px);
-  }
-  70% {
-    opacity: 1;
-    transform: scale(1.03) translateY(-4px);
+    transform: scale(0.85) translateY(-14px);
   }
   100% {
     opacity: 1;
@@ -1539,97 +1649,113 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   }
   100% {
     opacity: 0;
-    transform: scale(0.85) translateY(-25px);
+    transform: scale(0.9) translateY(-14px);
   }
 }
 
-.duel-badge-top {
-  display: inline-block;
-  background: linear-gradient(90deg, #d97706, #f59e0b, #d97706);
-  color: #1e1b4b;
-  font-weight: 900;
-  font-size: 0.82rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  padding: 4px 16px;
-  border-radius: 999px;
-  margin-bottom: 18px;
-  box-shadow: 0 3px 10px rgba(245, 158, 11, 0.5);
-}
-
-.duel-matchup {
+.duel-slim-top-row {
   display: flex;
   align-items: center;
-  justify-content: space-around;
-  gap: 16px;
-  margin-bottom: 18px;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+}
+
+.duel-badge-top {
+  display: inline-flex;
+  align-items: center;
+  background: linear-gradient(90deg, #d97706, #f59e0b);
+  color: #1e1b4b;
+  font-weight: 900;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.45);
 }
 
 .duel-combatant {
   display: flex;
-  flex-direction: column;
   align-items: center;
+  gap: 8px;
   flex: 1;
+  min-width: 0;
+}
+
+.duel-target {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.duel-target .combatant-icon-wrapper {
+  order: 2;
+}
+
+.duel-target .combatant-meta {
+  order: 1;
+}
+
+.combatant-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .combatant-icon-wrapper {
   position: relative;
-  width: 90px;
-  height: 90px;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
   border-radius: 50%;
-  background: rgba(15, 23, 42, 0.85);
-  border: 3.5px solid #38bdf8;
+  background: rgba(15, 23, 42, 0.9);
+  border: 2.5px solid #38bdf8;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 16px rgba(56, 189, 248, 0.35);
-  margin-bottom: 8px;
-  transition: transform 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
 }
 
 .duel-shooter .combatant-icon-wrapper {
   border-color: #f59e0b;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 20px rgba(245, 158, 11, 0.45);
 }
 
 .duel-target .combatant-icon-wrapper {
   border-color: #e11d48;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 20px rgba(225, 29, 72, 0.45);
 }
 
 .combatant-avatar {
-  font-size: 3rem;
+  font-size: 1.55rem;
   line-height: 1;
-  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4));
 }
 
 .combatant-subicon {
   position: absolute;
-  bottom: -4px;
-  right: -4px;
-  width: 32px;
-  height: 32px;
+  bottom: -3px;
+  right: -3px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: #1e293b;
-  border: 2px solid #facc15;
+  border: 1.5px solid #facc15;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.15rem;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+  font-size: 0.72rem;
 }
 
 .combatant-role {
-  font-size: 0.72rem;
+  font-size: 0.62rem;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   color: #94a3b8;
   text-transform: uppercase;
-  margin-bottom: 2px;
 }
 
 .combatant-name {
-  font-size: 1.15rem;
+  font-size: 0.96rem;
   font-weight: 900;
   color: #f8fafc;
   max-width: 140px;
@@ -1639,53 +1765,56 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
 }
 
 .duel-vs {
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   padding: 0 6px;
+  flex-shrink: 0;
 }
 
 .vs-text {
-  font-size: 1.8rem;
+  font-size: 1.25rem;
   font-weight: 950;
   font-style: italic;
   background: linear-gradient(180deg, #fef08a, #ef4444);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 2px 8px rgba(239, 68, 68, 0.6));
   line-height: 1;
 }
 
 .vs-swords {
-  font-size: 1.25rem;
-  margin-top: 2px;
-  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.5));
+  font-size: 1rem;
+}
+
+.duel-slim-bottom-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 10px;
+  border: 1px solid rgba(254, 240, 138, 0.18);
 }
 
 .duel-summary {
-  font-size: 1.15rem;
-  font-weight: 600;
+  font-size: 0.88rem;
+  font-weight: 700;
   color: #fef08a;
-  line-height: 1.4;
-  margin-bottom: 6px;
-  padding: 8px 12px;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 12px;
-  border: 1px solid rgba(254, 240, 138, 0.2);
+  line-height: 1.25;
 }
 
 .duel-summary strong {
   color: #ffffff;
   font-weight: 900;
-  text-shadow: 0 0 10px rgba(250, 204, 21, 0.6);
 }
 
 .duel-subhint {
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   color: #cbd5e1;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  font-weight: 600;
 }
 
 
@@ -2054,22 +2183,21 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   50% { transform: scale(1.12); }
 }
 
-/* Grand Overlay d'intro cinématique ("Prêts ? Feu .. Construisez !") */
+/* Grand Overlay d'intro cinématique ("Prêts ? Feu .. Construisez !") sous le cadre de duel */
 .intro-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(8px);
+  position: relative;
+  width: 100%;
+  max-width: 460px;
   display: flex;
   align-items: center;
   justify-content: center;
   pointer-events: none;
   opacity: 1;
-  transition: opacity 0.4s ease;
+  transition: opacity 0.35s ease;
 }
 
 .intro-overlay.hidden {
+  display: none !important;
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
@@ -2080,27 +2208,27 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  background: rgba(30, 22, 14, 0.92);
+  background: rgba(30, 22, 14, 0.94);
   border: 3px solid #d4af37;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6), 0 0 32px rgba(245, 158, 11, 0.35);
-  border-radius: 24px;
-  padding: 32px 48px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.65), 0 0 32px rgba(245, 158, 11, 0.35);
+  border-radius: 22px;
+  padding: 20px 32px;
   max-width: 440px;
-  width: 90%;
+  width: 100%;
   pointer-events: none;
-  animation: popIntro 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  animation: popIntro 0.32s cubic-bezier(0.18, 0.89, 0.32, 1.28);
 }
 
 @keyframes popIntro {
-  0% { transform: scale(0.7) translateY(20px); opacity: 0; }
+  0% { transform: scale(0.8) translateY(14px); opacity: 0; }
   100% { transform: scale(1) translateY(0); opacity: 1; }
 }
 
 .intro-animation-area {
   position: relative;
-  width: 140px;
-  height: 140px;
-  margin-bottom: 12px;
+  width: 110px;
+  height: 110px;
+  margin-bottom: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3861,107 +3989,133 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
     line-height: 1.35;
   }
 
-  /* ==================== DOCK DE CONSTRUCTION MOBILE (occupe l'espace sous la plage réhaussée) ==================== */
-  .atelier-sidebar {
-    position: fixed !important;
-    top: auto !important;
-    bottom: calc(max(8px, env(safe-area-inset-bottom, 0)) + 126px) !important;
-    left: 8px !important;
-    right: 8px !important;
-    width: auto !important;
-    max-width: calc(100vw - 16px) !important;
-    transform: none !important;
-    padding: 5px 6px !important;
-    border-radius: 14px 14px 8px 8px !important;
-    background: rgba(30, 23, 16, 0.94) !important;
-    backdrop-filter: blur(10px) !important;
-    border: 1.5px solid var(--sand-border) !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.38) !important;
-    z-index: 30 !important;
-    max-height: none !important;
-  }
-
-  .atelier-sidebar .sidebar-header,
-  .atelier-sidebar .sidebar-section-label,
-  .sidebar-bucket-status {
+  /* Séparation stricte PC / Téléphone : masquer toute l'interface de jeu PC sur téléphone */
+  .pc-only-ui {
     display: none !important;
   }
 
-  .atelier-tools-row {
-    display: grid !important;
-    grid-template-columns: repeat(4, 1fr) !important;
-    gap: 6px !important;
-    width: 100% !important;
+  /* ==================== INTERFACE DE JEU DÉDIÉE TÉLÉPHONE (#mobile-game-dock) ==================== */
+  .mobile-game-dock:not(.hidden) {
+    position: fixed;
+    bottom: max(6px, env(safe-area-inset-bottom, 0));
+    left: 6px;
+    right: 6px;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    pointer-events: auto;
+    user-select: none;
   }
 
-  .atelier-tools-row .tool-btn {
-    width: 100% !important;
-    height: 44px !important;
-    min-width: 0 !important;
-    border-radius: 10px !important;
-    padding: 3px 4px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
+  /* Barre d'actions Entraînement sur mobile */
+  .mob-train-bar:not(.hidden) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
   }
 
-  .atelier-tools-row .tool-key {
+  .mob-train-btn {
+    flex: 1;
+    height: 34px;
+    border-radius: 10px;
+    font-size: 0.76rem;
+    font-weight: 800;
+    border: 1.5px solid rgba(255, 255, 255, 0.25);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+  }
+
+  .mob-train-primary {
+    background: linear-gradient(135deg, #ea580c, #d97706);
+    border-color: #fde047;
+  }
+
+  .mob-train-secondary {
+    background: linear-gradient(135deg, #0284c7, #0369a1);
+    border-color: #7dd3fc;
+  }
+
+  /* Panneau générique du dock mobile */
+  .mob-dock-panel:not(.hidden) {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    border-radius: 18px;
+    background: rgba(28, 21, 14, 0.96);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 2px solid var(--sand-border);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+    width: 100%;
+  }
+
+  /* 1. PANNEAU CONSTRUCTION MOBILE */
+  .mob-tools-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    width: 100%;
+  }
+
+  .mob-tools-row .tool-btn {
+    width: 100%;
+    height: 44px;
+    min-width: 0;
+    border-radius: 11px;
+    padding: 3px 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mob-tools-row .tool-key {
     display: none !important;
   }
 
-  .atelier-tools-row .tool-label {
-    font-size: 0.68rem !important;
-    font-weight: 800 !important;
-    line-height: 1.05 !important;
-    margin-top: 2px !important;
+  .mob-tools-row .tool-label {
+    font-size: 0.68rem;
+    font-weight: 800;
+    line-height: 1.05;
+    margin-top: 2px;
   }
 
-  /* Grille 2 lignes de patrons de château dans l'espace inférieur */
-  .sand-inventory-footer {
-    position: fixed !important;
-    bottom: max(8px, env(safe-area-inset-bottom, 0)) !important;
-    left: 8px !important;
-    right: 8px !important;
-    width: auto !important;
-    max-width: calc(100vw - 16px) !important;
-    height: 120px !important;
-    padding: 6px 8px !important;
-    border-radius: 8px 8px 16px 16px !important;
-    background: rgba(38, 29, 20, 0.95) !important;
-    backdrop-filter: blur(10px) !important;
-    border: 1.5px solid var(--sand-border) !important;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45) !important;
-    z-index: 30 !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
+  .mob-moulds-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+    gap: 6px;
+    max-height: 116px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 4px 2px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
     -webkit-overflow-scrolling: touch;
   }
 
-  .sand-inventory-footer .inventory-moulds-row {
-    display: grid !important;
-    grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)) !important;
-    gap: 6px !important;
-    align-items: center !important;
-    justify-items: center !important;
-    width: 100% !important;
+  .mob-moulds-grid .tool-btn {
+    width: 100%;
+    min-width: 48px;
+    height: 50px;
+    border-radius: 10px;
+    padding: 2px;
+    flex-shrink: 0;
   }
 
-  .sand-inventory-footer .tool-btn {
-    width: 100% !important;
-    min-width: 48px !important;
-    height: 50px !important;
-    border-radius: 10px !important;
-    padding: 2px !important;
-    flex-shrink: 0 !important;
-  }
-
-  .sand-inventory-footer .tool-btn canvas {
+  .mob-moulds-grid .tool-btn canvas {
     width: 40px;
     height: 30px;
   }
 
-  .sand-inventory-footer .tool-btn .tool-stock {
+  .mob-moulds-grid .tool-btn .tool-stock {
     font-size: 0.62rem;
     min-width: 16px;
     height: 14px;
@@ -3971,215 +4125,206 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
     padding: 0 3px;
   }
 
-  /* Bouton flottant de catapulte masqué sur mobile (intégré dans le dock bas) */
-  .catapult-icon-switch-btn {
-    display: none !important;
-  }
-
-  /* ==================== DOCK DE TIR MOBILE (occupe proprement l'espace sous la plage) ==================== */
-  .sand-catapult-hud {
-    position: fixed !important;
-    bottom: max(8px, env(safe-area-inset-bottom, 0)) !important;
-    left: 8px !important;
-    right: 8px !important;
-    width: auto !important;
-    max-width: calc(100vw - 16px) !important;
-    transform: none !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: space-between !important;
-    gap: 7px !important;
-    padding: 10px 10px !important;
-    background: rgba(30, 23, 16, 0.94) !important;
-    backdrop-filter: blur(12px) !important;
-    border-radius: 18px !important;
-    border: 2px solid var(--sand-border) !important;
-    box-shadow: 0 6px 26px rgba(0, 0, 0, 0.5) !important;
-    z-index: 30 !important;
-  }
-
-  .sand-catapult-top-row {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 8px !important;
-    width: 100% !important;
-  }
-
-  .dock-pill-btn.btn-cat-switch {
-    height: 42px !important;
-    border-radius: 11px !important;
-    font-size: 0.80rem !important;
-    font-weight: 800 !important;
-    background: linear-gradient(135deg, rgba(250, 204, 21, 0.25), rgba(217, 119, 6, 0.35)) !important;
-    border: 1.5px solid #facc15 !important;
-    color: #fef08a !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 5px !important;
-    cursor: pointer;
-    padding: 0 6px !important;
-  }
-
-  .dock-pill-btn.btn-dock-spray {
-    height: 42px !important;
-    padding: 0 8px !important;
-    border-radius: 11px !important;
-    font-size: 0.80rem !important;
-    font-weight: 800 !important;
-    background: linear-gradient(135deg, rgba(14, 165, 233, 0.32), rgba(2, 132, 199, 0.45)) !important;
-    border: 1.5px solid #38bdf8 !important;
-    color: #e0f2fe !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 5px !important;
-    cursor: pointer;
-  }
-
-  .sand-ammo-rack {
-    width: 100% !important;
-    max-width: 100% !important;
-    height: 48px !important;
-    padding: 0 6px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 6px !important;
-    background: rgba(0, 0, 0, 0.28) !important;
-    border: 1px solid rgba(255, 255, 255, 0.14) !important;
-    border-radius: 12px !important;
-    overflow-x: auto !important;
-    scrollbar-width: none !important;
-  }
-  .sand-ammo-rack::-webkit-scrollbar {
-    display: none !important;
-  }
-
-  .shots-balls {
-    gap: 6px !important;
-  }
-
-  .shot-ball.ammo-type-btn {
-    min-width: 54px !important;
-    height: 38px !important;
-    padding: 0 8px !important;
-    gap: 4px !important;
-    border-radius: 10px !important;
-  }
-
-  .shot-ball-img {
-    width: 20px;
-    height: 20px;
-  }
-
-  .ammo-count-badge {
-    font-size: 0.76rem;
-  }
-
-  .sand-power-trigger-btn {
-    width: 100% !important;
-    max-width: 100% !important;
-    height: 54px !important;
-    min-height: 54px !important;
-    border-radius: 14px !important;
-    font-size: 1.08rem !important;
-    font-weight: 900 !important;
-    flex-shrink: 0 !important;
-  }
-
-  .sand-power-inner {
+  /* 2. PANNEAU ATTAQUE / CATAPULTE MOBILE */
+  .mob-attack-top-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 8px;
+    width: 100%;
   }
 
-  .sand-power-heading {
-    font-size: 0.96rem !important;
+  .mob-action-pill {
+    height: 40px;
+    border-radius: 11px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 0 8px;
+    cursor: pointer;
+    white-space: nowrap;
   }
 
-  .sand-power-inner .power-bolt {
-    font-size: 1.2rem;
+  .mob-cat-pill {
+    background: linear-gradient(135deg, rgba(250, 204, 21, 0.25), rgba(217, 119, 6, 0.38));
+    border: 1.5px solid #facc15;
+    color: #fef08a;
   }
 
-  .sand-power-sub {
-    font-size: 0.88rem;
-    min-width: 36px;
+  .mob-castle-pill {
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.32), rgba(2, 132, 199, 0.48));
+    border: 1.5px solid #38bdf8;
+    color: #e0f2fe;
   }
 
-  /* ==================== DOCK DÉFENSE & CHÂTEAU MOBILE (occupe l'espace sous la plage) ==================== */
-  .defender-floating-pill {
-    position: fixed !important;
-    bottom: max(8px, env(safe-area-inset-bottom, 0)) !important;
-    left: 8px !important;
-    right: 8px !important;
-    width: auto !important;
-    max-width: calc(100vw - 16px) !important;
-    min-height: 132px !important;
-    transform: none !important;
-    padding: 12px 14px !important;
-    border-radius: 18px !important;
-    background: rgba(15, 23, 42, 0.95) !important;
-    border: 2px solid #38bdf8 !important;
-    box-shadow: 0 6px 26px rgba(2, 132, 199, 0.35) !important;
-    z-index: 30 !important;
-    display: flex !important;
-    align-items: center !important;
+  .mob-ammo-rack {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    height: 46px;
+    padding: 0 6px;
+    background: rgba(0, 0, 0, 0.32);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 12px;
+    overflow-x: auto;
   }
 
-  .defender-pill-content {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: stretch !important;
-    justify-content: center !important;
-    gap: 10px !important;
-    width: 100% !important;
+  .mob-ammo-rack .shot-ball.ammo-type-btn {
+    flex: 1;
+    min-width: 56px;
+    height: 36px;
+    padding: 0 6px;
+    gap: 4px;
+    border-radius: 9px;
+    justify-content: center;
   }
 
-  .defender-info-row {
-    display: flex !important;
-    align-items: center !important;
-    gap: 10px !important;
-    width: 100% !important;
+  .mob-fire-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
   }
 
-  .defender-icon {
-    font-size: 1.55rem !important;
-    flex-shrink: 0 !important;
+  .mob-fire-trigger-btn {
+    position: relative;
+    flex: 1;
+    height: 52px;
+    border-radius: 14px;
+    border: 2.5px solid #fde047;
+    background: linear-gradient(135deg, #ea580c, #dc2626);
+    color: #fff;
+    font-family: var(--font-title);
+    font-size: 0.98rem;
+    font-weight: 900;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(220, 38, 38, 0.45);
+    touch-action: none;
   }
 
-  .defender-text {
-    font-size: 0.84rem !important;
-    line-height: 1.32 !important;
-    flex: 1 !important;
-    text-align: left !important;
+  .mob-power-progress-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0%;
+    background: linear-gradient(90deg, rgba(250, 204, 21, 0.55), rgba(34, 197, 94, 0.75));
+    pointer-events: none;
+    transition: width 0.04s linear;
   }
 
-  .defender-actions-row {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    gap: 8px !important;
-    width: 100% !important;
+  .mob-fire-inner {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    height: 100%;
+    padding: 0 12px;
   }
 
-  .defender-spray-badge {
-    height: 42px !important;
-    padding: 0 12px !important;
-    border-radius: 12px !important;
-    font-size: 0.84rem !important;
-    flex: 1 !important;
-    justify-content: center !important;
+  .mob-fire-heading {
+    letter-spacing: 0.03em;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.45);
   }
 
-  .defender-return-btn {
-    height: 42px !important;
-    padding: 0 14px !important;
-    border-radius: 12px !important;
-    font-size: 0.86rem !important;
-    font-weight: 800 !important;
-    flex: 1.2 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
+  .mob-fire-pct {
+    background: rgba(0, 0, 0, 0.35);
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.84rem;
+  }
+
+  .mob-cancel-fire-btn:not(.hidden) {
+    width: 52px;
+    height: 52px;
+    flex-shrink: 0;
+    border-radius: 14px;
+    border: 2px solid #fca5a5;
+    background: rgba(153, 27, 27, 0.92);
+    color: #fff;
+    font-size: 1.25rem;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  /* 3. PANNEAU DÉFENSE / CHÂTEAU / SPECTATEUR MOBILE */
+  #mob-panel-defend:not(.hidden) {
+    background: rgba(15, 23, 42, 0.96);
+    border-color: #38bdf8;
+    box-shadow: 0 8px 26px rgba(2, 132, 199, 0.38);
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .mob-defend-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .mob-defend-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+  }
+
+  .mob-defend-text {
+    font-size: 0.82rem;
+    line-height: 1.32;
+    color: #f1f5f9;
+    flex: 1;
+    text-align: left;
+  }
+
+  .mob-defend-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .mob-defend-spray-badge:not(.hidden) {
+    flex: 1;
+    height: 40px;
+    padding: 0 10px;
+    border-radius: 11px;
+    background: rgba(14, 165, 233, 0.22);
+    border: 1.5px solid rgba(56, 189, 248, 0.6);
+    color: #bae6fd;
+    font-size: 0.78rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .mob-defend-action-btn:not(.hidden) {
+    flex: 1.15;
+    height: 40px;
+    padding: 0 12px;
+    border-radius: 11px;
+    border: 1.5px solid #fde047;
+    background: linear-gradient(135deg, #ea580c, #d97706);
+    color: #fff;
+    font-size: 0.82rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    cursor: pointer;
   }
 
   /* Tiroir mobile de Notifications & Statut (Bottom Sheet drawer) */
@@ -4349,71 +4494,85 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
     max-width: 94vw;
   }
 
-  /* Overlay duel */
-  .duel-intro-card {
-    padding: 16px 12px;
-    max-width: 92vw;
-    border-radius: 18px;
+  /* Pile cinématique sur mobile */
+  .cinematic-stack {
+    padding: 46px 10px 16px;
+    gap: 10px;
+  }
+
+  .duel-intro-card.duel-slim-banner {
+    padding: 8px 12px;
+    border-radius: 14px;
+    gap: 6px;
   }
 
   .duel-badge-top {
-    font-size: 0.72rem;
-    padding: 3px 12px;
-    margin-bottom: 12px;
-  }
-
-  .duel-matchup {
-    gap: 8px;
-    margin-bottom: 12px;
+    font-size: 0.64rem;
+    padding: 3px 8px;
   }
 
   .combatant-icon-wrapper {
-    width: 54px;
-    height: 54px;
+    width: 38px;
+    height: 38px;
   }
 
   .combatant-avatar {
-    font-size: 1.7rem;
+    font-size: 1.25rem;
   }
 
   .combatant-role {
-    font-size: 0.65rem;
+    font-size: 0.56rem;
   }
 
   .combatant-name {
-    font-size: 0.85rem;
+    font-size: 0.80rem;
+    max-width: 85px;
   }
 
-  .duel-vs {
-    font-size: 1.1rem;
+  .vs-text {
+    font-size: 1rem;
+  }
+
+  .duel-slim-bottom-row {
+    padding: 5px 8px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
   }
 
   .duel-summary {
-    font-size: 0.82rem;
-    line-height: 1.3;
+    font-size: 0.78rem;
   }
 
   .duel-subhint {
-    font-size: 0.72rem;
+    font-size: 0.68rem;
   }
 
   /* Overlay intro */
   .intro-card {
-    padding: 18px 12px;
-    max-width: 90vw;
+    padding: 14px 12px;
+    max-width: 92vw;
+  }
+
+  .intro-animation-area {
+    width: 76px;
+    height: 76px;
+    margin-bottom: 6px;
   }
 
   .intro-title {
-    font-size: 1.5rem;
+    font-size: 1.35rem;
   }
 
   .intro-subtitle {
-    font-size: 0.82rem;
+    font-size: 0.78rem;
   }
+}
 
-  .intro-bucket-svg {
-    width: 80px;
-    height: 80px;
+/* Masquer l'interface mobile dédiée sur PC (> 768px) */
+@media (min-width: 769px) {
+  .mobile-only-ui {
+    display: none !important;
   }
 }
 
@@ -4427,130 +4586,14 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
     padding: 4px 6px;
   }
 
-  .my-castle-pill,
-  .spray-pill {
-    font-size: 0.70rem;
-    padding: 4px 6px;
-  }
-
-  .catapult-icon-switch-btn {
-    width: 54px;
-    height: 54px;
-  }
-
-  .cat-switch-icon {
-    font-size: 1.6rem;
-  }
-
-  .cat-switch-tag {
-    font-size: 0.62rem;
-  }
-
-  .sand-power-trigger-btn {
-    width: 100%;
-    max-width: none;
-    padding: 0 12px;
-  }
-
-  .sand-power-heading {
-    font-size: 0.72rem;
+  .mob-fire-heading {
+    font-size: 0.84rem;
   }
 }
 
-/* 4. Format Paysage sur Smartphone (hauteur <= 520px et orientation paysage) */
-@media (max-height: 520px) and (orientation: landscape) {
-  #hud {
-    top: max(4px, env(safe-area-inset-top, 0));
-    min-height: 32px;
-    gap: 4px;
-  }
-
-  .pill {
-    padding: 3px 6px;
-    font-size: 0.70rem;
-  }
-
-  .icon-btn {
-    width: 28px;
-    height: 28px;
-    font-size: 0.85rem;
-  }
-
-  .timer-box {
-    padding: 3px 8px;
-    font-size: 0.85rem;
-  }
-
-  .modal-card {
-    max-height: 96vh;
-    padding: 10px 14px;
-  }
-
-  .brand {
-    gap: 8px;
-    margin-bottom: 6px;
-  }
-
-  .brand-logo {
-    max-width: 48px;
-    max-height: 48px;
-  }
-
-  .brand-title {
-    font-size: 1.45rem;
-  }
-
-  .brand-subtitle {
-    font-size: 0.72rem;
-  }
-
-  .atelier-sidebar {
-    max-height: calc(100vh - 44px);
-    top: 36px;
-  }
-
-  .sand-inventory-footer {
-    bottom: max(4px, env(safe-area-inset-bottom, 0));
-    padding: 3px 6px;
-  }
-
-  .sand-catapult-hud {
-    bottom: max(6px, env(safe-area-inset-bottom, 0));
-  }
-
-  .catapult-icon-switch-btn {
-    width: 50px;
-    height: 50px;
-  }
-
-  .cat-switch-icon {
-    font-size: 1.4rem;
-  }
-
-  .cat-switch-tag {
-    font-size: 0.62rem;
-  }
-
-  .duel-intro-card {
-    padding: 10px 14px;
-  }
-
-  .combatant-icon-wrapper {
-    width: 42px;
-    height: 42px;
-  }
-
-  .combatant-avatar {
-    font-size: 1.35rem;
-  }
-
-  .duel-matchup {
-    margin-bottom: 6px;
-  }
-
-  .duel-summary {
-    font-size: 0.76rem;
-    padding: 4px 8px;
-  }
+/* RÈGLE ABSOLUE EN FIN DE FEUILLE : .hidden doit toujours l'emporter sur toutes les règles media queries */
+.hidden,
+[hidden] {
+  display: none !important;
 }
 
