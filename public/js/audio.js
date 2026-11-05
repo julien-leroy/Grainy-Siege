@@ -14,8 +14,16 @@ let musicMuted = localStorage.getItem('sc-music-muted') === '1';
 let noiseBuf = null;
 let seagullTimer = null;
 let chargeAudio = null;
+let isAppBlurred = false;
+let savedMusicMode = null;
+let savedMusicRemainingSec = 30;
+
+function isAudioBlocked() {
+  return isAppBlurred || (typeof document !== 'undefined' && document.hidden);
+}
 
 function ensure() {
+  if (isAudioBlocked()) return null;
   if (ctx) return ctx;
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) return null;
@@ -23,7 +31,7 @@ function ensure() {
 
   // Master Gain
   master = ctx.createGain();
-  master.gain.value = muted ? 0 : 0.72;
+  master.gain.value = (muted || isAudioBlocked()) ? 0 : 0.72;
   master.connect(ctx.destination);
 
   // Sous-bus FX & Musique
@@ -45,8 +53,9 @@ function ensure() {
 }
 
 export function unlock() {
+  if (isAudioBlocked()) return;
   const c = ensure();
-  if (c && c.state === 'suspended') c.resume();
+  if (c && c.state === 'suspended') c.resume().catch(() => {});
 }
 
 export function isMuted() {
@@ -56,7 +65,7 @@ export function isMuted() {
 export function toggleMute() {
   muted = !muted;
   localStorage.setItem('sc-muted', muted ? '1' : '0');
-  if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : 0.72, ctx.currentTime, 0.05);
+  if (master && ctx) master.gain.setTargetAtTime((muted || isAudioBlocked()) ? 0 : 0.72, ctx.currentTime, 0.05);
   return muted;
 }
 
@@ -75,7 +84,7 @@ export function toggleMusicMute() {
 
 // Bruit blanc filtré (pour le sable, vent, vagues, explosions)
 function noise(dur, { type = 'lowpass', freq = 800, q = 0.7, gain = 0.5, attack = 0.005, freqEnd = null, delay = 0, dest = null } = {}) {
-  if (!ensure()) return;
+  if (isAudioBlocked() || !ensure()) return;
   const t = ctx.currentTime + delay;
   const src = ctx.createBufferSource();
   src.buffer = noiseBuf;
@@ -96,7 +105,7 @@ function noise(dur, { type = 'lowpass', freq = 800, q = 0.7, gain = 0.5, attack 
 
 // Tonalité synthétique (sinus, triangle, carré, dent de scie)
 function tone(freq, dur, { type = 'sine', gain = 0.3, freqEnd = null, delay = 0, dest = null } = {}) {
-  if (!ensure()) return;
+  if (isAudioBlocked() || !ensure()) return;
   const t = ctx.currentTime + delay;
   const o = ctx.createOscillator();
   o.type = type;
@@ -132,7 +141,7 @@ function startAmbience() {
 
   if (!seagullTimer) {
     seagullTimer = setInterval(() => {
-      if (!ctx || ctx.state !== 'running' || muted || Math.random() > 0.35) return;
+      if (isAudioBlocked() || !ctx || ctx.state !== 'running' || muted || Math.random() > 0.35) return;
       const base = 1350 + Math.random() * 400;
       tone(base, 0.28, { type: 'sine', gain: 0.022, freqEnd: base * 0.72 });
       if (Math.random() > 0.4) {
@@ -573,12 +582,18 @@ class MusicEngine {
     this.step = 0;
     this.remainingSec = 30;
     this.whistlePlayed = false;
+    if (isAudioBlocked()) {
+      savedMusicMode = 'build';
+      savedMusicRemainingSec = this.remainingSec;
+      return;
+    }
     this.nextNoteTime = ensure() ? ctx.currentTime + 0.05 : 0;
     this.scheduleLoop();
   }
 
   updateBuildTimer(sec) {
     this.remainingSec = Math.max(0, sec);
+    savedMusicRemainingSec = this.remainingSec;
     if (this.currentMode !== 'build') return;
 
     // ACCÉLÉRATION DANS LES 10 DERNIÈRES SECONDES
@@ -597,13 +612,14 @@ class MusicEngine {
   }
 
   stopBuild(playWhistle = false) {
+    if (savedMusicMode === 'build') savedMusicMode = null;
     if (this.currentMode === 'build') {
       this.currentMode = null;
       if (this.timerId) {
         clearTimeout(this.timerId);
         this.timerId = null;
       }
-      if (playWhistle) {
+      if (playWhistle && !isAudioBlocked()) {
         sfx.whistle();
       }
     }
@@ -614,11 +630,16 @@ class MusicEngine {
     this.currentMode = 'battle';
     this.tempo = 116; // Tempo militaire joyeux
     this.step = 0;
+    if (isAudioBlocked()) {
+      savedMusicMode = 'battle';
+      return;
+    }
     this.nextNoteTime = ensure() ? ctx.currentTime + 0.05 : 0;
     this.scheduleLoop();
   }
 
   stopBattle() {
+    if (savedMusicMode === 'battle') savedMusicMode = null;
     if (this.currentMode === 'battle') {
       this.currentMode = null;
       if (this.timerId) {
@@ -629,6 +650,7 @@ class MusicEngine {
   }
 
   stopAll() {
+    savedMusicMode = null;
     this.currentMode = null;
     if (this.timerId) {
       clearTimeout(this.timerId);
@@ -637,7 +659,12 @@ class MusicEngine {
   }
 
   scheduleLoop() {
-    if (!this.currentMode || !ctx) return;
+    if (!this.currentMode || !ctx || isAudioBlocked()) return;
+
+    // Si le curseur de note a pris trop de retard (ex. micro-gel d'onglet), le réaligner pour éviter l'empilement de notes
+    if (this.nextNoteTime < ctx.currentTime - 0.15) {
+      this.nextNoteTime = ctx.currentTime + 0.05;
+    }
 
     // Horloge à anticipation Web Audio (Lookahead scheduler)
     const scheduleAheadTime = 0.12;
@@ -698,7 +725,6 @@ class MusicEngine {
   // Étape de la musique de guerre mignonne de combat (Marche de petits soldats)
   playBattleStep(time, step) {
     const isQuarter = step % 2 === 0;
-    const isDownbeat = step % 4 === 0;
 
     // 1. CAISSE CLAIRE MILITAIRE ENFANTINE (Petit roulement de tambour)
     const snareMarchSteps = [0, 2, 3, 4, 6, 7];
@@ -733,3 +759,99 @@ class MusicEngine {
 }
 
 export const music = new MusicEngine();
+
+/**
+ * Coupe immédiatement toutes les musiques et effets sonores lorsque l'onglet ou l'application
+ * perd le focus principal ou passe en arrière-plan.
+ */
+export function killAudioOnBlur() {
+  isAppBlurred = true;
+
+  // 1. Stopper immédiatement tout son de charge de catapulte en cours
+  if (chargeAudio) {
+    try {
+      chargeAudio.woodOsc?.stop();
+      chargeAudio.ropeOsc?.stop();
+      chargeAudio.lfo?.stop();
+      chargeAudio.noiseSrc?.stop();
+      chargeAudio.bus?.disconnect();
+    } catch (_) {}
+    chargeAudio = null;
+  }
+
+  // 2. Mettre en pause le séquenceur musical tout en mémorisant le mode actif
+  if (music.currentMode) {
+    savedMusicMode = music.currentMode;
+    savedMusicRemainingSec = music.remainingSec;
+  }
+  if (music.timerId) {
+    clearTimeout(music.timerId);
+    music.timerId = null;
+  }
+
+  // 3. Couper immédiatement le gain maître et suspendre l'AudioContext matériel
+  if (ctx) {
+    try {
+      if (master) {
+        master.gain.cancelScheduledValues(ctx.currentTime);
+        master.gain.setValueAtTime(0, ctx.currentTime);
+      }
+      if (ctx.state === 'running') {
+        ctx.suspend().catch(() => {});
+      }
+    } catch (_) {}
+  }
+}
+
+/**
+ * Restaure proprement le moteur audio lorsque le jeu redevient le focus principal,
+ * en respectant les réglages mute de l'utilisateur et sans empilement de notes.
+ */
+export function resumeAudioOnFocus() {
+  if (typeof document !== 'undefined' && document.hidden) return;
+  isAppBlurred = false;
+
+  if (!ctx) return;
+
+  try {
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+    if (master) {
+      master.gain.cancelScheduledValues(ctx.currentTime);
+      master.gain.setValueAtTime(muted ? 0 : 0.72, ctx.currentTime);
+    }
+    if (musicGain) {
+      musicGain.gain.cancelScheduledValues(ctx.currentTime);
+      musicGain.gain.setValueAtTime(musicMuted ? 0 : 0.24, ctx.currentTime);
+    }
+
+    const activeMode = music.currentMode || savedMusicMode;
+    if (activeMode) {
+      music.currentMode = activeMode;
+      music.remainingSec = savedMusicRemainingSec;
+      savedMusicMode = null;
+      if (music.timerId) {
+        clearTimeout(music.timerId);
+        music.timerId = null;
+      }
+      music.nextNoteTime = ctx.currentTime + 0.06;
+      music.scheduleLoop();
+    }
+  } catch (_) {}
+}
+
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      killAudioOnBlur();
+    } else {
+      resumeAudioOnFocus();
+    }
+  });
+  window.addEventListener('blur', () => killAudioOnBlur());
+  window.addEventListener('focus', () => resumeAudioOnFocus());
+  window.addEventListener('pagehide', () => killAudioOnBlur());
+  window.addEventListener('pageshow', () => resumeAudioOnFocus());
+}
+

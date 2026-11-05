@@ -8,7 +8,7 @@ import {
 } from '/shared/constants.js';
 import { ClientWorld } from './world.js';
 import { Renderer, drawThumb } from './renderer.js';
-import { sfx, music, unlock, isMuted, toggleMute, isMusicMuted, toggleMusicMute } from './audio.js';
+import { sfx, music, unlock, isMuted, toggleMute, isMusicMuted, toggleMusicMute, killAudioOnBlur, resumeAudioOnFocus } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -379,7 +379,15 @@ function updateToolStocks() {
       btn.style.display = '';
       continue;
     }
-    const count = stocks ? (stocks[id] ?? 0) : 0;
+    // Si la partie n'a pas encore de stocks chargés, ne pas masquer les boutons par erreur
+    if (!stocks) {
+      badge.textContent = '';
+      badge.classList.remove('depleted');
+      btn.classList.remove('depleted');
+      btn.style.display = '';
+      continue;
+    }
+    const count = stocks[id] ?? 0;
     if (count <= 0) {
       badge.textContent = 'x0';
       badge.classList.add('depleted');
@@ -391,6 +399,26 @@ function updateToolStocks() {
       badge.classList.remove('depleted');
       btn.classList.remove('depleted');
       btn.style.display = '';
+    }
+  }
+}
+
+function redrawAllToolIcons() {
+  const mouldMap = new Map(SHAPES.map((s, idx) => [s.id, { id: s.id, shape: s }]));
+  const manipMap = new Map([
+    ['pate', { id: 'pate', isPate: true }],
+    ['retirer', { id: 'retirer', isDig: true }],
+    ['spray', { id: 'spray', isSpray: true }],
+    ['flip', { id: 'flip', isFlip: true }],
+  ]);
+
+  for (const btn of document.querySelectorAll('.tool-btn')) {
+    const id = btn.dataset.tool;
+    const canvasEl = btn.querySelector('canvas');
+    if (!canvasEl) continue;
+    const tool = manipMap.get(id) || mouldMap.get(id);
+    if (tool) {
+      drawToolIcon(canvasEl, tool);
     }
   }
 }
@@ -1073,12 +1101,53 @@ socket.on('disconnect', (reason) => {
   }
 });
 
-// Détection de déverrouillage du téléphone ou retour sur l'onglet
+// Vérification, réparation et rafraîchissement complet des éléments de jeu (Canvas, Outils, Rendu)
+function restoreGameViewIfNeeded() {
+  // 1. Réparer le renderer (canvases hors-écran, motifs, reset du drawnKey pour forcer le redessin du sable)
+  if (renderer) {
+    renderer.drawnKey = null;
+    renderer.repair();
+  }
+
+  // 2. Vérifier et régénérer les outils si nécessaire
+  const moulds = document.querySelectorAll('#tool-list .tool-btn, #mob-moulds-grid .tool-btn');
+  if (moulds.length === 0) {
+    initTools();
+  } else {
+    redrawAllToolIcons();
+    updateToolStocks();
+  }
+
+  // 3. Si une partie est en cours, s'assurer que le canvas et la boucle de rendu tournent
+  if (roomState && roomState.phase !== 'lobby') {
+    const sceneEl = $('scene');
+    if (sceneEl) {
+      sceneEl.classList.remove('hidden');
+    }
+    const siteBg = $('site-bg');
+    if (siteBg) {
+      siteBg.classList.add('hidden');
+    }
+
+    // Fermer les modales résiduelles d'intro si elles sont restées bloquées pendant la mise en veille
+    $('intro-overlay')?.classList.add('hidden');
+    $('duel-intro-overlay')?.classList.add('hidden');
+
+    // Réactiver la boucle 60fps sans risquer un blocage de rafId
+    gameLoopRunning = false;
+    startGameLoop();
+    syncUI();
+  }
+}
+
+// Détection de déverrouillage du téléphone, changement d'application ou retour sur l'onglet
 let pageHiddenAt = 0;
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     pageHiddenAt = Date.now();
+    killAudioOnBlur();
   } else {
+    resumeAudioOnFocus();
     const elapsed = pageHiddenAt > 0 ? (Date.now() - pageHiddenAt) : 0;
     pageHiddenAt = 0;
     const humanPlayers = (roomState?.players || []).filter((p) => !p.isBot && !p.isSpectator).length;
@@ -1090,6 +1159,10 @@ document.addEventListener('visibilitychange', () => {
       if (!socket.connected) socket.connect();
       return;
     }
+
+    // Réparer et redessiner immédiatement le canvas et les boutons d'outils
+    restoreGameViewIfNeeded();
+
     if (!socket.connected) {
       socket.connect();
     } else if (myCode && myId) {
@@ -1102,9 +1175,14 @@ document.addEventListener('visibilitychange', () => {
 });
 
 window.addEventListener('pageshow', (event) => {
+  restoreGameViewIfNeeded();
   if (event.persisted) {
     if (!socket.connected) socket.connect();
   }
+});
+
+window.addEventListener('focus', () => {
+  restoreGameViewIfNeeded();
 });
 
 // Enregistrement PWA (Progressive Web App - installation & plein écran)
@@ -1183,12 +1261,15 @@ function handleRoomState(state) {
       initTools();
       selectTool('pate');
       updateToolStocks();
+      renderer.drawnKey = null;
+      renderer.repair();
       playIntroSequence('build');
       music.startBuild();
     } else if (state.phase === 'battle') {
       if (prevPhase === 'build') {
         music.stopBuild(true); // Sifflet de fin de chantier
       }
+      renderer.drawnKey = null;
       music.startBattle();
     } else if (state.phase === 'settle') {
       if (prevPhase === 'build') {
@@ -1196,8 +1277,27 @@ function handleRoomState(state) {
       } else {
         music.stopAll();
       }
+      renderer.drawnKey = null;
     } else if (state.phase === 'ended' || state.phase === 'lobby') {
       music.stopAll();
+    }
+  } else if (state.phase === 'build') {
+    // Si nous sommes en phase build et que les outils ont disparu du DOM (ex. reconnexion / réveil mobile), les recréer
+    const mouldsCount = document.querySelectorAll('#tool-list .tool-btn, #mob-moulds-grid .tool-btn').length;
+    if (mouldsCount === 0) {
+      initTools();
+    }
+  }
+
+  // Si on est dans une phase de jeu, s'assurer que le canvas et la boucle de rendu sont bien visibles
+  if (state.phase && state.phase !== 'lobby' && !state.players.find((p) => p.id === myId)?.isSpectator) {
+    const sceneEl = $('scene');
+    if (sceneEl && sceneEl.classList.contains('hidden')) {
+      sceneEl.classList.remove('hidden');
+    }
+    const siteBg = $('site-bg');
+    if (siteBg && !siteBg.classList.contains('hidden')) {
+      siteBg.classList.add('hidden');
     }
   }
 

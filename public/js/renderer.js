@@ -177,9 +177,22 @@ export class Renderer {
 
   updateCamera(dt = 16, options = {}) {
     this.lastCameraOptions = options;
+    if (!this.canvas.width || !this.canvas.height || this.canvas.width < 100 || this.canvas.height < 100) {
+      const w = Math.max(320, window.innerWidth || document.documentElement?.clientWidth || 360);
+      const h = Math.max(240, window.innerHeight || document.documentElement?.clientHeight || 640);
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      this.canvas.width = Math.round(w * dpr);
+      this.canvas.height = Math.round(h * dpr);
+      this.canvas.style.width = `${w}px`;
+      this.canvas.style.height = `${h}px`;
+      this.dpr = dpr;
+      this.drawnKey = null;
+    }
     const cw = this.canvas.width;
     const ch = this.canvas.height;
-    const isMobile = window.innerWidth <= 768 || window.innerWidth < window.innerHeight;
+    const winW = Math.max(320, window.innerWidth || document.documentElement?.clientWidth || 360);
+    const winH = Math.max(240, window.innerHeight || document.documentElement?.clientHeight || 640);
+    const isMobile = winW <= 768 || winW < winH;
     const desktopBottomDeckHeight = 86 * this.dpr;
     const desktopTopMargin = 50 * this.dpr;
     // Sur mobile : hauteur exactement calibrée sur le dock de commandes en bas (~195-210px)
@@ -196,8 +209,8 @@ export class Renderer {
     if (!isMobile) {
       // Sur PC / écran large de bureau : vue complète de l'île (les deux catapultes et le château)
       const fitW = cw / (GRID_W * 1.02);
-      const fitH = (ch - desktopBottomDeckHeight - desktopTopMargin) / (GRID_H * 1.04);
-      targetS = Math.min(fitW, fitH);
+      const fitH = Math.max(120, ch - desktopBottomDeckHeight - desktopTopMargin) / (GRID_H * 1.04);
+      targetS = Math.max(0.5, Math.min(fitW, fitH));
       targetOx = (cw - GRID_W * targetS) / 2;
       targetOy = (ch - desktopBottomDeckHeight) - GROUND_Y * targetS;
     } else {
@@ -210,7 +223,7 @@ export class Renderer {
         const castleSpan = 224; // Largeur château avec marges confortables (centre à 210)
         const fitW = cw / (castleSpan * 1.02);
         const fitH = availH / (GROUND_Y * 0.96);
-        targetS = Math.min(fitW, fitH);
+        targetS = Math.max(0.5, Math.min(fitW, fitH));
         targetOx = (cw / 2) - 210 * targetS;
         targetOy = (ch - mobileDockHeight) - (GROUND_Y + 14) * targetS;
       } else {
@@ -218,7 +231,7 @@ export class Renderer {
         const spanW = 274;
         const fitW = cw / (spanW * 1.02);
         const fitH = availH / (GRID_H * 0.98);
-        targetS = Math.min(fitW, fitH);
+        targetS = Math.max(0.5, Math.min(fitW, fitH));
 
         if (catapultSide === 'right') {
           // Catapulte droite et château (centre vers 239)
@@ -231,7 +244,14 @@ export class Renderer {
       }
     }
 
-    if (!this.view || !this.viewInitialized) {
+    if (
+      !this.view ||
+      !this.viewInitialized ||
+      !Number.isFinite(this.view.s) ||
+      this.view.s <= 0.2 ||
+      !Number.isFinite(this.view.ox) ||
+      !Number.isFinite(this.view.oy)
+    ) {
       this.view = { s: targetS, ox: targetOx, oy: targetOy };
       this.viewInitialized = true;
     } else {
@@ -244,9 +264,13 @@ export class Renderer {
   }
 
   resize() {
+    const rawW = window.innerWidth || document.documentElement?.clientWidth || 0;
+    const rawH = window.innerHeight || document.documentElement?.clientHeight || 0;
+    // Ignorer un resize transitoire à 0 pendant la mise en veille d'un smartphone
+    if (rawW <= 0 || rawH <= 0) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    const w = Math.max(320, rawW);
+    const h = Math.max(240, rawH);
     this.canvas.width = Math.round(w * dpr);
     this.canvas.height = Math.round(h * dpr);
     this.canvas.style.width = `${w}px`;
@@ -255,6 +279,32 @@ export class Renderer {
     this.viewInitialized = false;
     this.updateCamera(1000, this.lastCameraOptions || {});
     this.drawnKey = null;
+  }
+
+  repair() {
+    this.ctx = this.canvas.getContext('2d');
+    if (!this.sand || this.sand.width !== GRID_W * SUB || this.sand.height !== GRID_H * SUB) {
+      this.sand = document.createElement('canvas');
+      this.sand.width = GRID_W * SUB;
+      this.sand.height = GRID_H * SUB;
+    }
+    this.sandCtx = this.sand.getContext('2d');
+    if (!this.sandImg || this.sandImg.width !== this.sand.width || this.sandImg.height !== this.sand.height) {
+      this.sandImg = this.sandCtx.createImageData(this.sand.width, this.sand.height);
+    }
+    if (!this.shadow || this.shadow.width !== GRID_W || this.shadow.height !== GRID_H) {
+      this.shadow = document.createElement('canvas');
+      this.shadow.width = GRID_W;
+      this.shadow.height = GRID_H;
+    }
+    this.shadowCtx = this.shadow.getContext('2d');
+    if (!this.shadowImg || this.shadowImg.width !== GRID_W || this.shadowImg.height !== GRID_H) {
+      this.shadowImg = this.shadowCtx.createImageData(GRID_W, GRID_H);
+    }
+    this.sandPattern = this.makeSandPattern();
+    this.drawnKey = null;
+    this.viewInitialized = false;
+    this.resize();
   }
 
   toCell(clientX, clientY) {
