@@ -182,11 +182,12 @@ export class Renderer {
     const isMobile = window.innerWidth <= 768 || window.innerWidth < window.innerHeight;
     const desktopBottomDeckHeight = 86 * this.dpr;
     const desktopTopMargin = 50 * this.dpr;
-    // Sur mobile : réserver la partie basse (~38-40% de l'écran) pour le dock tactile de commandes
-    const mobileDockHeight = isMobile ? Math.min(ch * 0.40, 340 * this.dpr) : 0;
-    const mobileTopMargin = isMobile ? 80 * this.dpr : 0;
+    // Sur mobile : hauteur exactement calibrée sur le dock de commandes en bas (~195-210px)
+    const mobileDockHeight = isMobile ? Math.round(Math.min(ch * 0.27, 210 * this.dpr)) : 0;
+    const mobileTopMargin = isMobile ? 76 * this.dpr : 0;
     const phase = options.phase || 'build';
     const catapultSide = options.catapultSide || this.catapultSide || 'left';
+    const inspectingOwnCastle = Boolean(options.inspectingOwnCastle);
 
     let targetS;
     let targetOx;
@@ -201,17 +202,17 @@ export class Renderer {
       targetOy = (ch - desktopBottomDeckHeight) - GROUND_Y * targetS;
     } else {
       // Sur smartphone / écran tactile mobile :
-      // La zone de jeu est surélevée pour être centrée et dégagée au-dessus des commandes !
+      // La plage est réhaussée juste au-dessus du panneau de commandes inférieur
       const availH = Math.max(220 * this.dpr, ch - mobileDockHeight - mobileTopMargin);
 
-      if (phase === 'build') {
-        // En phase de construction : cadrage serré sur le château (de BUILD_MIN_X à BUILD_MAX_X) sur toute la largeur
+      if (phase === 'build' || inspectingOwnCastle) {
+        // En construction ou retour rapide sur son château : cadrage plein écran sur le château
         const castleSpan = 224; // Largeur château avec marges confortables (centre à 210)
         const fitW = cw / (castleSpan * 1.02);
         const fitH = availH / (GROUND_Y * 0.96);
         targetS = Math.min(fitW, fitH);
         targetOx = (cw / 2) - 210 * targetS;
-        targetOy = (ch - mobileDockHeight) - GROUND_Y * targetS;
+        targetOy = (ch - mobileDockHeight) - (GROUND_Y + 14) * targetS;
       } else {
         // En bataille (défense ou attaque) : centrer sur la catapulte sélectionnée et le château
         const spanW = 274;
@@ -226,7 +227,7 @@ export class Renderer {
           // Catapulte gauche et château (centre vers 181)
           targetOx = (cw / 2) - 181 * targetS;
         }
-        targetOy = (ch - mobileDockHeight) - GROUND_Y * targetS;
+        targetOy = (ch - mobileDockHeight) - (GROUND_Y + 14) * targetS;
       }
     }
 
@@ -1396,13 +1397,14 @@ export class Renderer {
   drawDefenseSprayStock(spraysLeft, maxSprays = 5, cooldownRatio = 1, t = 0) {
     const { ctx } = this;
     const { s, ox, oy } = this.view;
-    const centerX = ox + ((BUILD_MIN_X + BUILD_MAX_X) / 2) * s;
-    const centerY = oy + (GROUND_Y + 11.5) * s;
+    const isMobile = window.innerWidth <= 768 || window.innerWidth < window.innerHeight;
+    const centerX = isMobile ? (this.canvas.width / 2) : (ox + ((BUILD_MIN_X + BUILD_MAX_X) / 2) * s);
+    const centerY = oy + (GROUND_Y + (isMobile ? 7.5 : 11.5)) * s;
 
     ctx.save();
-    const badgeW = 390 * this.dpr;
-    const badgeH = 46 * this.dpr;
-    const r = 16 * this.dpr;
+    const badgeW = Math.min(390 * this.dpr, this.canvas.width - 16 * this.dpr);
+    const badgeH = (isMobile ? 36 : 46) * this.dpr;
+    const r = (isMobile ? 12 : 16) * this.dpr;
     const left = centerX - badgeW / 2;
     const top = centerY - badgeH / 2;
 
@@ -1426,22 +1428,22 @@ export class Renderer {
     ctx.stroke();
 
     // Titre / Badge textuel
-    const fontSize = Math.max(10, Math.round(11 * this.dpr));
+    const fontSize = Math.max(9, Math.round((isMobile ? 9.5 : 11) * this.dpr));
     ctx.font = `800 ${fontSize}px system-ui, -apple-system, sans-serif`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = spraysLeft > 0 ? '#38bdf8' : '#94a3b8';
-    ctx.fillText('🛡️ SPRAY DÉFENSE :', left + 14 * this.dpr, centerY);
+    ctx.fillText(isMobile ? '🛡️ SPRAYS :' : '🛡️ SPRAY DÉFENSE :', left + (isMobile ? 10 : 14) * this.dpr, centerY);
 
     // Grandes icônes du spray de défense (jusqu'à 5)
     const sprImg = this.sprites?.toolSpray;
-    const slotStartX = left + 145 * this.dpr;
-    const slotGap = 33 * this.dpr;
+    const slotStartX = left + (isMobile ? 90 : 145) * this.dpr;
+    const slotGap = (isMobile ? 26 : 33) * this.dpr;
 
     for (let i = 0; i < maxSprays; i++) {
       const sx = slotStartX + i * slotGap;
       const isAvailable = i < spraysLeft;
-      const slotR = 14.5 * this.dpr;
+      const slotR = (isMobile ? 11.5 : 14.5) * this.dpr;
 
       if (isAvailable) {
         // Halo lumineux pour chaque spray disponible
@@ -1454,11 +1456,11 @@ export class Renderer {
         ctx.stroke();
 
         if (sprImg && sprImg.complete && sprImg.naturalWidth > 0) {
-          const sh = 25 * this.dpr;
+          const sh = (isMobile ? 19 : 25) * this.dpr;
           const sw = sh * (sprImg.naturalWidth / sprImg.naturalHeight);
           ctx.drawImage(sprImg, sx - sw / 2, centerY - sh / 2, sw, sh);
         } else {
-          ctx.font = `${Math.round(16 * this.dpr)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+          ctx.font = `${Math.round((isMobile ? 13 : 16) * this.dpr)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
           ctx.textAlign = 'center';
           ctx.fillText('💦', sx, centerY);
         }
@@ -1476,7 +1478,7 @@ export class Renderer {
           ctx.save();
           ctx.globalAlpha = 0.20;
           ctx.filter = 'grayscale(1)';
-          const sh = 23 * this.dpr;
+          const sh = (isMobile ? 18 : 23) * this.dpr;
           const sw = sh * (sprImg.naturalWidth / sprImg.naturalHeight);
           ctx.drawImage(sprImg, sx - sw / 2, centerY - sh / 2, sw, sh);
           ctx.restore();
@@ -1487,19 +1489,19 @@ export class Renderer {
     // Libellé d'action / Disponibilité à droite
     ctx.textAlign = 'right';
     if (spraysLeft > 0) {
-      ctx.font = `800 ${Math.max(9, Math.round(10 * this.dpr))}px system-ui, sans-serif`;
+      ctx.font = `800 ${Math.max(8, Math.round((isMobile ? 9 : 10) * this.dpr))}px system-ui, sans-serif`;
       ctx.fillStyle = '#7dd3fc';
-      ctx.fillText(`${spraysLeft} PRÊT${spraysLeft > 1 ? 'S' : ''}`, left + badgeW - 14 * this.dpr, centerY - 6 * this.dpr);
-      ctx.font = `700 ${Math.max(8, Math.round(8.5 * this.dpr))}px system-ui, sans-serif`;
+      ctx.fillText(`${spraysLeft} PRÊT${spraysLeft > 1 ? 'S' : ''}`, left + badgeW - 12 * this.dpr, centerY - 5 * this.dpr);
+      ctx.font = `700 ${Math.max(7.5, Math.round((isMobile ? 7.8 : 8.5) * this.dpr))}px system-ui, sans-serif`;
       ctx.fillStyle = '#facc15';
-      ctx.fillText('[CLIC / E]', left + badgeW - 14 * this.dpr, centerY + 7 * this.dpr);
+      ctx.fillText(isMobile ? '[TOUCHE CHÂTEAU]' : '[CLIC CHÂTEAU]', left + badgeW - 12 * this.dpr, centerY + 6 * this.dpr);
     } else {
-      ctx.font = `800 ${Math.max(9, Math.round(9.5 * this.dpr))}px system-ui, sans-serif`;
+      ctx.font = `800 ${Math.max(8, Math.round(9.5 * this.dpr))}px system-ui, sans-serif`;
       ctx.fillStyle = '#f87171';
-      ctx.fillText('0 PRÊT', left + badgeW - 14 * this.dpr, centerY - 6 * this.dpr);
-      ctx.font = `600 ${Math.max(8, Math.round(8.0 * this.dpr))}px system-ui, sans-serif`;
+      ctx.fillText('0 PRÊT', left + badgeW - 12 * this.dpr, centerY - 5 * this.dpr);
+      ctx.font = `600 ${Math.max(7.5, Math.round(8.0 * this.dpr))}px system-ui, sans-serif`;
       ctx.fillStyle = '#94a3b8';
-      ctx.fillText('(Épuisé)', left + badgeW - 14 * this.dpr, centerY + 7 * this.dpr);
+      ctx.fillText('(Épuisé)', left + badgeW - 12 * this.dpr, centerY + 6 * this.dpr);
     }
 
     ctx.restore();

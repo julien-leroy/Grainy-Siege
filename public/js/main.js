@@ -66,9 +66,15 @@ window.addEventListener('unhandledrejection', (evt) => {
 });
 
 let activeTool = 'pate'; // par défaut le pâté de sable maniable pour sculpter librement !
-let battleSpraySelected = false; // en bataille : appuyer sur E sélectionne le spray, clic pour activer
+let battleSpraySelected = false;
 let nextSprayAvailableAt = 0;
+let pendingRoomState = null;
+let disconnectResetTimer = null;
 const KING_GHOST = { w: KING_W, h: KING_H, mask: new Uint8Array(KING_W * KING_H).fill(1) };
+
+function isMobileDevice() {
+  return window.innerWidth <= 768 || window.innerWidth < window.innerHeight;
+}
 
 const pointer = { x: 200, y: 110, inside: false, down: false };
 let lastClientX = null;
@@ -84,26 +90,23 @@ let remoteAim = null;
 let lastSecondTick = -1;
 let myCatapultSide = 'left';
 
-function triggerQuickSpray() {
-  if (roomState?.phase === 'build') {
-    selectTool('spray');
-    toast('💦 Spray sélectionné : touche ton château pour le durcir !');
-  } else if (roomState?.phase === 'battle') {
-    if (inspectingOwnCastle || roomState?.turn?.targetId === myId) {
-      socket.emit('spray', { x: 210, y: GROUND_Y - 30 }, (res) => {
-        if (res?.ok) {
-          sfx.spray();
-          renderer.waterMist(210, GROUND_Y - 30);
-          toast('💦 Spray appliqué sur ton château !');
-        } else if (res?.error) {
-          toast(`⚠️ ${res.error}`);
-        }
-      });
-    } else {
-      inspectingOwnCastle = true;
-      syncUI();
-      toast('🏰 Vue sur ton château : ré-appuie pour appliquer le spray 💦 !');
-    }
+function toggleOwnCastleView() {
+  if (roomState?.phase !== 'battle') return;
+  if (roomState.turn?.targetId === myId) {
+    toast(isMobileDevice()
+      ? '🏰 Tu es déjà sur ton château ! Touche-le directement pour appliquer un Spray 💦.'
+      : '🏰 Tu es déjà sur ton château ! Clique dessus pour appliquer un Spray 💦.');
+    return;
+  }
+  inspectingOwnCastle = !inspectingOwnCastle;
+  sfx.ratchet(inspectingOwnCastle ? 820 : 620);
+  syncUI();
+  if (inspectingOwnCastle) {
+    toast(isMobileDevice()
+      ? '🏰 Sur ton château : touche directement ton sable pour appliquer un Spray 💦 !'
+      : '🏰 Vue sur ton château : clique sur ton sable pour appliquer un Spray 💦 !');
+  } else {
+    toast('⚔️ Retour au duel en cours !');
   }
 }
 
@@ -117,7 +120,7 @@ function updateCatapultSwitchButton() {
     switchBtn.classList.toggle('hidden', !inBattle || !isShooter);
     switchBtn.classList.toggle('pos-right', isLeft);
     switchBtn.classList.toggle('pos-left', !isLeft);
-    switchBtn.title = isLeft ? 'Passer à la Catapulte Droite [Touche D]' : 'Passer à la Catapulte Gauche [Touche Q ou A]';
+    switchBtn.title = isLeft ? 'Passer à la Catapulte Droite [Touche R ou D]' : 'Passer à la Catapulte Gauche [Touche R, Q ou A]';
     const nameEl = $('hud-cat-name');
     if (nameEl) nameEl.textContent = isLeft ? '⇄ DROITE' : '⇄ GAUCHE';
 
@@ -155,18 +158,18 @@ function updateCatapultSwitchButton() {
       e.preventDefault();
       e.stopPropagation();
       unlock();
-      triggerQuickSpray();
+      toggleOwnCastleView();
     });
   }
 
-  const defSprayBtn = $('defender-spray-btn');
-  if (defSprayBtn && !defSprayBtn._init) {
-    defSprayBtn._init = true;
-    defSprayBtn.addEventListener('click', (e) => {
+  const defReturnBtn = $('defender-return-duel-btn');
+  if (defReturnBtn && !defReturnBtn._init) {
+    defReturnBtn._init = true;
+    defReturnBtn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
       unlock();
-      triggerQuickSpray();
+      toggleOwnCastleView();
     });
   }
 
@@ -597,7 +600,7 @@ $('solo-btn').addEventListener('click', () => {
 
 function launchTraining(mode) {
   unlock();
-  resetAllGameData();
+  resetAllGameData(true);
   showLobbyError(null);
   const difficulty = $('train-ai-difficulty-select')?.value || '12yo';
   $('training-modal')?.classList.add('hidden');
@@ -608,8 +611,16 @@ function launchTraining(mode) {
     sessionStorage.setItem('sc-pid', res.playerId);
     sessionStorage.setItem('sc-code', res.code);
     $('lobby-modal')?.classList.add('hidden');
+    $('scene')?.classList.remove('hidden');
     $('hud')?.classList.remove('hidden');
     startGameLoop();
+    if (pendingRoomState) {
+      const st = pendingRoomState;
+      pendingRoomState = null;
+      handleRoomState(st);
+    } else {
+      syncUI();
+    }
   });
 }
 
@@ -843,35 +854,18 @@ $('room-pill').addEventListener('click', () => {
 $('spray-quick-btn').addEventListener('click', () => {
   unlock();
   if (roomState?.phase === 'build') {
-    selectTool('spray');
-    toast('💦 Outil Spray sélectionné : clique sur ton château pour le durcir !');
+    selectTool(activeTool === 'spray' ? 'pate' : 'spray');
+    toast(activeTool === 'spray'
+      ? '💦 Outil Spray sélectionné : clique sur ton château pour le durcir !'
+      : '✋ Outil Pâté sélectionné.');
   } else if (roomState?.phase === 'battle') {
-    if ((viewedPid || myId) !== myId) {
-      inspectingOwnCastle = true;
-      sfx.ratchet(780);
-      syncUI();
-      toast('🏰 Retour à ton château : clique dessus pour appliquer un Spray 💦 !');
-    } else {
-      toast('💦 Clique directement sur ton château pour arroser et durcir le sable !');
-    }
+    toggleOwnCastleView();
   }
 });
 
 $('my-castle-btn')?.addEventListener('click', () => {
   unlock();
-  if (roomState?.phase !== 'battle') return;
-  if (roomState.turn?.targetId === myId) {
-    toast('🏰 Tu es déjà sur ton château ! Clique dessus pour appliquer un Spray 💦.');
-    return;
-  }
-  inspectingOwnCastle = !inspectingOwnCastle;
-  sfx.ratchet(inspectingOwnCastle ? 820 : 620);
-  syncUI();
-  if (inspectingOwnCastle) {
-    toast('🏰 Vue sur ton château : clique sur ton sable pour appliquer un Spray 💦 !');
-  } else {
-    toast('⚔️ Retour au duel en cours !');
-  }
+  toggleOwnCastleView();
 });
 
 function updateMuteBtn() {
@@ -898,8 +892,10 @@ $('music-btn')?.addEventListener('click', () => {
   updateMusicBtn();
 });
 
-function resetAllGameData() {
-  worlds.clear();
+function resetAllGameData(clearWorlds = true) {
+  if (clearWorlds) {
+    worlds.clear();
+  }
   if (demoWorld && demoWorld.cells) {
     demoWorld.cells.fill(0);
     for (let i = 150 * GRID_W; i < GRID_W * GRID_H; i++) demoWorld.cells[i] = 1;
@@ -909,6 +905,7 @@ function resetAllGameData() {
   renderer.trail = null;
   renderer.popups = [];
   inspectingOwnCastle = false;
+  battleSpraySelected = false;
   lastMouldPlaceAttempt = 0;
   nextMouldAllowedAt = 0;
   lastPatePlaceAttempt = 0;
@@ -947,8 +944,11 @@ function resetAllGameData() {
 }
 
 async function onJoinedRoom(code, playerId, phase = 'lobby', isSpectator = false) {
-  resetAllGameData();
-  stopGameLoop();
+  if (disconnectResetTimer) {
+    clearTimeout(disconnectResetTimer);
+    disconnectResetTimer = null;
+  }
+  resetAllGameData(false);
   myId = playerId;
   myCode = code;
   sessionStorage.setItem('sc-pid', playerId);
@@ -963,19 +963,30 @@ async function onJoinedRoom(code, playerId, phase = 'lobby', isSpectator = false
   if (mobileTutoBtn) mobileTutoBtn.textContent = '📖 Règles du jeu & Tuto animé ▼';
 
   if (phase && phase !== 'lobby') {
-    // Si la partie est déjà lancée, entrer directement sur la scène de jeu en spectateur !
+    // Si la partie est déjà lancée, entrer directement sur la scène de jeu !
     isWatchingGame = true;
     $('room-view').classList.add('hidden');
     $('lobby-modal')?.classList.add('hidden');
     $('scene')?.classList.remove('hidden');
     $('hud')?.classList.remove('hidden');
     startGameLoop();
-    toast('👀 Partie déjà lancée sur cette plage ! Tu observes le combat en spectateur.');
+    if (isSpectator) {
+      toast('👀 Partie déjà lancée sur cette plage ! Tu observes le combat en spectateur.');
+    }
   } else {
     isWatchingGame = false;
+    stopGameLoop();
     $('hud').classList.add('hidden');
     $('room-view').classList.remove('hidden');
     $('lobby-modal')?.classList.remove('hidden');
+  }
+
+  if (pendingRoomState) {
+    const st = pendingRoomState;
+    pendingRoomState = null;
+    handleRoomState(st);
+  } else if (roomState) {
+    syncUI();
   }
 
   try {
@@ -986,12 +997,15 @@ async function onJoinedRoom(code, playerId, phase = 'lobby', isSpectator = false
 }
 
 socket.on('connect', () => {
+  if (disconnectResetTimer) {
+    clearTimeout(disconnectResetTimer);
+    disconnectResetTimer = null;
+  }
   if (myCode && myId) {
     socket.emit('join', { code: myCode, playerId: myId, name: getPlayerName() }, (res) => {
       if (res?.ok) onJoinedRoom(res.code, res.playerId, res.phase, res.isSpectator);
       else {
-        sessionStorage.removeItem('sc-pid');
-        sessionStorage.removeItem('sc-code');
+        leaveRoom();
         checkPreviousRoom();
       }
     });
@@ -1002,10 +1016,15 @@ socket.on('connect', () => {
 
 socket.on('disconnect', (reason) => {
   console.warn('Socket déconnecté :', reason);
-  if (myCode || roomState || myId) {
-    leaveRoom();
-    toast('🔌 Connexion interrompue. Retour au salon d\'accueil.');
-  }
+  if (disconnectResetTimer) clearTimeout(disconnectResetTimer);
+  // Si la déconnexion est volontaire ou dure plus de 5 secondes sans reconnexion automatique, quitter et reset
+  disconnectResetTimer = setTimeout(() => {
+    disconnectResetTimer = null;
+    if (!socket.connected && (myCode || roomState || myId)) {
+      leaveRoom();
+      toast('🔌 Connexion interrompue. Retour au salon d\'accueil.');
+    }
+  }, 5000);
 });
 
 // Détection de verrouillage du téléphone ou mise en veille prolongée (ex: 3 minutes)
@@ -1075,18 +1094,23 @@ $('pause-fullscreen-btn')?.addEventListener('click', () => {
 
 // ------------------------------------------------------------------ Réception réseau
 socket.on('world', (msg) => {
-  if (!myId) return;
+  if (!msg || !msg.pid) return;
   let w = worlds.get(msg.pid);
   if (!w) {
     w = new ClientWorld(msg.pid);
     worlds.set(msg.pid, w);
   }
   w.apply(msg);
+  renderer.drawnKey = null;
   refreshThumb(msg.pid);
 });
 
-socket.on('room', (state) => {
-  if (!myId || !state?.players?.some((p) => p.id === myId)) return;
+function handleRoomState(state) {
+  if (!state || !Array.isArray(state.players)) return;
+  if (!myId || !state.players.some((p) => p.id === myId)) {
+    pendingRoomState = state;
+    return;
+  }
   const prevPhase = roomState?.phase;
   roomState = state;
   for (const p of state.players) {
@@ -1098,9 +1122,9 @@ socket.on('room', (state) => {
   }
   if (prevPhase !== state.phase) {
     if (state.phase === 'build') {
-      resetAllGameData();
+      resetAllGameData(false);
       for (const p of state.players) {
-        worlds.set(p.id, new ClientWorld(p.id));
+        if (!worlds.has(p.id)) worlds.set(p.id, new ClientWorld(p.id));
       }
       viewedPid = myId;
       isMouldFlipped = false;
@@ -1144,6 +1168,10 @@ socket.on('room', (state) => {
   }
 
   syncUI();
+}
+
+socket.on('room', (state) => {
+  handleRoomState(state);
 });
 
 let duelIntroTimeout = null;
@@ -1213,7 +1241,9 @@ function showDuelIntro(shooter, target) {
     if (isMeShooter) {
       subhint.textContent = 'Maintiens "Tirer !!" pour jauger la puissance ou change de catapulte !';
     } else if (isMeTarget) {
-      subhint.textContent = 'Clique sur ton château ou [E] pour durcir le sable au Spray 💦 !';
+      subhint.textContent = isMobileDevice()
+        ? 'Touche directement ton château pour durcir le sable au Spray 💦 !'
+        : 'Clique directement sur ton château pour durcir le sable au Spray 💦 !';
     } else {
       subhint.textContent = 'Observez la trajectoire balistique et le souffle du vent 💨 !';
     }
@@ -1657,28 +1687,26 @@ function syncUI() {
     $('train-new-target-btn')?.classList.toggle('hidden', !(s.isTraining && s.trainingMode === 'shoot' && s.phase === 'battle'));
   }
 
-  // Bouton Spray dans le HUD (toujours disponible en build et en bataille pour les joueurs vivants)
-  const canSpray = !isSpectator && Boolean(me?.alive) && (s.phase === 'build' || s.phase === 'battle');
+  // Bouton Spray dans le HUD : affiché uniquement en phase de construction (en bataille, le spray est automatique sur son château !)
+  const canSpray = !isSpectator && Boolean(me?.alive) && s.phase === 'build';
   $('spray-quick-btn').classList.toggle('hidden', !canSpray);
 
-  // Bouton dédié pour retourner à tout moment sur son château en bataille et y mettre un spray
+  // Bouton dédié pour retourner à tout moment sur son château en bataille (quand on n'est pas déjà la cible en défense)
   const myCastleBtn = $('my-castle-btn');
   if (myCastleBtn) {
-    const showMyCastleBtn = !isSpectator && Boolean(me?.alive) && s.phase === 'battle' && Boolean(s.turn);
+    const showMyCastleBtn = !isSpectator && Boolean(me?.alive) && s.phase === 'battle' && Boolean(s.turn) && s.turn.targetId !== myId;
     myCastleBtn.classList.toggle('hidden', !showMyCastleBtn);
     if (showMyCastleBtn) {
       const spraysLeft = me?.defenseSpraysLeft ?? 0;
-      if (s.turn.targetId === myId) {
-        inspectingOwnCastle = false;
-        myCastleBtn.classList.remove('active-return');
-        myCastleBtn.innerHTML = `🏰 Sur ton Château (${spraysLeft} 💦)`;
-      } else if (inspectingOwnCastle) {
+      if (inspectingOwnCastle) {
         myCastleBtn.classList.add('active-return');
-        myCastleBtn.innerHTML = `⚔️ Retour au duel`;
+        myCastleBtn.innerHTML = `⚔️ Retour au combat`;
       } else {
         myCastleBtn.classList.remove('active-return');
         myCastleBtn.innerHTML = `🏰 Mon Château (${spraysLeft} 💦)`;
       }
+    } else if (s.phase === 'battle' && s.turn?.targetId === myId) {
+      inspectingOwnCastle = false;
     }
   }
 
@@ -1767,6 +1795,7 @@ function syncUI() {
   const notifText = $('notif-status-text');
   if (notifBanner && notifIcon && notifText) {
     notifBanner.className = 'notif-status-banner';
+    const mobile = isMobileDevice();
     if (s.phase === 'build') {
       if (!me?.alive) {
         notifBanner.classList.add('status-danger');
@@ -1789,7 +1818,9 @@ function syncUI() {
       if (inspectingOwnCastle && s.turn.targetId !== myId) {
         notifBanner.classList.add('status-inspect');
         notifIcon.textContent = '🏰';
-        notifText.innerHTML = `<strong>Sur ton château !</strong> Clique dessus pour <strong>arroser au Spray 💦 (${leftSprays})</strong> puis retourne au duel.`;
+        notifText.innerHTML = mobile
+          ? `<strong>Sur ton château !</strong> Touche ton château pour <strong>arroser au Spray 💦 (${leftSprays})</strong> puis retourne au combat.`
+          : `<strong>Sur ton château !</strong> Clique dessus pour <strong>arroser au Spray 💦 (${leftSprays})</strong> puis retourne au combat.`;
       } else if (s.turn.shooterId === myId) {
         notifBanner.classList.add('status-attack');
         notifIcon.textContent = '🎯';
@@ -1799,7 +1830,9 @@ function syncUI() {
         notifBanner.classList.add('status-defense');
         notifIcon.textContent = '🛡️';
         notifText.innerHTML = leftSprays > 0
-          ? `<strong>${escapeHtml(shooter?.name || '?')} te vise !</strong> Clique sur ton château ou [E] pour <strong>durcir au Spray 💦 (${leftSprays} dispo)</strong> !`
+          ? (mobile
+            ? `<strong>${escapeHtml(shooter?.name || '?')} te vise !</strong> Touche directement ton château pour <strong>durcir au Spray 💦 (${leftSprays} dispo)</strong> !`
+            : `<strong>${escapeHtml(shooter?.name || '?')} te vise !</strong> Clique directement sur ton château pour <strong>durcir au Spray 💦 (${leftSprays} dispo)</strong> !`)
           : `<strong>${escapeHtml(shooter?.name || '?')} te vise !</strong> Spray épuisé (touche un colis 🎁 au canon).`;
       } else {
         notifIcon.textContent = '👀';
@@ -1812,13 +1845,60 @@ function syncUI() {
     }
   }
 
-  // Bannière Défenseur / Cible
+  // Bannière / Dock Défenseur & Château (sur PC et Mobile)
   const isDefenderTarget = s.phase === 'battle' && s.turn?.targetId === myId && Boolean(me?.alive);
+  const isInspectingOwn = s.phase === 'battle' && Boolean(s.turn) && inspectingOwnCastle && s.turn.targetId !== myId && Boolean(me?.alive);
+  const isMobileWatchingOtherDuel = isMobileDevice() && s.phase === 'battle' && Boolean(s.turn) && Boolean(me?.alive) && s.turn.shooterId !== myId && s.turn.targetId !== myId && !inspectingOwnCastle;
+  const showDefControls = isDefenderTarget || isInspectingOwn || isMobileWatchingOtherDuel;
+
   const defControls = $('defender-controls');
   if (defControls) {
-    defControls.classList.toggle('hidden', !isDefenderTarget);
+    defControls.classList.toggle('hidden', !showDefControls);
+    defControls.classList.toggle('inspect-mode', isInspectingOwn || isMobileWatchingOtherDuel);
+    const spraysLeft = me?.defenseSpraysLeft ?? 0;
     const defSprayCount = $('defender-spray-count');
-    if (defSprayCount) defSprayCount.textContent = String(me?.defenseSpraysLeft ?? 0);
+    if (defSprayCount) defSprayCount.textContent = String(spraysLeft);
+
+    const defIcon = $('defender-icon');
+    const defMsg = $('spectator-msg');
+    const defReturnBtn = $('defender-return-duel-btn');
+    const mobile = isMobileDevice();
+
+    if (isDefenderTarget) {
+      if (defIcon) defIcon.textContent = '🛡️';
+      if (defMsg) {
+        defMsg.innerHTML = spraysLeft > 0
+          ? (mobile
+            ? '<strong>Tu es pris pour cible !</strong> Touche directement ton château pour le durcir au Spray 💦 !'
+            : '<strong>Tu es pris pour cible !</strong> Clique directement sur ton château pour le durcir au Spray 💦 !')
+          : '<strong>Tu es pris pour cible !</strong> Plus de spray en stock pour ce tour.';
+      }
+      if (defReturnBtn) defReturnBtn.classList.add('hidden');
+    } else if (isInspectingOwn) {
+      if (defIcon) defIcon.textContent = '🏰';
+      if (defMsg) {
+        defMsg.innerHTML = spraysLeft > 0
+          ? (mobile
+            ? '<strong>Sur ton château !</strong> Touche directement ton sable pour appliquer un Spray 💦.'
+            : '<strong>Sur ton château !</strong> Clique directement sur ton sable pour appliquer un Spray 💦.')
+          : '<strong>Sur ton château !</strong> Plus de spray disponible actuellement.';
+      }
+      if (defReturnBtn) {
+        defReturnBtn.classList.remove('hidden');
+        defReturnBtn.innerHTML = '⚔️ Retourner au combat';
+      }
+    } else if (isMobileWatchingOtherDuel) {
+      const shooter = s.players.find((p) => p.id === s.turn.shooterId);
+      const target = s.players.find((p) => p.id === s.turn.targetId);
+      if (defIcon) defIcon.textContent = '👀';
+      if (defMsg) {
+        defMsg.innerHTML = `<strong>${escapeHtml(shooter?.name || '?')}</strong> attaque <strong>${escapeHtml(target?.name || '?')}</strong>.`;
+      }
+      if (defReturnBtn) {
+        defReturnBtn.classList.remove('hidden');
+        defReturnBtn.innerHTML = `🏰 Mon Château (${spraysLeft} 💦)`;
+      }
+    }
   }
 
   const dockSprayCount = $('dock-spray-count');
@@ -1837,7 +1917,7 @@ function syncUI() {
         kw.innerHTML = '💀 <strong>Ton Roi a été enseveli sous un effondrement !</strong>';
       } else if (me.kingHits > 0) {
         kw.className = 'dock-hint danger';
-        kw.innerHTML = `⚠️ <strong>Attention !</strong> Ton Roi commence à être enseveli (${me.kingHits}/8 grains) ! Dégage-le à la cuillère [X] !`;
+        kw.innerHTML = `⚠️ <strong>Attention !</strong> Ton Roi commence à être enseveli (${me.kingHits}/8 grains) ! Dégage-le à la cuillère !`;
       } else {
         kw.className = 'dock-hint placed';
         kw.innerHTML = '👑 <strong>Ton Roi est sur la plage !</strong> Pose une Arche ou un Bunker par-dessus sans l\'écraser.';
@@ -2001,8 +2081,11 @@ canvas.addEventListener('contextmenu', (e) => {
     cancelCharging();
     return;
   }
-  const cell = renderer.toCell(e.clientX, e.clientY);
-  trySprayAt(cell.x, cell.y);
+  // Sur PC : clic droit en raccourci pour le spray. Sur mobile : pas d'action au long-press (le simple toucher suffit !)
+  if (!isMobileDevice()) {
+    const cell = renderer.toCell(e.clientX, e.clientY);
+    trySprayAt(cell.x, cell.y);
+  }
 });
 
 canvas.addEventListener('pointermove', (e) => {
@@ -2096,8 +2179,8 @@ canvas.addEventListener('pointerdown', (e) => {
   pointer.x = cell.x;
   pointer.y = cell.y;
 
-  // Clic droit = Annuler le tir si chargement en cours, sinon Spray d'eau immédiat !
-  if (e.button === 2) {
+  // Sur PC : clic droit = Annuler le tir si chargement en cours, sinon Spray d'eau immédiat !
+  if (e.pointerType === 'mouse' && e.button === 2) {
     if (isCharging) {
       cancelCharging();
       return;
@@ -2114,12 +2197,9 @@ canvas.addEventListener('pointerdown', (e) => {
   } else if (roomState?.phase === 'battle') {
     const viewingOwnCastle = (viewedPid || myId) === myId && (roomState.turn?.targetId === myId || inspectingOwnCastle);
     if (viewingOwnCastle) {
-      // Sur son propre château en bataille : le clic gauche active le spray SEULEMENT s'il a été sélectionné avec [E]
-      if (battleSpraySelected || activeTool === 'spray') {
-        trySprayAt(cell.x, cell.y);
-      } else {
-        renderer.popup(cell.x, cell.y - 6, '💡 Appuie sur [E] pour sélectionner le Spray 💦', '#38bdf8');
-      }
+      // En défense ou de retour sur son propre château en bataille : le Spray est AUTOMATIQUEMENT actif !
+      // Un simple clic gauche (PC) ou toucher (Mobile) sur le château arrose immédiatement !
+      trySprayAt(cell.x, cell.y);
       return;
     }
 
@@ -2166,7 +2246,14 @@ function trySprayAt(cx, cy) {
     if ((viewedPid || myId) !== myId) {
       inspectingOwnCastle = true;
       syncUI();
-      renderer.popup(cx, cy - 4, '🏰 Voici ton château ! Clique dessus pour arroser 💦', '#38bdf8');
+      renderer.popup(
+        cx,
+        cy - 4,
+        isMobileDevice()
+          ? '🏰 Voici ton château ! Touche-le pour arroser 💦'
+          : '🏰 Voici ton château ! Clique dessus pour arroser 💦',
+        '#38bdf8'
+      );
       return;
     }
 
@@ -2916,11 +3003,13 @@ window.addEventListener('keydown', (e) => {
       closePauseMenu();
       return;
     }
-    // 3. Si un spray était sélectionné en défense, le désélectionner
-    if (battleSpraySelected) {
-      battleSpraySelected = false;
-      activeTool = 'pate';
-      renderer.popup(pointer.x, pointer.y - 8, 'Spray désélectionné', '#94a3b8');
+    // 3. Si on inspectait son propre château pendant un duel en bataille, Échap ramène au combat
+    if (roomState?.phase === 'battle' && inspectingOwnCastle && roomState.turn?.targetId !== myId) {
+      e.preventDefault();
+      inspectingOwnCastle = false;
+      sfx.ratchet(620);
+      syncUI();
+      toast('⚔️ Retour au duel en cours !');
       return;
     }
     // 4. Sinon, Échap ouvre le menu pause interactif
@@ -2954,23 +3043,23 @@ window.addEventListener('keydown', (e) => {
     if (roomState?.phase === 'battle') {
       const me = roomState.players.find((p) => p.id === myId);
       if (!me || !me.alive) return;
-      if (roomState.turn?.targetId !== myId && !inspectingOwnCastle) {
-        inspectingOwnCastle = true;
-        syncUI();
+      if (roomState.turn?.targetId === myId) {
+        const px = pointer.x || 210;
+        const py = pointer.y || 120;
+        renderer.popup(px, py - 8, '💦 Spray déjà actif en défense — Clique sur ton château !', '#38bdf8');
+        return;
       }
-      battleSpraySelected = !battleSpraySelected;
-      activeTool = battleSpraySelected ? 'spray' : 'pate';
-      sfx.ratchet(battleSpraySelected ? 860 : 540);
+      toggleOwnCastleView();
+    } else {
+      selectTool(activeTool === 'spray' ? 'pate' : 'spray');
       const px = pointer.x || 210;
       const py = pointer.y || 120;
-      if (battleSpraySelected) {
-        renderer.popup(px, py - 8, '💦 Spray sélectionné — Clique pour arroser !', '#38bdf8');
-        toast('💦 Spray sélectionné : clique sur ton château pour durcir le sable !');
-      } else {
-        renderer.popup(px, py - 8, 'Spray désélectionné', '#94a3b8');
-      }
-    } else {
-      selectTool('spray');
+      renderer.popup(
+        px,
+        py - 8,
+        activeTool === 'spray' ? '💦 Outil Spray sélectionné [E]' : '✋ Outil Pâté sélectionné',
+        activeTool === 'spray' ? '#38bdf8' : '#fde047'
+      );
     }
   } else if (e.key.toLowerCase() === 'r') {
     if (roomState?.phase === 'battle') {
@@ -3122,9 +3211,6 @@ let gameLoopRunning = false;
 let rafId = null;
 
 export function startGameLoop() {
-  if (gameLoopRunning) return;
-  gameLoopRunning = true;
-  lastFrame = performance.now();
   const sceneEl = $('scene');
   if (sceneEl) sceneEl.classList.remove('hidden');
   const siteBg = $('site-bg');
@@ -3133,6 +3219,12 @@ export function startGameLoop() {
   if (chatDock) chatDock.classList.remove('hidden');
   if (window.siteBgInstance) window.siteBgInstance.setActive(false);
   if (window.tutoInstance) window.tutoInstance.setActive(false);
+  if (!renderer.canvas.width || !renderer.canvas.height) {
+    renderer.resize();
+  }
+  if (gameLoopRunning) return;
+  gameLoopRunning = true;
+  lastFrame = performance.now();
   rafId = requestAnimationFrame(frame);
 }
 
@@ -3154,224 +3246,241 @@ export function stopGameLoop() {
 
 function frame(now) {
   if (!gameLoopRunning) return;
-  const dt = Math.min(50, now - lastFrame);
-  lastFrame = now;
+  try {
+    const dt = Math.min(50, Math.max(1, now - lastFrame));
+    lastFrame = now;
 
-  const phase = roomState?.phase || 'lobby';
-  const isShooter = phase === 'battle' && roomState?.turn?.shooterId === myId;
-  const curCatSide = isShooter ? myCatapultSide : (roomState?.turn?.catapultSide || 'left');
+    const sceneEl = $('scene');
+    if (sceneEl && sceneEl.classList.contains('hidden')) {
+      sceneEl.classList.remove('hidden');
+    }
 
-  // Mise à jour de la caméra adaptée au mobile (château plein écran en build, catapulte+château en bataille)
-  renderer.updateCamera(dt, { phase, catapultSide: curCatSide });
+    const phase = roomState?.phase || 'lobby';
+    const isShooter = phase === 'battle' && roomState?.turn?.shooterId === myId;
+    const curCatSide = isShooter ? myCatapultSide : (roomState?.turn?.catapultSide || 'left');
 
-  renderer.begin(dt);
+    // Mise à jour de la caméra adaptée au mobile (château plein écran en build ou en visite, catapulte+château en bataille)
+    renderer.updateCamera(dt, { phase, catapultSide: curCatSide, inspectingOwnCastle });
 
-  // Mettre à jour les coordonnées du curseur si la caméra glisse sous la souris
-  if (pointer.inside && lastClientX !== null && lastClientY !== null) {
-    const updatedCell = renderer.toCell(lastClientX, lastClientY);
-    pointer.x = updatedCell.x;
-    pointer.y = updatedCell.y;
-  }
+    renderer.begin(dt);
 
-  renderer.drawBackground(now);
+    // Mettre à jour les coordonnées du curseur si la caméra glisse sous la souris
+    if (pointer.inside && lastClientX !== null && lastClientY !== null) {
+      const updatedCell = renderer.toCell(lastClientX, lastClientY);
+      pointer.x = updatedCell.x;
+      pointer.y = updatedCell.y;
+    }
 
-  // Mise à jour du badge Spray (cooldown + décompte restant en bataille)
-  const sprayRemaining = Math.max(0, nextSprayAvailableAt - now);
-  const sprayReadyFraction = Math.min(1, 1 - sprayRemaining / SPRAY_COOLDOWN_MS);
-  const sprayBtn = $('spray-quick-btn');
-  const sprayTxt = $('spray-status-txt');
-  const mePlayer = roomState?.players?.find((p) => p.id === myId);
-  const spraysLeftCount = roomState?.phase === 'battle' ? (mePlayer?.defenseSpraysLeft ?? 0) : '∞';
+    renderer.drawBackground(now);
 
-  if (sprayRemaining > 0) {
-    sprayBtn.classList.add('cooldown');
-    sprayTxt.textContent = `${(sprayRemaining / 1000).toFixed(1)}s`;
-  } else if (roomState?.phase === 'battle' && spraysLeftCount <= 0) {
-    sprayBtn.classList.add('cooldown');
-    sprayTxt.textContent = 'ÉPUISÉ (0)';
-  } else {
-    sprayBtn.classList.remove('cooldown');
-    sprayTxt.textContent = roomState?.phase === 'battle' ? `PRÊT (${spraysLeftCount})` : 'PRÊT';
-  }
+    // Mise à jour du badge Spray (cooldown + décompte restant)
+    const sprayRemaining = Math.max(0, nextSprayAvailableAt - now);
+    const sprayReadyFraction = Math.min(1, 1 - sprayRemaining / SPRAY_COOLDOWN_MS);
+    const sprayBtn = $('spray-quick-btn');
+    const sprayTxt = $('spray-status-txt');
+    const mePlayer = roomState?.players?.find((p) => p.id === myId);
+    const spraysLeftCount = roomState?.phase === 'battle' ? (mePlayer?.defenseSpraysLeft ?? 0) : '∞';
 
-  // Chronomètre
-  const timerBox = $('timer-box');
-  if (roomState && (phase === 'build' || (phase === 'battle' && roomState.turn?.state === 'aim' && !roomState.turn?.infiniteAmmo))) {
-    const ms = phase === 'build' ? roomState.remaining : roomState.turn.remaining;
-    const sec = Math.ceil(ms / 1000);
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    $('timer-value').textContent = `${m}:${String(s).padStart(2, '0')}`;
-    timerBox.classList.remove('hidden');
-    timerBox.classList.toggle('urgent', phase === 'battle' ? sec <= 15 : sec <= 10);
+    if (sprayBtn && sprayTxt) {
+      if (sprayRemaining > 0) {
+        sprayBtn.classList.add('cooldown');
+        sprayTxt.textContent = `${(sprayRemaining / 1000).toFixed(1)}s`;
+      } else if (roomState?.phase === 'battle' && spraysLeftCount <= 0) {
+        sprayBtn.classList.add('cooldown');
+        sprayTxt.textContent = 'ÉPUISÉ (0)';
+      } else {
+        sprayBtn.classList.remove('cooldown');
+        sprayTxt.textContent = roomState?.phase === 'battle' ? `PRÊT (${spraysLeftCount})` : 'PRÊT';
+      }
+    }
+
+    // Chronomètre
+    const timerBox = $('timer-box');
+    if (roomState && (phase === 'build' || (phase === 'battle' && roomState.turn?.state === 'aim' && !roomState.turn?.infiniteAmmo))) {
+      const ms = phase === 'build' ? roomState.remaining : roomState.turn.remaining;
+      const sec = Math.ceil(ms / 1000);
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      $('timer-value').textContent = `${m}:${String(s).padStart(2, '0')}`;
+      timerBox.classList.remove('hidden');
+      timerBox.classList.toggle('urgent', phase === 'battle' ? sec <= 15 : sec <= 10);
+      if (phase === 'build') {
+        music.updateBuildTimer(sec);
+      }
+      if (((phase === 'battle' && sec <= 15) || sec <= 5) && sec > 0 && sec !== lastSecondTick) {
+        lastSecondTick = sec;
+        sfx.tick();
+      }
+    } else {
+      timerBox.classList.add('hidden');
+    }
+
+    // Monde à dessiner
+    const activePid = viewedPid || myId;
+    const activePlayer = roomState?.players.find((p) => p.id === activePid);
+    const world = (activePid && worlds.get(activePid)) || demoWorld;
+
     if (phase === 'build') {
-      music.updateBuildTimer(sec);
-    }
-    if (((phase === 'battle' && sec <= 15) || sec <= 5) && sec > 0 && sec !== lastSecondTick) {
-      lastSecondTick = sec;
-      sfx.tick();
-    }
-  } else {
-    timerBox.classList.add('hidden');
-  }
-
-  // Monde à dessiner
-  const activePid = viewedPid || myId;
-  const activePlayer = roomState?.players.find((p) => p.id === activePid);
-  const world = (activePid && worlds.get(activePid)) || demoWorld;
-
-  if (phase === 'build') {
-    renderer.drawBuildZone(0.65);
-    // Afficher les châteaux des autres bâtisseurs en direct en transparence en arrière-plan !
-    if (roomState?.players) {
-      for (const p of roomState.players) {
-        if (p.id !== myId) {
-          const wOther = worlds.get(p.id);
-          if (wOther) renderer.drawGhostCastle(wOther, p.color, p.name);
+      renderer.drawBuildZone(0.65);
+      // Afficher les châteaux des autres bâtisseurs en direct en transparence en arrière-plan !
+      if (roomState?.players) {
+        for (const p of roomState.players) {
+          if (p.id !== myId) {
+            const wOther = worlds.get(p.id);
+            if (wOther) renderer.drawGhostCastle(wOther, p.color, p.name);
+          }
         }
       }
     }
-  }
 
-  // Colis et caisses de bonus parachutés en arrière-plan (visibles pour tous les joueurs en bataille)
-  if (phase === 'battle' && roomState?.drops) {
-    renderer.drawDrops(roomState.drops, now);
-  }
-
-  const slingPull = null;
-  const shooterPlayer = roomState?.players?.find((p) => p.id === (roomState?.turn?.shooterId || myId));
-  const activeAmmoPlayer = isShooter ? mePlayer : shooterPlayer;
-  const ammoType = activeAmmoPlayer?.selectedAmmo
-    || (activeAmmoPlayer?.hasAcidBall
-      ? 'acid'
-      : (activeAmmoPlayer?.hasGrenade
-        ? 'grenade'
-        : (activeAmmoPlayer?.hasSpikeBall
-          ? 'heavySpikeBall'
-          : (activeAmmoPlayer?.hasIronBall ? 'iron' : 'sand'))));
-
-  const isAimingShooter = isShooter && roomState?.turn?.state === 'aim';
-  renderer.drawCatapult(
-    dt,
-    phase === 'build' ? 0.35 : 1,
-    null,
-    curCatSide,
-    isAimingShooter ? aim : (remoteAim || null),
-    isCharging,
-    currentChargePower,
-    ammoType,
-  );
-
-
-  renderer.drawWorld(world, {
-    color: activePlayer?.color || '#e4572e',
-    t: now,
-    highlightKing: true,
-    showSafeZone: phase === 'build',
-  });
-
-  // Inscriptions et runes des bonus actifs gravées directement dans le sable de plage sous le château
-  const activeBonuses = [];
-  if (phase === 'battle' && activePlayer) {
-    if (activePlayer.hasAcidBall) {
-      activeBonuses.push({ icon: '🧪', label: "FIOLE D'ACIDE CORROSIF ARMÉE", color: '#4ade80' });
+    // Colis et caisses de bonus parachutés en arrière-plan (visibles pour tous les joueurs en bataille)
+    if (phase === 'battle' && roomState?.drops) {
+      renderer.drawDrops(roomState.drops, now);
     }
-    if (activePlayer.hasGrenade) {
-      activeBonuses.push({ icon: '💣', label: "GRENADE EXPLOSIVE ARMÉE (2s)", color: '#4ade80' });
-    }
-    if (activePlayer.hasSpikeBall) {
-      activeBonuses.push({ icon: '💣', label: "BOULET D'ACIER À POINTES ARMÉ", color: '#f87171' });
-    }
-    if (activePlayer.hasIronBall) {
-      activeBonuses.push({ icon: '⚔️', label: "BOULET EN FER MASSIF ARMÉ", color: '#cbd5e1' });
-    }
-    const reserveShots = roomState.turn?.shooterId === activePid
-      ? (roomState.turn.shotsLeft - 1)
-      : (activePlayer.bonusAmmo || 0);
-    if (reserveShots > 0 && !roomState.turn?.infiniteAmmo) {
-      activeBonuses.push({ icon: '☄️', label: `+${reserveShots} BOULET${reserveShots > 1 ? 'S' : ''} EN RÉSERVE`, color: '#fde047' });
-    }
-    if (activePlayer.defenseSpraysLeft > 0) {
-      activeBonuses.push({ icon: '💦', label: `${activePlayer.defenseSpraysLeft} SPRAY${activePlayer.defenseSpraysLeft > 1 ? 'S' : ''} DE RENFORT`, color: '#38bdf8' });
-    }
-  }
 
-  // En mode défense ou en visite sur son propre château pendant la bataille : afficher la jauge de sprays sous le château !
-  const showSprayStockOnCastle = phase === 'battle' && activePlayer && (roomState.turn?.targetId === activePid || (inspectingOwnCastle && activePid === myId));
-  if (showSprayStockOnCastle) {
-    renderer.drawDefenseSprayStock(activePlayer.defenseSpraysLeft, 5, sprayReadyFraction, now);
-  } else if (activeBonuses.length > 0) {
-    renderer.drawActiveSandBonuses(activeBonuses, now);
-  }
+    const shooterPlayer = roomState?.players?.find((p) => p.id === (roomState?.turn?.shooterId || myId));
+    const activeAmmoPlayer = isShooter ? mePlayer : shooterPlayer;
+    const ammoType = activeAmmoPlayer?.selectedAmmo
+      || (activeAmmoPlayer?.hasAcidBall
+        ? 'acid'
+        : (activeAmmoPlayer?.hasGrenade
+          ? 'grenade'
+          : (activeAmmoPlayer?.hasSpikeBall
+            ? 'heavySpikeBall'
+            : (activeAmmoPlayer?.hasIronBall ? 'iron' : 'sand'))));
 
-  // Ratio de remplissage du seau (3.0s cooldown) - calculé UNIQUEMENT pour les patrons/moules !
-  const mouldElapsed = now - lastMouldPlaceAttempt;
-  const mouldCooldownRatio = Math.min(1.0, mouldElapsed / BUILD_PLACE_COOLDOWN_MS);
-  const placeCooldownRatio = mouldCooldownRatio;
-
-  // Seau animé affiché dans l'atelier pendant la construction (plus sur la plage près de la catapulte)
-  if (phase === 'build') {
-    const atelierBucketCanvas = $('atelier-bucket-canvas');
-    if (atelierBucketCanvas) {
-      renderer.drawAtelierBucket(atelierBucketCanvas, mouldCooldownRatio, now);
+    const isAimingShooter = isShooter && roomState?.turn?.state === 'aim';
+    if (phase !== 'build' || !isMobileDevice()) {
+      renderer.drawCatapult(
+        dt,
+        phase === 'build' ? 0.35 : 1,
+        null,
+        curCatSide,
+        isAimingShooter ? aim : (remoteAim || null),
+        isCharging,
+        currentChargePower,
+        ammoType,
+      );
     }
-  }
 
-  // Mettre à jour l'indicateur de remplissage du seau dans la sidebar
-  const bucketFillEl = $('bucket-status-fill');
-  const bucketLabelEl = $('bucket-status-label');
-  if (bucketFillEl && bucketLabelEl) {
-    if (mouldCooldownRatio < 1.0) {
-      const pct = Math.round(mouldCooldownRatio * 100);
-      bucketFillEl.style.width = `${pct}%`;
-      bucketLabelEl.textContent = `Remplissage... ${pct}%`;
-    } else {
-      bucketFillEl.style.width = '100%';
-      bucketLabelEl.textContent = 'Seau plein & prêt';
-    }
-  }
+    renderer.drawWorld(world, {
+      color: activePlayer?.color || '#e4572e',
+      t: now,
+      highlightKing: true,
+      showSafeZone: phase === 'build',
+    });
 
-  // Fantôme du moule ou curseur Spray en phase de construction
-  if (phase === 'build' && pointer.inside && activePid === myId) {
-    if (activeTool === 'spray') {
-      renderer.drawSprayCursor(pointer.x, pointer.y, sprayReadyFraction);
-    } else if (activeTool === 'aplatir') {
-      renderer.drawFlattenCursor(pointer.x, pointer.y);
-    } else if (activeTool === 'retirer') {
-      renderer.drawDigCursor(pointer.x, pointer.y);
-    } else {
-      const baseShape = SHAPE_BY_ID[activeTool];
-      if (baseShape) {
-        const shape = isMouldFlipped ? getFlippedShape(baseShape) : baseShape;
-        const pos = spawnPosition(world.cellType, shape, pointer.x, pointer.y, world.king);
-        const isPate = activeTool === 'pate';
-        const pateCooldownDuration = Math.max(1, nextPateAllowedAt - lastPatePlaceAttempt);
-        const cooldownRatio = isPate
-          ? (now < nextPateAllowedAt ? Math.min(1.0, (now - lastPatePlaceAttempt) / pateCooldownDuration) : 1.0)
-          : mouldCooldownRatio;
-        renderer.drawGhost(shape, pos, pos.valid, false, cooldownRatio, activePlayer?.color || '#e4572e', isPate);
+    // Inscriptions et runes des bonus offensifs gravées dans le sable sous le château
+    const activeBonuses = [];
+    if (phase === 'battle' && activePlayer) {
+      if (activePlayer.hasAcidBall) {
+        activeBonuses.push({ icon: '🧪', label: "FIOLE D'ACIDE CORROSIF ARMÉE", color: '#4ade80' });
+      }
+      if (activePlayer.hasGrenade) {
+        activeBonuses.push({ icon: '💣', label: "GRENADE EXPLOSIVE ARMÉE (2s)", color: '#4ade80' });
+      }
+      if (activePlayer.hasSpikeBall) {
+        activeBonuses.push({ icon: '💣', label: "BOULET D'ACIER À POINTES ARMÉ", color: '#f87171' });
+      }
+      if (activePlayer.hasIronBall) {
+        activeBonuses.push({ icon: '⚔️', label: "BOULET EN FER MASSIF ARMÉ", color: '#cbd5e1' });
+      }
+      const reserveShots = roomState.turn?.shooterId === activePid
+        ? (roomState.turn.shotsLeft - 1)
+        : (activePlayer.bonusAmmo || 0);
+      if (reserveShots > 0 && !roomState.turn?.infiniteAmmo) {
+        activeBonuses.push({ icon: '☄️', label: `+${reserveShots} BOULET${reserveShots > 1 ? 'S' : ''} EN RÉSERVE`, color: '#fde047' });
       }
     }
-  }
 
-  // Curseur de Spray quand on est sur son château en phase de bataille (en défense ou via "Mon Château") si sélectionné
-  if (phase === 'battle' && pointer.inside && activePid === myId && (roomState?.turn?.targetId === myId || inspectingOwnCastle)) {
-    if (battleSpraySelected || activeTool === 'spray') {
+    // UNIQUEMENT quand on est en défense (notre château est ciblé) OU qu'on inspecte notre propre château en bataille :
+    // afficher la jauge de sprays sous notre château ! (Jamais sous le château adverse quand on attaque !)
+    const showSprayStockOnCastle = phase === 'battle'
+      && activePlayer
+      && activePid === myId
+      && (roomState.turn?.targetId === myId || inspectingOwnCastle);
+    if (showSprayStockOnCastle) {
+      renderer.drawDefenseSprayStock(activePlayer.defenseSpraysLeft, 5, sprayReadyFraction, now);
+    } else if (activeBonuses.length > 0 && !isMobileDevice()) {
+      renderer.drawActiveSandBonuses(activeBonuses, now);
+    }
+
+    // Ratio de remplissage du seau (3.0s cooldown) - calculé UNIQUEMENT pour les patrons/moules !
+    const mouldElapsed = now - lastMouldPlaceAttempt;
+    const mouldCooldownRatio = Math.min(1.0, mouldElapsed / BUILD_PLACE_COOLDOWN_MS);
+
+    if (phase === 'build') {
+      const atelierBucketCanvas = $('atelier-bucket-canvas');
+      if (atelierBucketCanvas) {
+        renderer.drawAtelierBucket(atelierBucketCanvas, mouldCooldownRatio, now);
+      }
+    }
+
+    const bucketFillEl = $('bucket-status-fill');
+    const bucketLabelEl = $('bucket-status-label');
+    if (bucketFillEl && bucketLabelEl) {
+      if (mouldCooldownRatio < 1.0) {
+        const pct = Math.round(mouldCooldownRatio * 100);
+        bucketFillEl.style.width = `${pct}%`;
+        bucketLabelEl.textContent = `Remplissage... ${pct}%`;
+      } else {
+        bucketFillEl.style.width = '100%';
+        bucketLabelEl.textContent = 'Seau plein & prêt';
+      }
+    }
+
+    // Fantôme du moule ou curseur Spray en phase de construction
+    if (phase === 'build' && pointer.inside && activePid === myId) {
+      if (activeTool === 'spray') {
+        renderer.drawSprayCursor(pointer.x, pointer.y, sprayReadyFraction);
+      } else if (activeTool === 'aplatir') {
+        renderer.drawFlattenCursor(pointer.x, pointer.y);
+      } else if (activeTool === 'retirer') {
+        renderer.drawDigCursor(pointer.x, pointer.y);
+      } else {
+        const baseShape = SHAPE_BY_ID[activeTool];
+        if (baseShape) {
+          const shape = isMouldFlipped ? getFlippedShape(baseShape) : baseShape;
+          const pos = spawnPosition(world.cellType, shape, pointer.x, pointer.y, world.king);
+          const isPate = activeTool === 'pate';
+          const pateCooldownDuration = Math.max(1, nextPateAllowedAt - lastPatePlaceAttempt);
+          const cooldownRatio = isPate
+            ? (now < nextPateAllowedAt ? Math.min(1.0, (now - lastPatePlaceAttempt) / pateCooldownDuration) : 1.0)
+            : mouldCooldownRatio;
+          renderer.drawGhost(shape, pos, pos.valid, false, cooldownRatio, activePlayer?.color || '#e4572e', isPate);
+        }
+      }
+    }
+
+    // En bataille : dès qu'on est sur son propre château (en défense OU via "Mon Château"),
+    // le Spray est AUTOMATIQUEMENT sélectionné -> afficher le curseur de spray sur PC !
+    if (
+      phase === 'battle'
+      && pointer.inside
+      && !isMobileDevice()
+      && activePid === myId
+      && (roomState?.turn?.targetId === myId || inspectingOwnCastle)
+    ) {
       renderer.drawSprayCursor(pointer.x, pointer.y, sprayReadyFraction);
     }
-  }
 
-  // Aperçu de trajectoire en phase de bataille (gauche ou droite)
-  if (phase === 'battle' && roomState?.turn?.state === 'aim' && !inspectingOwnCastle) {
-    if (roomState.turn.shooterId === myId) {
-      renderer.drawTrajectory(aim.angle, aim.power, 0.45, 0, myCatapultSide);
-    } else if (remoteAim) {
-      renderer.drawTrajectory(remoteAim.angle, remoteAim.power, 0.28, 0, curCatSide);
+    // Aperçu de trajectoire en phase de bataille (gauche ou droite)
+    if (phase === 'battle' && roomState?.turn?.state === 'aim' && !inspectingOwnCastle) {
+      if (roomState.turn.shooterId === myId) {
+        renderer.drawTrajectory(aim.angle, aim.power, 0.45, 0, myCatapultSide);
+      } else if (remoteAim) {
+        renderer.drawTrajectory(remoteAim.angle, remoteAim.power, 0.28, 0, curCatSide);
+      }
+    }
+
+    renderer.drawFx(dt);
+  } catch (err) {
+    console.error('Frame render error:', err);
+  } finally {
+    if (gameLoopRunning) {
+      rafId = requestAnimationFrame(frame);
     }
   }
-
-  renderer.drawFx(dt);
-  rafId = requestAnimationFrame(frame);
 }
 
 initTools();

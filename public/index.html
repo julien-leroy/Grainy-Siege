@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&family=Pixelify+Sans:wght@500;600;700&family=Silkscreen:wght@400;700&family=Quicksand:wght@600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/style.css?v=6" />
+  <link rel="stylesheet" href="/css/style.css?v=7" />
 </head>
 <body>
   <!-- Arrière-plan animé du site avec Parallax léger (Ciel, Mer, Nuages & Oiseaux) -->
@@ -261,13 +261,13 @@
 
   <!-- Actions de tir directement dans le sable (près de la catapulte active) -->
   <div id="catapult-hud" class="sand-catapult-hud hidden" aria-label="Commandes de tir dans le sable">
-    <!-- 0. Barre mobile : Switch catapulte & Spray direct sous le pouce -->
+    <!-- 0. Barre mobile : Switch catapulte & Mon Château directement sous le pouce (masquée sur PC) -->
     <div class="sand-catapult-top-row" id="sand-catapult-top-row">
       <button id="dock-cat-switch-btn" class="dock-pill-btn btn-cat-switch" type="button" title="Changer de côté de catapulte">
         <span class="cat-switch-icon">☄️</span> <span id="dock-cat-name">⇄ Catapulte Droite</span>
       </button>
-      <button id="dock-spray-btn" class="dock-pill-btn btn-dock-spray" type="button" title="Arroser ton château au spray">
-        💦 Spray (<strong id="dock-spray-count">1</strong>)
+      <button id="dock-spray-btn" class="dock-pill-btn btn-dock-spray" type="button" title="Aller voir ton château pour y mettre un spray">
+        🏰 Mon Château (<strong id="dock-spray-count">1</strong> 💦)
       </button>
     </div>
 
@@ -296,16 +296,23 @@
     <button id="btn-side-right"></button>
   </div>
 
-  <!-- Bannière Défense & Spectateur : Flottante et ergonomique -->
+  <!-- Bannière Défense & Château : Flottante sur PC, Dock ergonomique sous la plage sur mobile -->
   <aside id="defender-controls" class="defender-floating-pill hidden" aria-live="polite">
     <div class="defender-pill-content">
-      <span class="defender-icon">🛡️</span>
-      <div class="defender-text" id="spectator-msg">
-        <strong>Tu es pris pour cible !</strong> Durcis ton château au spray !
+      <div class="defender-info-row">
+        <span class="defender-icon" id="defender-icon">🛡️</span>
+        <div class="defender-text" id="spectator-msg">
+          <strong>Tu es pris pour cible !</strong> Touche ou clique sur ton château pour le durcir au spray !
+        </div>
       </div>
-      <button id="defender-spray-btn" class="btn btn-primary btn-sm defender-spray-action-btn" type="button">
-        💦 Spray (<span id="defender-spray-count">1</span>)
-      </button>
+      <div class="defender-actions-row">
+        <span class="defender-spray-badge" id="defender-spray-badge">
+          💦 <strong id="defender-spray-count">1</strong> spray(s) dispo
+        </span>
+        <button id="defender-return-duel-btn" class="btn btn-primary btn-sm defender-return-btn hidden" type="button">
+          ⚔️ Retourner au combat
+        </button>
+      </div>
     </div>
   </aside>
 
@@ -512,8 +519,8 @@
 
   <script src="/vendor/confetti/confetti.browser.js"></script>
   <script src="/socket.io/socket.io.js"></script>
-  <script type="module" src="/js/site-bg.js?v=5"></script>
-  <script type="module" src="/js/tutorial.js?v=5"></script>
-  <script type="module" src="/js/main.js?v=5"></script>
+  <script type="module" src="/js/site-bg.js?v=7"></script>
+  <script type="module" src="/js/tutorial.js?v=7"></script>
+  <script type="module" src="/js/main.js?v=7"></script>
 </body>
 </html>

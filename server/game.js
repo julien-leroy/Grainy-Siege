@@ -420,7 +420,7 @@ export class Room {
     const humans = [...this.players.values()].filter((p) => !p.isBot).map((p) => p.name);
     console.log(`🎮 [PARTIE LANCÉE] Salle: ${this.code} | Mode: Normal | Humains (${humans.length}): [${humans.join(', ')}] | Total: ${this.players.size}`);
     this.say('🏖️ Nouvelle manche ! Bâtissez votre château autour du Roi !');
-    this.dirtyState = true;
+    this.broadcastState();
     this.sendAllWorlds();
     this.io.to(this.channel).emit('fx', { type: 'phase', phase: 'build', intro: 'build' });
   }
@@ -519,7 +519,7 @@ export class Room {
       this.phaseStart = Date.now();
       this.endsAt = Date.now() + 300 * 1000; // 5 minutes de construction libre
       this.say('🏗️ Entraînement Construction & Défense ! Bâtis ton château puis clique sur "Lancer l\'attaque IA" !');
-      this.dirtyState = true;
+      this.broadcastState();
       this.sendAllWorlds();
       this.io.to(this.channel).emit('fx', { type: 'phase', phase: 'build', intro: 'build' });
     }

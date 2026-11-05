@@ -1,5 +1,5 @@
 // Service Worker pour Grainy Siege (PWA Standalone & Fullscreen)
-const CACHE_NAME = 'grainy-siege-v1';
+const CACHE_NAME = 'grainy-siege-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -8,11 +8,12 @@ const STATIC_ASSETS = [
   '/css/style.css',
   '/js/main.js',
   '/js/renderer.js',
-  '/js/sandsim.js',
-  '/js/shapes.js',
+  '/js/world.js',
   '/js/audio.js',
   '/js/tutorial.js',
-  '/js/site-bg.js'
+  '/js/site-bg.js',
+  '/shared/constants.js',
+  '/shared/shapes.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -39,6 +40,7 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
 
   // Ignorer les requêtes WebSocket socket.io et API dynamiques
@@ -46,28 +48,26 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network-first pour le document principal (afin d'avoir toujours la dernière version du jeu)
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match('/index.html'))
-    );
-    return;
-  }
-
-  // Cache-first avec fallback réseau pour les assets statiques
+  // Stratégie Network-First pour toujours servir la dernière version du jeu et de l'interface
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) return cachedResponse;
-      return fetch(event.request).then((networkResponse) => {
-        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
-          return networkResponse;
+    fetch(event.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
         }
-        const responseToCache = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
         return networkResponse;
-      });
-    })
+      })
+      .catch(() => {
+        return caches.match(event.request).then((cached) => {
+          if (cached) return cached;
+          if (event.request.mode === 'navigate') {
+            return caches.match('/index.html');
+          }
+          return undefined;
+        });
+      })
   );
 });

@@ -120,6 +120,7 @@ io.on('connection', (socket) => {
     room = createRoom();
     me = room.addPlayer({ name, socket });
     cb?.({ ok: true, code: room.code, playerId: me.id });
+    room.broadcastState();
     room.sendAllWorlds(socket);
   }));
 
@@ -139,6 +140,7 @@ io.on('connection', (socket) => {
       phase: r.phase,
       isSpectator: !!me.isSpectator || !me.alive,
     });
+    r.broadcastState();
     r.sendAllWorlds(socket);
   }));
 
@@ -168,8 +170,9 @@ io.on('connection', (socket) => {
       room.addBot(difficulty || '12yo');
     }
     room.startTraining(me?.id, mode || 'build_defense', difficulty || '12yo');
-    room.sendAllWorlds(socket);
     cb?.({ ok: true, code: room.code, playerId: me?.id, trainingMode: room.trainingMode });
+    room.broadcastState();
+    room.sendAllWorlds(socket);
   }));
 
   socket.on('finishBuildTraining', guard('finishBuildTraining', (_, cb) => {
