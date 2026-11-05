@@ -180,8 +180,11 @@ export class Renderer {
     const cw = this.canvas.width;
     const ch = this.canvas.height;
     const isMobile = window.innerWidth <= 768 || window.innerWidth < window.innerHeight;
-    const bottomDeckHeight = (isMobile ? 66 : 86) * this.dpr;
-    const topMargin = (isMobile ? 42 : 50) * this.dpr;
+    const desktopBottomDeckHeight = 86 * this.dpr;
+    const desktopTopMargin = 50 * this.dpr;
+    // Sur mobile : réserver la partie basse (~38-40% de l'écran) pour le dock tactile de commandes
+    const mobileDockHeight = isMobile ? Math.min(ch * 0.40, 340 * this.dpr) : 0;
+    const mobileTopMargin = isMobile ? 80 * this.dpr : 0;
     const phase = options.phase || 'build';
     const catapultSide = options.catapultSide || this.catapultSide || 'left';
 
@@ -192,39 +195,38 @@ export class Renderer {
     if (!isMobile) {
       // Sur PC / écran large de bureau : vue complète de l'île (les deux catapultes et le château)
       const fitW = cw / (GRID_W * 1.02);
-      const fitH = (ch - bottomDeckHeight - topMargin) / (GRID_H * 1.04);
+      const fitH = (ch - desktopBottomDeckHeight - desktopTopMargin) / (GRID_H * 1.04);
       targetS = Math.min(fitW, fitH);
       targetOx = (cw - GRID_W * targetS) / 2;
-      targetOy = (ch - bottomDeckHeight) - GROUND_Y * targetS;
+      targetOy = (ch - desktopBottomDeckHeight) - GROUND_Y * targetS;
     } else {
       // Sur smartphone / écran tactile mobile :
+      // La zone de jeu est surélevée pour être centrée et dégagée au-dessus des commandes !
+      const availH = Math.max(220 * this.dpr, ch - mobileDockHeight - mobileTopMargin);
+
       if (phase === 'build') {
         // En phase de construction : cadrage serré sur le château (de BUILD_MIN_X à BUILD_MAX_X) sur toute la largeur
-        const castleSpan = 236; // Largeur château avec marges confortables (centre à 210)
-        const fitW = cw / (castleSpan * 1.01);
-        const fitH = (ch - bottomDeckHeight - topMargin) / (GROUND_Y * 0.96);
+        const castleSpan = 224; // Largeur château avec marges confortables (centre à 210)
+        const fitW = cw / (castleSpan * 1.02);
+        const fitH = availH / (GROUND_Y * 0.96);
         targetS = Math.min(fitW, fitH);
         targetOx = (cw / 2) - 210 * targetS;
-        targetOy = (ch - bottomDeckHeight) - GROUND_Y * targetS;
+        targetOy = (ch - mobileDockHeight) - GROUND_Y * targetS;
       } else {
         // En bataille (défense ou attaque) : centrer sur la catapulte sélectionnée et le château
+        const spanW = 274;
+        const fitW = cw / (spanW * 1.02);
+        const fitH = availH / (GRID_H * 0.98);
+        targetS = Math.min(fitW, fitH);
+
         if (catapultSide === 'right') {
-          // Catapulte droite et château (zone x=94 à 384, largeur=290, centre=239)
-          const spanW = 290;
-          const fitW = cw / (spanW * 1.02);
-          const fitH = (ch - bottomDeckHeight - topMargin) / (GRID_H * 1.03);
-          targetS = Math.min(fitW, fitH);
+          // Catapulte droite et château (centre vers 239)
           targetOx = (cw / 2) - 239 * targetS;
-          targetOy = (ch - bottomDeckHeight) - GROUND_Y * targetS;
         } else {
-          // Catapulte gauche et château (zone x=36 à 326, largeur=290, centre=181)
-          const spanW = 290;
-          const fitW = cw / (spanW * 1.02);
-          const fitH = (ch - bottomDeckHeight - topMargin) / (GRID_H * 1.03);
-          targetS = Math.min(fitW, fitH);
+          // Catapulte gauche et château (centre vers 181)
           targetOx = (cw / 2) - 181 * targetS;
-          targetOy = (ch - bottomDeckHeight) - GROUND_Y * targetS;
         }
+        targetOy = (ch - mobileDockHeight) - GROUND_Y * targetS;
       }
     }
 

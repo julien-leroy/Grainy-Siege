@@ -3237,89 +3237,167 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
     max-height: 92vh;
   }
 
-  /* Bandeau Supérieur (HUD) */
+  /* Bandeau Supérieur (HUD) Mobile : 1 seule ligne ultra-propre sans wrap */
   #hud {
     top: max(6px, env(safe-area-inset-top, 0));
-    left: max(8px, env(safe-area-inset-left, 0));
-    right: max(8px, env(safe-area-inset-right, 0));
-    min-height: auto;
-    flex-wrap: wrap;
-    gap: 6px;
+    left: max(6px, env(safe-area-inset-left, 0));
+    right: max(6px, env(safe-area-inset-right, 0));
+    height: 38px;
+    min-height: 38px;
+    flex-wrap: nowrap;
+    gap: 4px;
+    align-items: center;
     justify-content: space-between;
+    padding: 0 4px;
+    z-index: 35;
   }
 
   .hud-left {
-    gap: 5px;
-    flex-wrap: wrap;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: nowrap;
     flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  /* Sur mobile, ces boutons d'action sont relocalisés dans le dock bas pour ne pas écraser le HUD */
+  #my-castle-btn,
+  #spray-quick-btn {
+    display: none !important;
   }
 
   .hud-right {
-    gap: 5px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
     flex-wrap: nowrap;
     flex-shrink: 0;
   }
 
-  /* Le timer sur mobile ne doit pas être en absolu centré qui écrase les boutons */
   .hud-center {
-    position: static;
-    transform: none;
-    order: 0;
-    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin: 0 2px;
   }
 
   .pill {
-    padding: 5px 9px;
-    font-size: 0.74rem;
+    padding: 4px 7px;
+    font-size: 0.70rem;
     border-radius: 999px;
     border-width: 1.5px;
+    white-space: nowrap;
+  }
+
+  #room-pill {
+    font-weight: 800;
+    letter-spacing: 0.5px;
+  }
+
+  #phase-pill {
+    font-size: 0.68rem;
+    padding: 4px 6px;
+  }
+
+  .wind-pill {
+    max-width: 75px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 3px 5px;
+    font-size: 0.65rem;
   }
 
   .icon-btn {
-    width: 34px;
-    height: 34px;
-    font-size: 0.95rem;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    font-size: 0.88rem;
     border-width: 1.5px;
+    border-radius: 9px;
+  }
+
+  .mobile-chat-btn {
+    display: inline-flex !important;
+    position: relative;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .chat-badge-mini {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 0.58rem;
+    font-weight: 900;
+    border-radius: 999px;
+    padding: 1px 4px;
+    line-height: 1.1;
+    border: 1.5px solid #ffffff;
   }
 
   .timer-box {
-    padding: 4px 10px;
-    font-size: 0.95rem;
+    padding: 2px 7px;
+    font-size: 0.84rem;
+    height: 30px;
+    border-radius: 10px;
   }
 
   .banner-msg {
-    top: max(50px, calc(env(safe-area-inset-top, 0) + 44px));
-    font-size: 0.76rem;
-    padding: 4px 12px;
-    max-width: 92vw;
-    white-space: normal;
-    line-height: 1.25;
+    display: none !important;
   }
 
-  .banner-msg.in-battle {
-    top: max(84px, calc(env(safe-area-inset-top, 0) + 74px));
-  }
-
-  /* Timeline de bataille */
+  /* Timeline de bataille Mobile : positionnée sous le HUD à 44px */
   .battle-timeline {
-    top: max(46px, calc(env(safe-area-inset-top, 0) + 40px));
-    padding: 3px 8px;
-    max-width: 94vw;
+    top: max(46px, calc(env(safe-area-inset-top, 0) + 44px));
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 2px 8px;
+    max-width: 95vw;
+    height: 30px;
+    border-radius: 999px;
     overflow-x: auto;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
+    z-index: 34;
   }
   .battle-timeline::-webkit-scrollbar {
     display: none;
   }
+
+  .king-duels-bar {
+    gap: 4px;
+    align-items: center;
+  }
+
   .king-badge {
-    width: 24px;
-    height: 24px;
-    font-size: 0.9rem;
+    width: 22px;
+    height: 22px;
+    font-size: 0.85rem;
   }
   .king-badge.next {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
+  }
+
+  .duel-fighter-badge {
+    display: none !important;
+  }
+
+  .duel-fighter-name {
+    max-width: 65px;
+    font-size: 0.70rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .duel-next-label {
+    display: none !important;
   }
 
   /* Miniatures des joueurs */
@@ -3734,172 +3812,206 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
     line-height: 1.35;
   }
 
-  /* Atelier de construction & modelage à gauche */
+  /* Atelier de construction sur smartphone : barre horizontale d'outils au-dessus des patrons */
   .atelier-sidebar {
-    width: 185px;
-    max-width: 80vw;
-    top: max(52px, calc(env(safe-area-inset-top, 0) + 44px));
-    left: max(6px, env(safe-area-inset-left, 0));
-    padding: 8px 10px 10px;
-    border-radius: 16px;
-    max-height: calc(100vh - 70px);
+    position: fixed !important;
+    top: auto !important;
+    bottom: calc(max(8px, env(safe-area-inset-bottom, 0)) + 64px) !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    max-width: calc(100vw - 16px) !important;
+    transform: none !important;
+    padding: 4px 6px !important;
+    border-radius: 14px !important;
+    background: rgba(44, 34, 24, 0.88) !important;
+    backdrop-filter: blur(10px) !important;
+    border: 1.5px solid var(--sand-border) !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.35) !important;
+    z-index: 30 !important;
+    max-height: none !important;
   }
 
-  .atelier-sidebar.collapsed {
-    transform: translateX(calc(-100% + 40px));
+  .atelier-sidebar .sidebar-header {
+    display: none !important;
   }
 
-  .sidebar-header {
-    padding-bottom: 4px;
-  }
-
-  .sidebar-icon {
-    font-size: 1.15rem;
-  }
-
-  .sidebar-title {
-    font-size: 0.82rem;
-  }
-
-  .sidebar-badge {
-    font-size: 0.62rem;
-  }
-
-  .sidebar-toggle-btn {
-    width: 30px;
-    height: 30px;
-    font-size: 0.95rem;
-  }
-
-  .sidebar-section-label {
-    font-size: 0.64rem;
-    margin: 4px 0 2px;
+  .atelier-sidebar .sidebar-section-label {
+    display: none !important;
   }
 
   .atelier-tools-row {
-    gap: 5px;
+    display: flex !important;
+    justify-content: space-around !important;
+    gap: 4px !important;
+    width: 100% !important;
   }
 
   .atelier-tools-row .tool-btn {
-    width: 44px;
-    min-width: 42px;
-    height: 44px;
-    border-radius: 10px;
-    padding: 2px;
+    flex: 1 !important;
+    height: 40px !important;
+    min-width: 0 !important;
+    border-radius: 10px !important;
+    padding: 2px 4px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .atelier-tools-row .tool-key {
+    display: none !important;
+  }
+
+  .atelier-tools-row .tool-label {
+    font-size: 0.62rem !important;
+    line-height: 1 !important;
+    margin-top: 1px !important;
   }
 
   .sidebar-bucket-status {
-    padding: 4px 6px;
-    gap: 6px;
-  }
-
-  .atelier-bucket-canvas {
-    width: 34px;
-    height: 34px;
-  }
-
-  .bucket-status-label {
-    font-size: 0.70rem;
+    display: none !important;
   }
 
   /* Barre d'inventaire des patrons dans le sable */
   .sand-inventory-footer {
-    bottom: max(8px, env(safe-area-inset-bottom, 0));
-    padding: 4px 6px;
-    gap: 5px;
-    max-width: 96vw;
-    border-radius: 14px;
+    position: fixed !important;
+    bottom: max(8px, env(safe-area-inset-bottom, 0)) !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    max-width: calc(100vw - 16px) !important;
+    height: 58px !important;
+    padding: 4px 6px !important;
+    border-radius: 14px !important;
+    background: rgba(44, 34, 24, 0.90) !important;
+    backdrop-filter: blur(10px) !important;
+    border: 1.5px solid var(--sand-border) !important;
+    z-index: 30 !important;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .sand-inventory-footer .inventory-moulds-row {
+    display: flex !important;
+    gap: 6px !important;
+    align-items: center !important;
   }
 
   .sand-inventory-footer .tool-btn {
-    width: 50px;
-    min-width: 46px;
-    height: 48px;
-    border-radius: 10px;
-    padding: 2px;
+    width: 48px !important;
+    min-width: 46px !important;
+    height: 48px !important;
+    border-radius: 10px !important;
+    padding: 2px !important;
+    flex-shrink: 0 !important;
   }
 
   .sand-inventory-footer .tool-btn canvas {
-    width: 40px;
-    height: 30px;
+    width: 38px;
+    height: 28px;
   }
 
   .sand-inventory-footer .tool-btn .tool-stock {
-    font-size: 0.60rem;
-    min-width: 15px;
-    height: 14px;
-    line-height: 14px;
+    font-size: 0.58rem;
+    min-width: 14px;
+    height: 13px;
+    line-height: 13px;
     top: 1px;
     right: 1px;
-    padding: 0 4px;
+    padding: 0 3px;
   }
 
-  /* Bouton icône pour changer de catapulte */
+  /* Bouton flottant de catapulte masqué sur mobile (remplacé par le bouton intégré au dock bas) */
   .catapult-icon-switch-btn {
-    width: 60px;
-    height: 60px;
-    top: 45%;
-    border-width: 3px;
+    display: none !important;
   }
 
-  .catapult-icon-switch-btn.pos-right {
-    right: max(8px, env(safe-area-inset-right, 0));
-    left: auto;
-  }
-
-  .catapult-icon-switch-btn.pos-left {
-    left: max(8px, env(safe-area-inset-left, 0));
-    right: auto;
-  }
-
-  .cat-switch-icon {
-    font-size: 1.8rem;
-  }
-
-  .cat-switch-tag {
-    font-size: 0.68rem;
-    margin-top: 1px;
-  }
-
-  /* Commandes de tir et boulets dans le sable */
+  /* Commandes de tir et boulets dans le sable sur mobile (Dock ergonomique bas) */
   .sand-catapult-hud {
-    bottom: max(10px, env(safe-area-inset-bottom, 0));
-    left: 50% !important;
-    right: auto !important;
-    transform: translateX(-50%);
-    flex-direction: row !important;
-    gap: 6px;
-    max-width: 98vw;
-    justify-content: center;
-    padding: 0 4px;
+    position: fixed !important;
+    bottom: max(8px, env(safe-area-inset-bottom, 0)) !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    max-width: calc(100vw - 16px) !important;
+    transform: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    padding: 8px 10px !important;
+    background: rgba(44, 34, 24, 0.88) !important;
+    backdrop-filter: blur(12px) !important;
+    border-radius: 18px !important;
+    border: 2px solid var(--sand-border) !important;
+    box-shadow: 0 4px 22px rgba(0,0,0,0.45) !important;
+    z-index: 30 !important;
+  }
+
+  .sand-catapult-top-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .dock-pill-btn.btn-cat-switch {
+    flex: 1 !important;
+    height: 38px !important;
+    border-radius: 10px !important;
+    font-size: 0.80rem !important;
+    font-weight: 800 !important;
+    background: rgba(250, 204, 21, 0.22) !important;
+    border: 1.5px solid #facc15 !important;
+    color: #fef08a !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    cursor: pointer;
+  }
+
+  .dock-pill-btn.btn-dock-spray {
+    height: 38px !important;
+    padding: 0 12px !important;
+    border-radius: 10px !important;
+    font-size: 0.78rem !important;
+    font-weight: 800 !important;
+    background: rgba(56, 189, 248, 0.25) !important;
+    border: 1.5px solid #38bdf8 !important;
+    color: #e0f2fe !important;
+    cursor: pointer;
   }
 
   .sand-ammo-rack {
-    height: 44px;
-    padding: 0 6px;
-    gap: 4px;
-    max-width: 56vw;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-    flex-shrink: 1;
-    border-radius: 999px;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 44px !important;
+    padding: 0 4px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    background: rgba(0,0,0,0.22) !important;
+    border: 1px solid rgba(255,255,255,0.12) !important;
+    border-radius: 12px !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
   }
   .sand-ammo-rack::-webkit-scrollbar {
-    display: none;
+    display: none !important;
   }
 
   .shots-balls {
-    gap: 4px;
+    gap: 4px !important;
   }
 
   .shot-ball.ammo-type-btn {
-    min-width: 42px;
-    height: 34px;
-    padding: 0 6px;
-    gap: 3px;
-    border-radius: 999px;
+    min-width: 46px !important;
+    height: 36px !important;
+    padding: 0 6px !important;
+    gap: 3px !important;
+    border-radius: 9px !important;
   }
 
   .shot-ball-img {
@@ -3908,39 +4020,60 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   }
 
   .ammo-count-badge {
-    font-size: 0.72rem;
+    font-size: 0.70rem;
   }
 
   .sand-power-trigger-btn {
-    min-width: 110px;
-    max-width: 150px;
-    height: 44px;
-    padding: 0 10px;
-    flex-shrink: 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 50px !important;
+    min-height: 50px !important;
+    border-radius: 14px !important;
+    font-size: 1.05rem !important;
+    font-weight: 900 !important;
+    flex-shrink: 0 !important;
   }
 
   .sand-power-inner {
-    gap: 4px;
+    gap: 6px;
   }
 
   .sand-power-heading {
-    font-size: 0.76rem;
+    font-size: 0.88rem;
   }
 
   .sand-power-inner .power-bolt {
-    font-size: 1rem;
+    font-size: 1.15rem;
   }
 
   .sand-power-sub {
-    font-size: 0.72rem;
-    min-width: 28px;
+    font-size: 0.82rem;
+    min-width: 32px;
   }
 
-  /* Bannière Défense & Spectateur Flottante */
+  /* Bannière Défense & Spectateur sur mobile */
   .defender-floating-pill {
-    bottom: max(12px, env(safe-area-inset-bottom, 0));
-    padding: 6px 14px;
-    max-width: 94vw;
+    position: fixed !important;
+    bottom: max(10px, env(safe-area-inset-bottom, 0)) !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    max-width: calc(100vw - 16px) !important;
+    transform: none !important;
+    padding: 8px 12px !important;
+    border-radius: 16px !important;
+    background: rgba(15, 23, 42, 0.94) !important;
+    border: 2px solid #ef4444 !important;
+    box-shadow: 0 6px 24px rgba(239, 68, 68, 0.35) !important;
+    z-index: 30 !important;
+  }
+
+  .defender-pill-content {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    width: 100% !important;
   }
 
   .defender-icon {
@@ -3948,39 +4081,83 @@ h1, h2, .brand-badge, .phase-pill, .room-code-big, .timer-box, .btn {
   }
 
   .defender-text {
-    font-size: 0.76rem;
-    line-height: 1.25;
+    font-size: 0.74rem !important;
+    line-height: 1.25 !important;
+    flex: 1 !important;
   }
 
-  /* Centre de Notifications & Statut */
-  .game-chat-dock {
-    top: max(50px, calc(env(safe-area-inset-top, 0) + 42px));
-    right: max(8px, env(safe-area-inset-right, 0));
-    width: min(285px, calc(100vw - 16px));
-    max-height: calc(100vh - 120px);
-    border-radius: 12px;
+  .defender-spray-action-btn {
+    height: 40px !important;
+    padding: 0 12px !important;
+    font-size: 0.85rem !important;
+    font-weight: 800 !important;
+    border-radius: 10px !important;
+    background: #0284c7 !important;
+    border: 1.5px solid #38bdf8 !important;
+    color: #fff !important;
+    flex-shrink: 0 !important;
   }
 
-  .game-chat-dock.collapsed {
-    min-width: 135px;
-    width: auto;
+  /* Tiroir mobile de Notifications & Statut (Bottom Sheet drawer) */
+  .game-chat-dock:not(.mobile-open) {
+    display: none !important;
+  }
+
+  .game-chat-dock.mobile-open {
+    display: flex !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 52vh !important;
+    max-height: 52vh !important;
+    border-radius: 20px 20px 0 0 !important;
+    z-index: 100 !important;
+    background: rgba(15, 23, 42, 0.97) !important;
+    backdrop-filter: blur(14px) !important;
+    border: 2px solid var(--sand-border) !important;
+    box-shadow: 0 -10px 40px rgba(0,0,0,0.6) !important;
+    flex-direction: column !important;
+    animation: slideUpMobile 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+
+  @keyframes slideUpMobile {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  .chat-backdrop:not(.hidden) {
+    display: block !important;
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(0, 0, 0, 0.52) !important;
+    z-index: 99 !important;
+    backdrop-filter: blur(2px) !important;
   }
 
   .chat-header {
-    padding: 6px 10px;
+    padding: 10px 14px;
+    border-bottom: 1.5px solid rgba(255,255,255,0.1);
   }
 
   .chat-title-text {
-    font-size: 0.74rem;
+    font-size: 0.88rem;
+    font-weight: 800;
   }
 
   .chat-body {
-    max-height: 190px;
+    flex: 1;
+    max-height: none;
+    overflow-y: auto;
+    padding: 8px 12px;
   }
 
   .chat-messages {
-    max-height: 140px;
-    font-size: 0.76rem;
+    max-height: none;
+    font-size: 0.82rem;
   }
 
   /* Modale Camp d'entraînement */

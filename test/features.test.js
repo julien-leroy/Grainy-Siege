@@ -1131,6 +1131,16 @@ test('sandsim: aucune onde de choc ne tue le roi, l acide inflige des degats pro
   assert.equal(w.king.dead, false, 'un grain d acide ne le one-shot pas en un coup');
 });
 
+test('game: deconnexion du dernier humain laisse la salle sans humain (humansConnected = false)', () => {
+  const r = new Room('AUTO_CLOSE', createFakeIo());
+  const fakeSocket = { id: 'sock_human_1', emit: () => {}, join: () => {}, leave: () => {} };
+  r.addPlayer({ name: 'Alice', socket: fakeSocket });
+  r.addBot('12yo');
+  assert.equal(r.humanCount, 1);
+  assert.equal(r.humansConnected, true);
 
-
-
+  // Le joueur humain se déconnecte
+  r.disconnect(fakeSocket);
+  assert.equal(r.humanCount, 0, 'Il ne doit rester aucun humain connecté');
+  assert.equal(r.humansConnected, false, 'humansConnected doit être faux pour fermeture immédiate');
+});

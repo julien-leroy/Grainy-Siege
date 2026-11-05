@@ -201,6 +201,10 @@ io.on('connection', (socket) => {
       room = null;
       me = null;
       r.leavePlayer(pid);
+      if (!r.humansConnected || r.humanCount === 0) {
+        console.log(`🧹 [SALLE FERMÉE] Salle: ${r.code} fermée immédiatement (aucun humain restant après départ).`);
+        rooms.delete(r.code);
+      }
     }
     cb?.({ ok: true });
   }));
@@ -231,7 +235,13 @@ io.on('connection', (socket) => {
   }));
 
   socket.on('disconnect', () => {
-    room?.disconnect(socket);
+    if (room) {
+      room.disconnect(socket);
+      if (!room.humansConnected || room.humanCount === 0) {
+        console.log(`🧹 [SALLE FERMÉE] Salle: ${room.code} fermée immédiatement (aucun humain restant après déconnexion).`);
+        rooms.delete(room.code);
+      }
+    }
   });
 });
 
@@ -256,14 +266,18 @@ setInterval(() => {
   }
 }, 4);
 
-// ménage des salles abandonnées
+// ménage immédiat des salles abandonnées (sans aucun joueur humain connecté)
 setInterval(() => {
   const now = Date.now();
   for (const [code, r] of rooms) {
-    if (r.humansConnected) r.lastActivity = now;
-    else if (now - r.lastActivity > 120000) rooms.delete(code);
+    if (!r.humansConnected || r.humanCount === 0) {
+      console.log(`🧹 [SALLE FERMÉE] Salle: ${code} nettoyée (aucun joueur humain connecté).`);
+      rooms.delete(code);
+    } else {
+      r.lastActivity = now;
+    }
   }
-}, 10000);
+}, 5000);
 
 // ------------------------------------------------------------------ API d'admin (utilisée par le serveur MCP)
 const api = express.Router();

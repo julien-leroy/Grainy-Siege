@@ -84,31 +84,89 @@ let remoteAim = null;
 let lastSecondTick = -1;
 let myCatapultSide = 'left';
 
+function triggerQuickSpray() {
+  if (roomState?.phase === 'build') {
+    selectTool('spray');
+    toast('💦 Spray sélectionné : touche ton château pour le durcir !');
+  } else if (roomState?.phase === 'battle') {
+    if (inspectingOwnCastle || roomState?.turn?.targetId === myId) {
+      socket.emit('spray', { x: 210, y: GROUND_Y - 30 }, (res) => {
+        if (res?.ok) {
+          sfx.spray();
+          renderer.waterMist(210, GROUND_Y - 30);
+          toast('💦 Spray appliqué sur ton château !');
+        } else if (res?.error) {
+          toast(`⚠️ ${res.error}`);
+        }
+      });
+    } else {
+      inspectingOwnCastle = true;
+      syncUI();
+      toast('🏰 Vue sur ton château : ré-appuie pour appliquer le spray 💦 !');
+    }
+  }
+}
+
 function updateCatapultSwitchButton() {
   const switchBtn = $('catapult-switch-btn');
-  if (!switchBtn) return;
   const inBattle = roomState?.phase === 'battle';
   const isShooter = inBattle && roomState?.turn?.shooterId === myId && roomState.turn.state === 'aim' && !inspectingOwnCastle;
-  switchBtn.classList.toggle('hidden', !inBattle || !isShooter);
-
-  // Le bouton pour changer de catapulte est placé de l'autre côté de l'écran
   const isLeft = myCatapultSide === 'left';
-  switchBtn.classList.toggle('pos-right', isLeft);
-  switchBtn.classList.toggle('pos-left', !isLeft);
-  switchBtn.title = isLeft ? 'Passer à la Catapulte Droite [Touche D]' : 'Passer à la Catapulte Gauche [Touche Q ou A]';
 
-  const nameEl = $('hud-cat-name');
-  if (nameEl) {
-    nameEl.textContent = isLeft ? '⇄ DROITE' : '⇄ GAUCHE';
+  if (switchBtn) {
+    switchBtn.classList.toggle('hidden', !inBattle || !isShooter);
+    switchBtn.classList.toggle('pos-right', isLeft);
+    switchBtn.classList.toggle('pos-left', !isLeft);
+    switchBtn.title = isLeft ? 'Passer à la Catapulte Droite [Touche D]' : 'Passer à la Catapulte Gauche [Touche Q ou A]';
+    const nameEl = $('hud-cat-name');
+    if (nameEl) nameEl.textContent = isLeft ? '⇄ DROITE' : '⇄ GAUCHE';
+
+    if (!switchBtn._init) {
+      switchBtn._init = true;
+      switchBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        unlock();
+        setCatapultSide(myCatapultSide === 'left' ? 'right' : 'left');
+      });
+    }
   }
 
-  if (!switchBtn._init) {
-    switchBtn._init = true;
-    switchBtn.addEventListener('click', (e) => {
+  // Barre mobile de commande dans le dock bas
+  const dockNameEl = $('dock-cat-name');
+  if (dockNameEl) {
+    dockNameEl.textContent = isLeft ? '⇄ Catapulte Droite' : '⇄ Catapulte Gauche';
+  }
+  const dockSwitchBtn = $('dock-cat-switch-btn');
+  if (dockSwitchBtn && !dockSwitchBtn._init) {
+    dockSwitchBtn._init = true;
+    dockSwitchBtn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
       unlock();
       setCatapultSide(myCatapultSide === 'left' ? 'right' : 'left');
+    });
+  }
+
+  const dockSprayBtn = $('dock-spray-btn');
+  if (dockSprayBtn && !dockSprayBtn._init) {
+    dockSprayBtn._init = true;
+    dockSprayBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      unlock();
+      triggerQuickSpray();
+    });
+  }
+
+  const defSprayBtn = $('defender-spray-btn');
+  if (defSprayBtn && !defSprayBtn._init) {
+    defSprayBtn._init = true;
+    defSprayBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      unlock();
+      triggerQuickSpray();
     });
   }
 
@@ -942,6 +1000,79 @@ socket.on('connect', () => {
   }
 });
 
+socket.on('disconnect', (reason) => {
+  console.warn('Socket déconnecté :', reason);
+  if (myCode || roomState || myId) {
+    leaveRoom();
+    toast('🔌 Connexion interrompue. Retour au salon d\'accueil.');
+  }
+});
+
+// Détection de verrouillage du téléphone ou mise en veille prolongée (ex: 3 minutes)
+let pageHiddenAt = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    pageHiddenAt = Date.now();
+  } else {
+    if (pageHiddenAt > 0) {
+      const elapsed = Date.now() - pageHiddenAt;
+      pageHiddenAt = 0;
+      if (elapsed > 25000) {
+        if (myCode || roomState || myId) {
+          console.log(`💤 Réveil après mise en veille (${Math.round(elapsed / 1000)}s) : réinitialisation complète.`);
+          leaveRoom();
+          toast('💤 Retour après mise en veille prolongée. Données réinitialisées.');
+          if (!socket.connected) socket.connect();
+        }
+      }
+    }
+  }
+});
+
+window.addEventListener('pageshow', (event) => {
+  if (event.persisted && (myCode || roomState || myId)) {
+    leaveRoom();
+    if (!socket.connected) socket.connect();
+  }
+});
+
+// Enregistrement PWA (Progressive Web App - installation & plein écran)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
+      console.warn('ServiceWorker error:', err);
+    });
+  });
+}
+
+// Gestion du tiroir mobile de notifications et du mode plein écran
+$('mobile-chat-trigger')?.addEventListener('click', () => {
+  const dock = $('game-chat-dock');
+  const backdrop = $('chat-backdrop');
+  if (!dock) return;
+  dock.classList.toggle('mobile-open');
+  dock.classList.remove('hidden');
+  dock.classList.remove('collapsed');
+  const isOpen = dock.classList.contains('mobile-open');
+  backdrop?.classList.toggle('hidden', !isOpen);
+  if (isOpen) clearUnread();
+});
+
+$('chat-backdrop')?.addEventListener('click', () => {
+  $('game-chat-dock')?.classList.remove('mobile-open');
+  $('chat-backdrop')?.classList.add('hidden');
+});
+
+$('pause-fullscreen-btn')?.addEventListener('click', () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {
+      toast('📱 Plein écran non supporté par ce navigateur.');
+    });
+  } else {
+    document.exitFullscreen().catch(() => {});
+  }
+});
+
 // ------------------------------------------------------------------ Réception réseau
 socket.on('world', (msg) => {
   if (!myId) return;
@@ -1681,9 +1812,19 @@ function syncUI() {
     }
   }
 
-  // Garder les anciens bandeaux masqués pour ne jamais chevaucher la plage ni la jauge de sprays
+  // Bannière Défenseur / Cible
+  const isDefenderTarget = s.phase === 'battle' && s.turn?.targetId === myId && Boolean(me?.alive);
+  const defControls = $('defender-controls');
+  if (defControls) {
+    defControls.classList.toggle('hidden', !isDefenderTarget);
+    const defSprayCount = $('defender-spray-count');
+    if (defSprayCount) defSprayCount.textContent = String(me?.defenseSpraysLeft ?? 0);
+  }
+
+  const dockSprayCount = $('dock-spray-count');
+  if (dockSprayCount) dockSprayCount.textContent = String(me?.defenseSpraysLeft ?? 0);
+
   $('banner-msg')?.classList.add('hidden');
-  $('defender-controls')?.classList.add('hidden');
 
   // Docks de construction (atelier à gauche et inventaire en bas)
   $('build-dock')?.classList.toggle('hidden', s.phase !== 'build');
@@ -2888,6 +3029,11 @@ function incrementUnread() {
     badge.textContent = String(unreadChatCount);
     badge.classList.remove('hidden');
   }
+  const mobBadge = $('mobile-chat-badge');
+  if (mobBadge) {
+    mobBadge.textContent = String(unreadChatCount);
+    mobBadge.classList.remove('hidden');
+  }
 }
 
 function clearUnread() {
@@ -2896,6 +3042,11 @@ function clearUnread() {
   if (badge) {
     badge.textContent = '0';
     badge.classList.add('hidden');
+  }
+  const mobBadge = $('mobile-chat-badge');
+  if (mobBadge) {
+    mobBadge.textContent = '0';
+    mobBadge.classList.add('hidden');
   }
 }
 

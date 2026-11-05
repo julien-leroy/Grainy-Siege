@@ -4,12 +4,18 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Grainy Siege — Bataille Royale de Châteaux de Sable</title>
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Grainy Siege" />
+  <meta name="theme-color" content="#0284c7" />
+  <link rel="manifest" href="/manifest.json" />
   <link rel="icon" type="image/png" href="/logo.png" />
   <link rel="apple-touch-icon" href="/logo.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&family=Pixelify+Sans:wght@500;600;700&family=Silkscreen:wght@400;700&family=Quicksand:wght@600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/style.css?v=5" />
+  <link rel="stylesheet" href="/css/style.css?v=6" />
 </head>
 <body>
   <!-- Arrière-plan animé du site avec Parallax léger (Ciel, Mer, Nuages & Oiseaux) -->
@@ -52,6 +58,9 @@
     <div class="hud-right">
       <button id="spray-quick-btn" class="pill spray-pill hidden" title="Arroser ton château au spray pour le durcir [Touche E]">
         💦 Spray : <strong id="spray-status-txt">PRÊT</strong>
+      </button>
+      <button id="mobile-chat-trigger" class="icon-btn mobile-chat-btn" type="button" title="Afficher les notifications" aria-label="Notifications">
+        🔔<span id="mobile-chat-badge" class="chat-badge-mini hidden">0</span>
       </button>
       <button id="mute-btn" class="icon-btn" title="Activer / couper les effets sonores">🔊</button>
       <button id="music-btn" class="icon-btn" title="Activer / couper la musique">🎵</button>
@@ -252,6 +261,16 @@
 
   <!-- Actions de tir directement dans le sable (près de la catapulte active) -->
   <div id="catapult-hud" class="sand-catapult-hud hidden" aria-label="Commandes de tir dans le sable">
+    <!-- 0. Barre mobile : Switch catapulte & Spray direct sous le pouce -->
+    <div class="sand-catapult-top-row" id="sand-catapult-top-row">
+      <button id="dock-cat-switch-btn" class="dock-pill-btn btn-cat-switch" type="button" title="Changer de côté de catapulte">
+        <span class="cat-switch-icon">☄️</span> <span id="dock-cat-name">⇄ Catapulte Droite</span>
+      </button>
+      <button id="dock-spray-btn" class="dock-pill-btn btn-dock-spray" type="button" title="Arroser ton château au spray">
+        💦 Spray (<strong id="dock-spray-count">1</strong>)
+      </button>
+    </div>
+
     <!-- 1. Râtelier des boulets disponibles (max 5) -->
     <div class="sand-ammo-rack" id="sand-ammo-rack" title="Boulets disponibles pour cette manche (max 5)">
       <div class="shots-balls" id="shots-balls"></div>
@@ -268,23 +287,25 @@
     </button>
   </div>
 
-    <!-- Éléments masqués conservés pour compatibilité complète -->
-    <input id="angle-slider" type="range" min="8" max="82" value="45" step="0.5" class="sr-only" aria-label="Angle de tir" />
-    <input id="power-slider" type="range" min="5" max="100" value="65" class="sr-only" aria-label="Puissance en %"/>
-    <button id="fire-btn" class="hidden" aria-hidden="true"></button>
-    <div class="hidden" aria-hidden="true">
-      <button id="btn-side-left"></button>
-      <button id="btn-side-right"></button>
-    </div>
-  </footer>
+  <!-- Éléments masqués conservés pour compatibilité complète -->
+  <input id="angle-slider" type="range" min="8" max="82" value="45" step="0.5" class="sr-only" aria-label="Angle de tir" />
+  <input id="power-slider" type="range" min="5" max="100" value="65" class="sr-only" aria-label="Puissance en %"/>
+  <button id="fire-btn" class="hidden" aria-hidden="true"></button>
+  <div class="hidden" aria-hidden="true">
+    <button id="btn-side-left"></button>
+    <button id="btn-side-right"></button>
+  </div>
 
-  <!-- Bannière Défense & Spectateur : Flottante et translucide pour ne JAMAIS masquer le château -->
+  <!-- Bannière Défense & Spectateur : Flottante et ergonomique -->
   <aside id="defender-controls" class="defender-floating-pill hidden" aria-live="polite">
     <div class="defender-pill-content">
       <span class="defender-icon">🛡️</span>
       <div class="defender-text" id="spectator-msg">
-        <strong>Tu es pris pour cible !</strong> Appuie sur [E] pour sélectionner le <strong>Spray 💦</strong> puis clique pour durcir !
+        <strong>Tu es pris pour cible !</strong> Durcis ton château au spray !
       </div>
+      <button id="defender-spray-btn" class="btn btn-primary btn-sm defender-spray-action-btn" type="button">
+        💦 Spray (<span id="defender-spray-count">1</span>)
+      </button>
     </div>
   </aside>
 
@@ -351,6 +372,9 @@
       <div class="pause-actions-list">
         <button id="pause-resume-btn" class="btn btn-primary btn-lg" type="button">
           ▶️ Reprendre le siège
+        </button>
+        <button id="pause-fullscreen-btn" class="btn btn-primary btn-lg" type="button" style="background: linear-gradient(135deg, #0284c7, #0369a1);">
+          📱 Mode Plein Écran
         </button>
         <button id="pause-lobby-btn" class="btn btn-secondary btn-lg" type="button">
           🏖️ Revenir au salon (Lobby)
@@ -463,6 +487,9 @@
 
   <!-- Journal discret fusionné dans le centre de notifications -->
   <div id="toast-log" class="toast-log hidden"></div>
+
+  <!-- Backdrop pour le tiroir de notifications sur mobile -->
+  <div id="chat-backdrop" class="chat-backdrop hidden" aria-hidden="true"></div>
 
   <!-- Centre de Notifications & Statut (remplace le chat et regroupe toutes les alertes sans chevaucher les actions) -->
   <aside id="game-chat-dock" class="game-chat-dock hidden" aria-label="Notifications et statut de bataille">
